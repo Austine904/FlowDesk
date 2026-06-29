@@ -2,10 +2,10 @@
 
 namespace App\Controllers;
 
-use CodeIgniter\Controller;
+use App\Controllers\BaseController;
 use CodeIgniter\Database\Exceptions\DataException;
 
-class VehicleController extends Controller
+class VehicleController extends BaseController
 {
     public function index()
     {
@@ -39,7 +39,7 @@ class VehicleController extends Controller
     public function add()
     {
         $vehicleData = [
-            'vehicle_number' => $this->request->getPost('vehicle_number'),
+            'registration_number' => $this->request->getPost('registration_number'),
             'make' => $this->request->getPost('make'),
             'model' => $this->request->getPost('model'),
             'year' => $this->request->getPost('year'),
@@ -106,7 +106,7 @@ public function update($id)
 
     $db = \Config\Database::connect();
     $builder = $db->table('vehicles');
-    $builder->where('id', $data['id'])->update($data);
+    $builder->where('id', $id)->update($data);
 
     return $this->response->setJSON(['status' => 'success']);
 }

@@ -254,7 +254,7 @@
         <input type="text" class="form-control" name="leave_type">
       </div>`;
         html += `<input type="hidden" name="related_table" value="users">
-        <input type="hidden" name="related_id" value="${LOGGED_IN_USER_ID}">`;
+        <input type="hidden" name="related_id" value="${loggedInUserId}">`;
       }
 
       dynamicContainer.innerHTML = html;

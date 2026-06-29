@@ -16,7 +16,7 @@ class DashboardController extends BaseController
             'userId' => session()->get('user_id'),
         ];
 
-        return view('dashboard', $data);
+        return view('admin/dashboard', $data);
     }
 
     public function admin()
@@ -202,7 +202,10 @@ class DashboardController extends BaseController
         // Count total jobs
         $totalJobsQuery = array_sum($jobStatusData);
 
+        $pendingLPOs = 0; // placeholder until LPO module is built
+
         $data = [
+            'pendingLPOs'     => $pendingLPOs,
             'userCount'       => $userCount,
             'vehicleCount'    => $vehicleCount,
             'latestUsers'     => $latestUsers,

@@ -131,7 +131,7 @@ class JobsController extends BaseController
 
     public function edit($id)
     {
-        $job = $this->db->table('jobs')->where('id', $id)->get()->getRowArray();
+        $job = $this->db->table('job_cards')->where('id', $id)->get()->getRowArray();
 
         if (!$job) {
             return redirect()->to('/admin/jobs')->with('error', 'Job not found.');
@@ -156,7 +156,7 @@ class JobsController extends BaseController
         $data = $this->request->getPost();
 
         try {
-            $this->db->table('jobs')->update($data, ['id' => $id]);
+            $this->db->table('job_cards')->update($data, ['id' => $id]);
             return redirect()->to('/admin/jobs')->with('success', 'Job updated successfully!');
         } catch (\Exception $e) {
             return redirect()->back()->withInput()->with('error', 'Error: ' . $e->getMessage());
@@ -167,10 +167,7 @@ class JobsController extends BaseController
     {
         try {
             // Soft delete
-            $this->db->table('jobs')->where('id', $id)->update(['deleted_at' => date('Y-m-d H:i:s')]);
-
-            // Hard delete
-            $this->db->table('jobs')->delete(['id' => $id]);
+            $this->db->table('job_cards')->where('id', $id)->update(['deleted_at' => date('Y-m-d H:i:s')]);
 
             return redirect()->to('/admin/jobs')->with('success', 'Job deleted successfully!');
         } catch (\Exception $e) {

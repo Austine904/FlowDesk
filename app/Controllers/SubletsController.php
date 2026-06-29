@@ -264,7 +264,7 @@ class SubletsController extends BaseController
                 return $this->failNotFound('Sublet not found.');
             }
 
-            return view('admin/sublets/_details', ['sublet' => $sublet]);
+            return view('sublets/_details', ['sublet' => $sublet]);
 
         } catch (DatabaseException $e) {
             log_message('error', 'Database error fetching sublet details: ' . $e->getMessage());
