@@ -85,7 +85,7 @@
     <footer class="bg-light text-dark text-center py-3" style="margin-left: 200px;">
         <div class="container">
             <p>Developed by Austiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiine</p>
-            <small>&copy; <?= date('Y') ?> Garage Management System. All rights reserved.</small>
+            <small>&copy; <?= date('Y') ?> FlowDesk. All rights reserved.</small>
         </div>
     </footer>
 

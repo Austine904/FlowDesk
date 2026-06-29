@@ -1,18 +1,18 @@
-# AGENTS.md — Garage Management System (GarageMS)
+# AGENTS.md — FlowDesk Organizational Management System
 
 ## 1. PROJECT OVERVIEW
 
-GarageMS is a garage/shop management system for tracking job cards, vehicles, customers, users, sublets, and calendar events. Built as a single CodeIgniter 4 application with role-based dashboards.
+FlowDesk is a garage/shop management system for tracking job cards, vehicles, customers, users, sublets, and calendar events. Built as a single CodeIgniter 4 application with role-based dashboards.
 
 **Stack:**
 - Framework: CodeIgniter 4 (v4.x, PHP 8.1+)
 - PHP version: 8.1+
-- Database: MySQL 5.7+ / MariaDB, database name `gmsystem` (note: `app/Config/Database.php` says `gms_db` — this is stale; `.env` has `gmsystem` which is the actual database)
+- Database: MySQL 5.7+ / MariaDB, database name `flowdesk` (note: `app/Config/Database.php` says `flowdesk` — this is stale; `.env` has `flowdesk` which is the actual database)
 - Frontend: Bootstrap 5.3, jQuery 3.6, DataTables 1.13, FullCalendar 6.1, Chart.js, SweetAlert2, Select2, Font Awesome / Bootstrap Icons
 - Web server: Apache with mod_rewrite (XAMPP)
 
-**Local dev URL:** `http://localhost/GMSystem/`
-**Root folder:** `C:\xampp\htdocs\GMSystem`
+**Local dev URL:** `http://localhost/FlowDesk/`
+**Root folder:** `C:\xampp\htdocs\FlowDesk`
 
 **Entry point:** `index.php` → `app/Config/Paths.php` → CodeIgniter boot
 **Routing:** `app/Config/Routes.php` — explicit routes only (no auto-routing). Route groups with `filter` for auth.
@@ -20,7 +20,7 @@ GarageMS is a garage/shop management system for tracking job cards, vehicles, cu
 ## 2. ARCHITECTURE
 
 ```
-C:\xampp\htdocs\GMSystem\
+C:\xampp\htdocs\FlowDesk\
 ├── app/
 │   ├── Config/          # CI4 config files (App, Database, Routes, Filters, etc.)
 │   ├── Controllers/     # All controllers (11 files)
@@ -47,7 +47,7 @@ C:\xampp\htdocs\GMSystem\
 ├── uploads/users/       # Profile picture uploads
 ├── vendor/              # Composer dependencies
 ├── writable/            # CI4 cache/logs/session
-├── .htaccess            # RewriteBase /GMSystem/
+├── .htaccess            # RewriteBase /FlowDesk/
 └── index.php            # Front controller
 ```
 
@@ -67,7 +67,7 @@ C:\xampp\htdocs\GMSystem\
 
 ## 3. DATABASE
 
-Database: **gmsystem** (MySQL). No migrations exist — schema lives in the database only.
+Database: **flowdesk** (MySQL). No migrations exist — schema lives in the database only.
 
 ### Tables
 
@@ -264,7 +264,7 @@ This table exists alongside `job_cards`. The FK `jobs.assigned_to -> users.id` e
 
 ### Known Mismatches
 
-- `app/Config/Database.php` says database is `gms_db` — the actual database is `gmsystem` (set in `.env`).
+- `app/Config/Database.php` says database is `flowdesk` — the actual database is `flowdesk` (set in `.env`).
 - `jobs` table exists but is **legacy/unused** — all current code uses `job_cards`.
 - `vehicles.registration_number` is the actual column name, but some old code or comments may reference `vehicle_number` — always use `registration_number`.
 - `users.name` is a STORED GENERATED column (concatenation of `first_name` + `last_name`), but some code references `first_name`/`last_name` directly.
@@ -321,13 +321,13 @@ This table exists alongside `job_cards`. The FK `jobs.assigned_to -> users.id` e
 | ID | File | Line | Description | Severity |
 |----|------|------|-------------|----------|
 | BUG-010 | `app/Config/Routes.php` | 83 | Route `vechicles/edit/(:num)` — typo "vechicles" should be "vehicles" | Low |
-| BUG-011 | Various | — | Two different database names: `app/Config/Database.php` says `gms_db`, `.env` says `gmsystem`. Actual DB is `gmsystem` | Medium |
+| BUG-011 | Various | — | Two different database names: `app/Config/Database.php` says `flowdesk`, `.env` says `flowdesk`. Actual DB is `flowdesk` | Medium |
 | BUG-012 | `app/Controllers/JobsController.php` | — | `create()` method referenced in route `admin/jobs/create` does not exist in controller | Critical |
 | BUG-013 | `app/Controllers/CalendarController.php` | — | `updateEventDate()` referenced in route `admin/calendar/updateEventDate` does not exist | Medium |
 | BUG-014 | `app/Controllers/SubletsController.php` | — | `fetchSublets()`, `edit()`, `update()` methods referenced in routes do not exist | Medium |
 | BUG-019 | `app/Config/Routes.php` | 40, 74 | Route `admin/users/bulk_action` and `user/add_step1` reference `UsersController` methods that exist, but `submit()` route (line 40) references `UsersController::submit()` which does not exist in the controller | Medium |
 | BUG-020 | `app/Controllers/JobIntake.php` | 337-384 | `mechanic_view()`, `search_parts()`, `save_diagnosis()` exist but have no routes defined | Medium |
-| BUG-021 | `app/Config/Database.php` | 32 | `database` key says `gms_db` but actual database is `gmsystem` | Low |
+| BUG-021 | `app/Config/Database.php` | 32 | `database` key says `flowdesk` but actual database is `flowdesk` | Low |
 
 ## 6. MISSING FEATURES
 
@@ -490,8 +490,8 @@ AJAX endpoints under `admin/` typically return JSON via `$this->response->setJSO
 
 6. **No migrations — schema lives in database only**: The `app/Database/Migrations/` directory is empty. The schema was created manually (likely via phpMyAdmin or direct SQL). Any schema changes must be applied directly.
 
-7. **`baseURL` must be `http://localhost/GMSystem/`**: Set in `app/Config/App.php` line 19. Change this if deploying elsewhere.
+7. **`baseURL` must be `http://localhost/FlowDesk/`**: Set in `app/Config/App.php` line 19. Change this if deploying elsewhere.
 
-8. **`.htaccess RewriteBase` must be `/GMSystem/`**: Set in `.htaccess` line 12. Must match the `baseURL` path.
+8. **`.htaccess RewriteBase` must be `/FlowDesk/`**: Set in `.htaccess` line 12. Must match the `baseURL` path.
 
-9. **Two database configs**: `app/Config/Database.php` has `'database' => 'gms_db'` but `.env` has `database.default.database = gmsystem`. The `.env` value wins. The actual database is `gmsystem`.
+9. **Two database configs**: `app/Config/Database.php` has `'database' => 'flowdesk'` but `.env` has `database.default.database = flowdesk`. The `.env` value wins. The actual database is `flowdesk`.
