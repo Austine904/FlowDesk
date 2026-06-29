@@ -43,7 +43,7 @@
         <?php endif; ?>
 
         <form method="POST" action="<?= base_url('admin/sublets/bulkAction') ?>" id="bulkActionForm" class="mt-5">
-
+            <?= csrf_field() ?>
 
             <div class="table-responsive rounded">
                 <table class="table table-striped table-bordered " id="subletTable" style="width:100%">

@@ -224,14 +224,9 @@ class CustomersController extends BaseController
             // Start a transaction for bulk deletion
             $this->db->transStart();
 
-            // First, delete associated vehicles to satisfy foreign key constraints
-            // (assuming vehicles are CASCADE DELETE or you handle them explicitly)
-            // If `vehicles.owner_id` has ON DELETE CASCADE, this step might not be strictly necessary
-            // if you delete the customer directly. However, if not, you must delete related records first.
-            // For safety, you might want to soft-delete or archive instead of hard delete.
-            $this->db->table('vehicles')->whereIn('owner_id', $customer_ids)->delete();
+            // NOTE: Vehicle cascade delete removed for safety — vehicles.owner_id has FK constraint.
+            // If deleting a customer, ensure vehicles are reassigned or handled separately.
 
-            // Then, delete the customers
             $this->db->table('customers')->whereIn('id', $customer_ids)->delete();
 
             $this->db->transComplete();
@@ -240,7 +235,7 @@ class CustomersController extends BaseController
                 throw new Exception('Transaction failed during bulk customer deletion.');
             }
 
-            session()->setFlashdata('success', count($customer_ids) . ' customer(s) and their associated vehicles deleted successfully.');
+            session()->setFlashdata('success', count($customer_ids) . ' customer(s) deleted successfully.');
         } catch (Exception $e) {
             $this->db->transRollback();
             session()->setFlashdata('error', 'Failed to delete customers: ' . $e->getMessage());

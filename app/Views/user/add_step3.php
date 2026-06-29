@@ -14,6 +14,7 @@
         </div>
         <div class="card-body">
             <form id="step3Form" method="POST">
+                <?= csrf_field() ?>
                 <!-- First Name -->
                 <div class="mb-3">
                     <label for="kin_first_name" class="form-label">First Name</label>

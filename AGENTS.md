@@ -2,20 +2,17 @@
 
 ## 1. PROJECT OVERVIEW
 
-FlowDesk is a garage/shop management system for tracking job cards, vehicles, customers, users, sublets, and calendar events. Built as a single CodeIgniter 4 application with role-based dashboards.
+FlowDesk is a modular, single-org deployment management system for small businesses — a garage/shop management system for tracking job cards, vehicles, customers, users, sublets, and calendar events. Built as a single CodeIgniter 4 application with role-based dashboards.
 
 **Stack:**
-- Framework: CodeIgniter 4 (v4.x, PHP 8.1+)
-- PHP version: 8.1+
-- Database: MySQL 5.7+ / MariaDB, database name `flowdesk` (note: `app/Config/Database.php` says `flowdesk` — this is stale; `.env` has `flowdesk` which is the actual database)
+- Framework: CodeIgniter 4 (v4.x, PHP 8.2+)
+- Database: MySQL 5.7+ / MariaDB (`flowdesk`)
 - Frontend: Bootstrap 5.3, jQuery 3.6, DataTables 1.13, FullCalendar 6.1, Chart.js, SweetAlert2, Select2, Font Awesome / Bootstrap Icons
 - Web server: Apache with mod_rewrite (XAMPP)
 
 **Local dev URL:** `http://localhost/FlowDesk/`
-**Root folder:** `C:\xampp\htdocs\FlowDesk`
-
-**Entry point:** `index.php` → `app/Config/Paths.php` → CodeIgniter boot
-**Routing:** `app/Config/Routes.php` — explicit routes only (no auto-routing). Route groups with `filter` for auth.
+**Local path:** `C:\xampp\htdocs\FlowDesk`
+**GitHub:** `https://github.com/Austine904/FlowDesk`
 
 ## 2. ARCHITECTURE
 
@@ -23,7 +20,7 @@ FlowDesk is a garage/shop management system for tracking job cards, vehicles, cu
 C:\xampp\htdocs\FlowDesk\
 ├── app/
 │   ├── Config/          # CI4 config files (App, Database, Routes, Filters, etc.)
-│   ├── Controllers/     # All controllers (11 files)
+│   ├── Controllers/     # 11 controllers (no Admin/ subdirectory)
 │   ├── Database/
 │   │   ├── Migrations/  # EMPTY — no migration files exist
 │   │   └── Seeds/       # EMPTY — no seed files exist
@@ -35,39 +32,38 @@ C:\xampp\htdocs\FlowDesk\
 │       ├── customers/   # customers.php, modals.php
 │       ├── errors/      # unauthorized.php, html/ and cli/ error pages
 │       ├── job/         # index.php, modals.php
+│       ├── jobs/        # add.php, edit.php
 │       ├── layouts/     # main.php
 │       ├── partials/    # sidebar.php
 │       ├── sublets/     # index.php, form.php, _details.php, modals.php
 │       ├── user/        # add_step1/2/3.php, preview.php, success.php, getLastId.php
-│       ├── vehicles/    # index.php, modals.php
-│       └── *.php        # login.php, dashboard variants, welcome_message.php
+│       ├── vehicles/    # index.php, add.php, edit.php, modals.php
+│       └── *.php        # login.php, dashboard variants (receptionist, mechanic, customer), welcome_message.php
 ├── public/
 │   ├── assets/js/       # vehicles.js, job_intake.js, customers.js, calendar.js, sublets.js
 │   └── css/             # Per-module CSS files
-├── uploads/users/       # Profile picture uploads
+├── uploads/             # User-uploaded files (profile pictures, job card photos) — gitignored
 ├── vendor/              # Composer dependencies
-├── writable/            # CI4 cache/logs/session
+├── writable/            # CI4 cache, logs, sessions
 ├── .htaccess            # RewriteBase /FlowDesk/
 └── index.php            # Front controller
 ```
 
-**Controllers, Views, Filters, Routes:**
-- **Controllers** extend `BaseController` (which extends `CodeIgniter\Controller`). They call `\Config\Database::connect()` for raw DB access. No models — all DB queries are `$db->table('name')->...` or raw SQL.
-- **Views** are loaded with `return view('path', $data)` and frequently extend `layouts/main` (which includes sidebar, Bootstrap, DataTables, etc.). Views that don't extend `layouts/main` (like `admin/add_user.php`) are standalone.
-- **Auth** is enforced two ways: (1) route groups with `'filter' => 'auth:role'` in `Routes.php`, and (2) manual `session()->get('isLoggedIn')` checks inside controller methods.
-- **Routes** are defined in `app/Config/Routes.php`. Public routes are top-level. Protected routes are in named groups (`admin`, `receptionist`, `mechanic`, `customer`) with `filter` applied.
+**Routing:** Defined in `app/Config/Routes.php`. Explicit routes only (no auto-routing). Route groups use the `filter` option for auth. Public routes are top-level. Protected routes are grouped by prefix (`admin`, `job_intake`, `mechanic`, `receptionist`, `customer`).
 
-**Auth system:**
-- `AuthFilter` (`app/Filters/AuthFilter.php`) checks `session()->get('isLoggedIn')` and, if role arguments are provided, validates `session()->get('role')` is in the allowed list.
-- Login writes these session keys: `user_id`, `user_name`, `role`, `company_id`, `profile_picture`, `isLoggedIn`.
-- Logout destroys the session and redirects to `/login`.
-- Roles: `admin`, `mechanic`, `receptionist`, `customer`.
+**Auth:** `AuthFilter` (`app/Filters/AuthFilter.php`) checks `session()->get('isLoggedIn')` and, if role arguments are provided on the filter, validates `session()->get('role')` is in the allowed list. Some controller methods also duplicate this check manually. Login writes these session keys: `user_id`, `user_name`, `role`, `company_id`, `profile_picture`, `isLoggedIn`. Logout destroys the session and redirects to `/login`.
 
-**No models exist.** All DB access is raw `$db->table('table_name')` query builder calls or `$db->query('SELECT ...')` inside controllers. There are no Eloquent-like models or repository classes.
+**Views:** Most views extend `layouts/main` using `$this->extend('layouts/main')` with `$this->section('content')`. The layout includes the sidebar (`partials/sidebar.php`), Bootstrap, DataTables, and other global assets. Standalone views (e.g. `admin/add_user.php`, the user registration wizard) do not extend the layout.
+
+**No models.** All database access uses `$db->table('table_name')->...` query builder calls or raw `$db->query('SELECT ...')` directly in controllers.
+
+**CSRF:** Globally enabled in `app/Config/Filters.php` (`$globals['before']` includes `'csrf'`). Every POST form must include `<?= csrf_field() ?>`. AJAX POST requests must pass the CSRF token.
+
+**File uploads:** User-uploaded files go to `uploads/users/` (profile pictures) and `uploads/job_card_photos/` (job card photos). The `uploads/` directory is gitignored (contains `.gitkeep`).
 
 ## 3. DATABASE
 
-Database: **flowdesk** (MySQL). No migrations exist — schema lives in the database only.
+**Database name:** `flowdesk` (lowercase). No migrations exist — the schema was created manually and lives in the database only.
 
 ### Tables
 
@@ -134,7 +130,9 @@ Database: **flowdesk** (MySQL). No migrations exist — schema lives in the data
 | address | text | NULL |
 | created_at | datetime | NOT NULL, DEFAULT current_timestamp() |
 
-#### job_cards (the real jobs table)
+**Note:** `customers` has no `deleted_at` column — no soft-delete support yet.
+
+#### job_cards (the real transactional jobs table)
 | Column | Type | Notes |
 |--------|------|-------|
 | id | int(10) unsigned | PK, auto_increment |
@@ -230,7 +228,7 @@ Database: **flowdesk** (MySQL). No migrations exist — schema lives in the data
 | created_by_user_id | int(10) unsigned | FK → users.id |
 | created_at | datetime | NOT NULL, DEFAULT current_timestamp() |
 
-#### jobs (legacy table, mostly unused)
+#### jobs (legacy/unused table)
 | Column | Type | Notes |
 |--------|------|-------|
 | id | int(10) unsigned | PK, auto_increment |
@@ -242,7 +240,7 @@ Database: **flowdesk** (MySQL). No migrations exist — schema lives in the data
 | updated_at | datetime | NULL |
 | deleted_at | datetime | NULL |
 
-This table exists alongside `job_cards`. The FK `jobs.assigned_to -> users.id` exists in information_schema, but **the codebase now uses `job_cards` exclusively**. `jobs` is a legacy table. Do not write to it.
+**Note:** The `jobs` table exists alongside `job_cards` but is legacy/unused. All current operations use `job_cards`. Do not write to the `jobs` table.
 
 ### FK Relationships
 
@@ -262,132 +260,155 @@ This table exists alongside `job_cards`. The FK `jobs.assigned_to -> users.id` e
 | calendar_events.created_by_user_id | users.id | fk_ce_created_by |
 | jobs.assigned_to | users.id | fk_jobs_assigned (legacy) |
 
-### Known Mismatches
-
-- `app/Config/Database.php` says database is `flowdesk` — the actual database is `flowdesk` (set in `.env`).
-- `jobs` table exists but is **legacy/unused** — all current code uses `job_cards`.
-- `vehicles.registration_number` is the actual column name, but some old code or comments may reference `vehicle_number` — always use `registration_number`.
-- `users.name` is a STORED GENERATED column (concatenation of `first_name` + `last_name`), but some code references `first_name`/`last_name` directly.
-
-## 4. MODULE STATUS
+## 4. MODULES
 
 ### Auth (Login/Logout)
 - **Status:** Complete
-- **What works:** Login with company_id + password, session creation, role-based redirect, logout/destroy.
-- **Broken/missing:** Customer login redirect exists in code but there's no customer dashboard route implemented (only `customer/` group exists in routes; `restrictTo('customer', 'customer_dashboard')` loads a view but the route works).
+- **Controllers:** `LoginController`
+- **Views:** `login.php`
+- **What it does:** Login with `company_id` + `password`, session creation, role-based redirect, logout/destroy. Session keys: `user_id`, `user_name`, `role`, `company_id`, `profile_picture`, `isLoggedIn`.
+- **Limitations:** Customer login has no dedicated post-login destination — `restrictTo('customer', 'customer_dashboard')` loads a standalone view, but no customer-specific functionality exists beyond that.
 
 ### Dashboard
 - **Status:** Complete
-- **What works:** Admin dashboard with summary cards (users, vehicles, jobs in progress, pending LPOs), job status doughnut chart, revenue line chart (mock data), recent activity feed, quick action buttons. All view variables are passed correctly.
-- **Broken/missing:** Revenue chart uses hardcoded mock data; critical alerts are static HTML; activity filter dropdown JS works but is duplicated.
+- **Controllers:** `DashboardController`
+- **Views:** `admin/dashboard.php`
+- **What it does:** Admin dashboard with summary cards (users, vehicles, jobs in progress, pending LPOs), job status doughnut chart, revenue line chart, recent activity feed, quick action buttons. Separate dashboard views exist for `receptionist`, `mechanic`, and `customer` roles.
+- **Limitations:** Revenue chart uses hardcoded mock data. Critical alerts section is static HTML.
 
 ### Users
-- **Status:** Complete (with caveats)
-- **What works:** CRUD (index, add via multi-step wizard, edit, soft-delete, bulk delete via AJAX), DataTable listing with search, user details modal, role-based filters, `fetchUsers` JSON endpoint. Edit view exists at `admin/edit_user.php`.
-- **Broken/missing:** `UsersController::__construct()` sets `$this->session` but `index()` and `add()` use `session()->` directly (inconsistent); the `deleteMultiple()` method exists but route uses `/users/delete-multiple` (not under admin prefix); `UsersController::submit()` method referenced in routes but not defined in the controller.
+- **Status:** Complete
+- **Controllers:** `UsersController`
+- **Views:** `admin/users.php`, `admin/add_user.php`, `admin/edit_user.php`, `admin/users/user_list.php`, plus user registration wizard views (`user/add_step1.php`, `add_step2.php`, `add_step3.php`, `preview.php`, `success.php`)
+- **What it does:** CRUD with DataTable listing, multi-step add wizard, edit, soft-delete, bulk delete via AJAX. Role-based filters, `fetchUsers` JSON endpoint. Public registration wizard (multi-step form with no auth required).
+- **Limitations:** Inconsistent session access — `__construct()` sets `$this->session` but `index()` and `add()` use `session()->` directly. Route `user/submit` references `UsersController::submit()` which does not exist.
 
 ### Vehicles
 - **Status:** Partial
-- **What works:** DataTable listing, AJAX fetch, add/store, edit (view loads), delete, details JSON endpoint, `get()` single-vehicle endpoint. Add and edit views created at `vehicles/add.php` and `vehicles/edit.php`.
-- **Broken/missing:** `VehicleController::add()` and `store()` are separate (add returns view, store saves via AJAX — confusing); `VehicleController::index()` does not use `layouts/main` (no sidebar/menu); route has typo `vechicles/edit/(:num)` (line 83 of Routes.php) — note the typo "vechicles" vs "vehicles". This route would never match.
+- **Controllers:** `VehicleController`
+- **Views:** `vehicles/index.php`, `vehicles/add.php`, `vehicles/edit.php`, `vehicles/modals.php`
+- **What it does:** DataTable listing with AJAX fetch, add/store, edit, delete, details JSON endpoint.
+- **Limitations:** `index()` does not extend `layouts/main` (no sidebar/menu). Route has typo: `vechicles/edit/(:num)` (missing 'h'). `add()` returns a view and `store()` saves via AJAX — separate flow.
 
 ### Customers
 - **Status:** Partial
-- **What works:** DataTable listing with server-side processing (`load()`), details modal with vehicles and jobs, add/edit forms exist at `admin/forms/add_customer_form.php` and `admin/forms/edit_customer_form.php`, bulk delete with transaction.
-- **Broken/missing:** No `store()` or `update()` routes defined for customers — forms will submit to non-existent endpoints.
+- **Controllers:** `CustomersController`
+- **Views:** `customers/customers.php`, `customers/modals.php`, `admin/forms/add_customer_form.php`, `admin/forms/edit_customer_form.php`
+- **What it does:** DataTable listing with server-side processing (`load()`), details modal with vehicles and jobs, add/edit form views, bulk delete with transaction.
+- **Limitations:** No `store()` or `update()` routes exist — forms cannot submit. No soft-delete column on the table.
 
 ### Job Intake
 - **Status:** Partial
-- **What works:** Search customers/vehicles, create new customers+vehicles inline, create job card with photos, validation, transaction safety, unique job number generation (`JOB-YYYYMMDD-NNN`), mechanic diagnosis view, parts/tasks assignment, inventory search. Intake form and mechanic diagnosis form views exist.
-- **Broken/missing:** `mechanic_view()`, `search_parts()`, and `save_diagnosis()` exist in `JobIntake` controller but have **no routes** defined — they cannot be accessed via URL.
+- **Controllers:** `JobIntake`
+- **Views:** `job/index.php`, `job/modals.php`
+- **What it does:** Search customers/vehicles, create new customers+vehicles inline, create job card with photo uploads, validation, transaction safety, unique job number generation (`JOB-YYYYMMDD-NNN`). Includes mechanic diagnosis view, parts/tasks assignment, inventory search.
+- **Limitations:** `mechanic_view()`, `search_parts()`, and `save_diagnosis()` exist in the controller but have no routes defined.
 
 ### Jobs (Job Cards Management)
 - **Status:** Partial
-- **What works:** DataTable listing (with vehicle join via AJAX), add form, edit form, update, soft delete. Add/Edit views exist at `jobs/add.php` and `jobs/edit.php`. Jobs list view exists at `admin/jobs/jobs_list.php`.
-- **Broken/missing:** `create()` method is referenced in routes but does not exist in `JobsController`. `JobsController::index()` joins `vehicles` for `registration_number` but the `index()` view (`job/index.php`) displays it via DataTable's AJAX endpoint which works.
+- **Controllers:** `JobsController`
+- **Views:** `admin/jobs/jobs_list.php`, `jobs/add.php`, `jobs/edit.php`, `job/index.php`, `job/modals.php`
+- **What it does:** DataTable listing (with vehicle join), add form, edit form, update, soft delete.
+- **Limitations:** `create()` method is referenced in routes (`admin/jobs/create`) but does not exist in `JobsController`.
 
 ### Calendar
 - **Status:** Complete
-- **What works:** FullCalendar integration, fetching job events by date range (drop-offs, estimated completions, completed), custom calendar event CRUD (add event with validation), drag-drop event date update (`updateEventDate` route exists). All view variables ($users_for_notification, $loggedInUserId) are passed correctly.
-- **Broken/missing:** `updateEventDate()` method is referenced in routes but does not exist in `CalendarController`; events from `calendar_events` table are fetched but `addEvent` works; no event edit/delete routes.
+- **Controllers:** `CalendarController`
+- **Views:** `calendar/calendar.php`, `calendar/modals.php`
+- **What it does:** FullCalendar integration, fetching job events by date range (drop-offs, estimated completions, completed), custom calendar event creation with validation, drag-drop event date update.
+- **Limitations:** `updateEventDate()` is referenced in routes but does not exist in the controller. No event edit or delete endpoints.
 
 ### Sublets
 - **Status:** Complete
-- **What works:** DataTable with server-side processing, server-side search, status filter, add/edit form with validation, details modal (view path fixed), single delete, bulk delete, joins with job_cards and suppliers.
-- **Broken/missing:** `fetchSublets()` method referenced in routes but does NOT exist in `SubletsController`; the `load()` endpoint handles all DataTable data; `edit()` and `update()` methods referenced in routes do not exist in `SubletsController` (only `add($id)` handles both add and edit form loading; `save()` handles both create and update).
+- **Controllers:** `SubletsController`
+- **Views:** `sublets/index.php`, `sublets/form.php`, `sublets/_details.php`, `sublets/modals.php`
+- **What it does:** DataTable with server-side processing, status filter, add/edit form with validation, details modal, single and bulk delete, joins with `job_cards` and `suppliers`.
+- **Limitations:** `fetchSublets()`, `edit()`, and `update()` are referenced in routes but do not exist. `add($id)` handles both add and edit form loading; `save()` handles both create and update.
 
-## 5. KNOWN BUGS
+### Inventory
+- **Status:** Not built
+- **Controllers:** None
+- **Views:** None
+- **What it does:** The `inventory` table exists and is used by JobIntake for parts lookup, but there is no CRUD UI, no routes, and no controller.
 
-| ID | File | Line | Description | Severity |
-|----|------|------|-------------|----------|
-| BUG-010 | `app/Config/Routes.php` | 83 | Route `vechicles/edit/(:num)` — typo "vechicles" should be "vehicles" | Low |
-| BUG-011 | Various | — | Two different database names: `app/Config/Database.php` says `flowdesk`, `.env` says `flowdesk`. Actual DB is `flowdesk` | Medium |
-| BUG-012 | `app/Controllers/JobsController.php` | — | `create()` method referenced in route `admin/jobs/create` does not exist in controller | Critical |
-| BUG-013 | `app/Controllers/CalendarController.php` | — | `updateEventDate()` referenced in route `admin/calendar/updateEventDate` does not exist | Medium |
-| BUG-014 | `app/Controllers/SubletsController.php` | — | `fetchSublets()`, `edit()`, `update()` methods referenced in routes do not exist | Medium |
-| BUG-019 | `app/Config/Routes.php` | 40, 74 | Route `admin/users/bulk_action` and `user/add_step1` reference `UsersController` methods that exist, but `submit()` route (line 40) references `UsersController::submit()` which does not exist in the controller | Medium |
-| BUG-020 | `app/Controllers/JobIntake.php` | 337-384 | `mechanic_view()`, `search_parts()`, `save_diagnosis()` exist but have no routes defined | Medium |
-| BUG-021 | `app/Config/Database.php` | 32 | `database` key says `flowdesk` but actual database is `flowdesk` | Low |
+### Finance (Invoices, LPOs, Petty Cash)
+- **Status:** Not built
+- **Controllers:** None
+- **Views:** None
+- **What it does:** No invoices, LPO, or petty cash tables or code exist in the application (LPOs and Petty Cash have no DB tables at all). Sidebar links and dashboard quick action buttons exist but lead to 404s.
 
-## 6. MISSING FEATURES
+### Suppliers
+- **Status:** Not built
+- **Controllers:** None
+- **Views:** None
+- **What it does:** The `suppliers` table exists and is used by Sublets, but there is no CRUD UI, no routes, and no controller.
 
-Features referenced in the sidebar (`app/Views/partials/sidebar.php`) but with **no controller, no routes, and no views**:
+### Reports
+- **Status:** Not built
+- **Controllers:** None
+- **Views:** None
+- **What it does:** Sidebar link exists. No implementation.
 
-| Feature | Sidebar link | Notes |
-|---------|-------------|-------|
-| **Inventory** | `/admin/inventory` | No routes, no controller. Table `inventory` exists in DB and is used by JobIntake for parts lookup. |
-| **Suppliers** | `/admin/suppliers` | No routes, no controller. Table `suppliers` exists and is used by Sublets module. |
-| **Invoices** | `/admin/invoices` | No routes, no controller. No invoices table in DB. |
-| **LPOs** | `/admin/lpos` | No routes, no controller. Quick action button on dashboard opens `/admin/lpos/add`. No LPO table in DB. |
-| **Petty Cash** | `/admin/pettycash` | No routes, no controller. Quick action button opens `/admin/pettycash/add`. No petty cash table in DB. |
-| **Reports** | `/admin/reports` | No routes, no controller. |
-| **Settings** | `/admin/settings` | No routes, no controller. |
-| **Profile** | `/admin/profile` | No routes, no controller. Link in sidebar footer. |
+### Settings
+- **Status:** Not built
+- **Controllers:** None
+- **Views:** None
+- **What it does:** Sidebar link exists. No implementation.
 
-Features referenced in dashboard quick actions but not implemented:
-- `admin/lpos/add` — New LPO button
-- `admin/pettycash/add` — Add Petty Cash button
+## 5. ROLES & PERMISSIONS
 
-## 7. CODING CONVENTIONS
+| Role | Route Group | Description |
+|------|-------------|-------------|
+| **admin** | `/admin/*` (filter: `auth:admin`) | Full access to all modules. Can manage users, customers, inventory, suppliers, invoices, calendar, LPOs, petty cash, reports, settings. |
+| **receptionist** | `/receptionist/` (filter: `auth:receptionist`), `/job_intake/*` (filter: `auth:admin,receptionist`) | Can perform job intake (create job cards, search customers/vehicles). Has own dashboard view. |
+| **mechanic** | `/mechanic/` (filter: `auth:mechanic`) | Has own dashboard view. No functionality-specific routes exist yet — the mechanic role currently lands on a standalone dashboard view. |
+| **customer** | `/customer/` (filter: `auth:customer`) | Has own dashboard view. No customer-facing functionality exists beyond the standalone dashboard view. |
 
-- **Controllers** extend `BaseController`. They use `\Config\Database::connect()` to get a DB instance (or `$this->db` set in `__construct()`).
-- **AJAX responses** use `$this->response->setJSON($data)` or `$this->respond($data)` (via `ResponseTrait`). Some controllers use `CodeIgniter\API\ResponseTrait`.
-- **Views** are loaded with `return view('path', $data)`. Views that need the sidebar/layout extend `layouts/main` via `$this->extend('layouts/main')` and use `$this->section('content')`. Standalone views (like `admin/add_user.php`) do not extend the layout.
-- **Auth** is applied via route groups: `['filter' => 'auth:admin']` in `Routes.php`. Some controllers also duplicate auth checks inside methods with `if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin')`.
-- **File uploads** go to `uploads/users/` for profile pictures and `public/uploads/job_card_photos/` for job card photos. Always use `$file->getRandomName()` and `$file->move()`.
-- **No models** exist. All queries are raw `$db->table('table')->...` or `$db->query('SELECT ...')` directly in controllers.
-- **Soft deletes** use a `deleted_at` datetime column (users, job_cards).
-- **No CSRF protection** globally — CSRF filter is commented out in `app/Config/Filters.php`.
+**AuthFilter arguments:** Route groups pass role arguments to the filter, e.g. `['filter' => 'auth:admin']` or `['filter' => 'auth:admin,receptionist']`. If no arguments are provided, the filter only checks `isLoggedIn`.
 
-## 8. ROUTE PATTERNS
+**Sidebar visibility:** The sidebar (`partials/sidebar.php`) conditionally shows admin-only links (`users`, `customers`, `inventory`, `suppliers`, `invoices`, `calendar`, `LPOs`, `petty cash`, `reports`, `settings`) when `$role == 'admin'`. All roles see `Dashboard`, `Jobs`, `Vehicles`, and `Sublets`.
+
+## 6. CODING CONVENTIONS
+
+- **Controllers** extend `BaseController` (which extends `CodeIgniter\Controller`). Database access is via `\Config\Database::connect()` stored as `$this->db` in `__construct()` or called inline.
+- **No models** — all database queries use `$db->table('table_name')->...` query builder or raw `$db->query('SELECT ...')`.
+- **AJAX responses** return JSON via `$this->response->setJSON($data)` or `$this->respond($data)` (using `CodeIgniter\API\ResponseTrait`).
+- **DataTables** endpoints use the `fetch` pattern (`/admin/{module}/fetch`) for basic AJAX data and the `load` pattern (`/admin/customers/load`, `/admin/sublets/load`) for server-side processing.
+- **Pagination** uses CI4's `$query->paginate(10)` and passes `$pager` to the view.
+- **Views** are loaded with `return view('path', $data)`. Views that need the sidebar use `$this->extend('layouts/main')` with `$this->section('content')`.
+- **File uploads** use `$file->getRandomName()` and `$file->move()`. Destination paths: `uploads/users/` for profile pictures, `uploads/job_card_photos/` for job card photos.
+- **Soft deletes** use a `deleted_at` datetime column (on `users`, `job_cards`, `jobs`). `customers` does not have this column.
+- **CSRF** is globally enabled — every POST form must include `<?= csrf_field() ?>`. AJAX POST requests must pass the CSRF token.
+- **No CSRF exemption** is configured for any route.
+
+## 7. ROUTE PATTERNS
 
 ### Public routes (no auth filter)
 ```
-GET  /                    -> Home::index
-GET  /login               -> LoginController::index
-POST /login/auth          -> LoginController::auth
-GET  /logout              -> LoginController::logout
-GET  /unauthorized        -> DashboardController::unauthorized
+GET  /                             -> Home::index
+GET  /login                        -> LoginController::index
+POST /login/auth                   -> LoginController::auth
+GET  /logout                       -> LoginController::logout
+GET  /unauthorized                 -> DashboardController::unauthorized
 ```
 
 ### User registration wizard (no auth)
 ```
-GET  /user/add_step1       -> UsersController::addStep1
-POST /user/add_step1       -> UsersController::add_step1
-GET  /user/add_step2       -> UsersController::addStep2
-POST /user/add_step2       -> UsersController::add_step2
-GET  /user/add_step3       -> UsersController::addStep3
-POST /user/add_step3       -> UsersController::addUserStep3
-POST /user/addUserStep3    -> UsersController::addUserStep3
-GET  /user/preview         -> UsersController::preview
-GET  /user/saveUser        -> UsersController::saveUser
-POST /save-step-data/(:num)-> UsersController::saveStepData/$1
-POST /final-submit         -> UsersController::finalSubmit
-GET  /user/getLastId       -> UsersController::getLastId
-POST /user/submit          -> UsersController::submit
-GET  /user/success         -> UsersController::success
-GET  /user/failure         -> UsersController::failure
-POST /admin/users/bulk_action -> UsersController::bulk_action
+GET  /user/add_step1               -> UsersController::addStep1
+POST /user/add_step1               -> UsersController::add_step1
+GET  /user/add_step2               -> UsersController::addStep2
+POST /user/add_step2               -> UsersController::add_step2
+GET  /user/add_step3               -> UsersController::addStep3
+POST /user/add_step3               -> UsersController::addUserStep3
+POST /user/addUserStep3            -> UsersController::addUserStep3
+GET  /user/preview                 -> UsersController::preview
+GET  /user/saveUser                -> UsersController::saveUser
+POST /save-step-data/(:num)        -> UsersController::saveStepData/$1
+POST /final-submit                 -> UsersController::finalSubmit
+GET  /user/getLastId               -> UsersController::getLastId
+POST /user/submit                  -> UsersController::submit (NOT IMPLEMENTED)
+GET  /user/success                 -> UsersController::success
+GET  /user/failure                 -> UsersController::failure
 ```
 
 ### Job Intake group (filter: auth:admin,receptionist)
@@ -416,7 +437,7 @@ GET    /admin/users/fetch                      -> UsersController::fetchUsers
 GET    /admin/vehicles                         -> VehicleController::index
 GET    /admin/vehicles/fetch                   -> VehicleController::fetchVehicles
 GET    /admin/vehicles/fetch/(:num)            -> VehicleController::fetchVehicles
-GET    /admin/vechicles/edit/(:num)            -> VehicleController::edit/$1 (typo)
+GET    /admin/vechicles/edit/(:num)            -> VehicleController::edit/$1 (TYPO — "vechicles")
 POST   /admin/vehicles/store                   -> VehicleController::store
 POST   /admin/vehicles/update/(:num)           -> VehicleController::update/$1
 POST   /admin/vehicles/delete/(:num)           -> VehicleController::delete/$1
@@ -466,32 +487,61 @@ GET    /admin/sublets/(:num)/edit              -> SubletsController::edit/$1 (NO
 POST   /admin/sublets/(:num)/update            -> SubletsController::update/$1 (NOT IMPLEMENTED)
 ```
 
-### Role-specific groups
+### Role-specific dashboard groups
 ```
 GET /receptionist/  (filter: auth:receptionist) -> DashboardController::receptionist
 GET /mechanic/      (filter: auth:mechanic)     -> DashboardController::mechanic
 GET /customer/      (filter: auth:customer)     -> DashboardController::customer
 ```
 
-### AJAX endpoint pattern
-AJAX endpoints under `admin/` typically return JSON via `$this->response->setJSON()` or `$this->respond()`. The `fetch` pattern is used for DataTable data (`/admin/{module}/fetch`). The `load` pattern is used for DataTables with server-side processing (`/admin/customers/load`, `/admin/sublets/load`).
+## 8. SIDEBAR NAVIGATION
 
-## 9. GOTCHAS & WARNINGS
+All links rendered in `app/Views/partials/sidebar.php`.
 
-1. **`jobs` table vs `job_cards` table**: The `jobs` table exists in the database but is **legacy/unused**. All current code operates on the `job_cards` table. Never write to the `jobs` table.
+| Link | Route | Visible To | Built? |
+|------|-------|------------|--------|
+| Dashboard | `/admin/dashboard` | All roles | Yes |
+| Jobs | `/admin/jobs` | All roles | Yes (partial) |
+| Users | `/admin/users` | Admin only | Yes |
+| Customers | `/admin/customers` | Admin only | Partial — no store/update routes |
+| Vehicles | `/admin/vehicles` | All roles | Partial |
+| Sublets | `/admin/sublets` | All roles | Yes |
+| Inventory | `/admin/inventory` | Admin only | **No** — no controller/routes |
+| Suppliers | `/admin/suppliers` | Admin only | **No** — no controller/routes |
+| Invoices | `/admin/invoices` | Admin only | **No** — no controller/routes, no DB table |
+| Calendar | `/admin/calendar` | Admin only | Yes (partial — missing updateEventDate) |
+| LPOs | `/admin/lpos` | Admin only | **No** — no controller/routes, no DB table |
+| Petty Cash | `/admin/pettycash` | Admin only | **No** — no controller/routes, no DB table |
+| Reports | `/admin/reports` | Admin only | **No** — no controller/routes |
+| Settings | `/admin/settings` | Admin only | **No** — no controller/routes |
+| Profile (footer) | `/admin/profile` | All roles | **No** — no controller/routes |
 
-2. **UserController vs UsersController**: The correct controller is `UsersController`. In early development, some routes referenced `UserController` (without 's') — these have been fixed.
+## 9. KNOWN LIMITATIONS
 
-3. **Admin\CustomersController does not exist**: There is no `App\Controllers\Admin\CustomersController`. The customer routes point to `App\Controllers\CustomersController`. The old namespace `Admin\CustomersController::load` has been fixed.
+1. **No models** — all database access is raw query builder calls in controllers.
+2. **No migrations** — the database schema was created manually (likely via phpMyAdmin or direct SQL). `app/Database/Migrations/` is empty. Schema changes must be applied directly.
+3. **No seed data** — `app/Database/Seeds/` is empty.
+4. **Customers has no soft-delete** — the `customers` table lacks a `deleted_at` column.
+5. **Sidebar links for Inventory, Suppliers, Invoices, LPOs, Petty Cash, Reports, Settings, and Profile** are not backed by controllers, routes, or (for some) database tables. Clicking these links returns a 404.
+6. **`jobs` table is legacy/unused** — `job_cards` is the real transactional jobs table.
+7. **Customer role has no post-login redirect** — after login, a customer user's redirect falls through in `LoginController` without a dedicated destination.
+8. **`JobsController::create()` referenced in route but does not exist.**
+9. **`CalendarController::updateEventDate()` referenced in route but does not exist.**
+10. **`SubletsController::fetchSublets()`, `edit()`, `update()` referenced in routes but do not exist.**
+11. **`UsersController::submit()` referenced in route but does not exist.**
+12. **`VehicleController` route has a typo** — `vechicles/edit/(:num)` instead of `vehicles/edit/(:num)`.
+13. **`CustomersController` has no `store()` or `update()` routes** — customer add/edit forms cannot be submitted.
+14. **`JobIntake` methods `mechanic_view()`, `search_parts()`, `save_diagnosis()`** exist in the controller but have no routes.
+15. **Vehicles index view** does not extend `layouts/main`, so it renders without the sidebar.
 
-4. **VehicleController field names**: The column in the `vehicles` table is `registration_number`, NOT `vehicle_number`. Some old code referenced `vehicle_number`.
+## 10. GOTCHAS
 
-5. **No CSRF globally**: The CSRF filter is commented out in `app/Config/Filters.php` (`// 'csrf'`). Do not add CSRF protection without updating all AJAX POST requests to include the CSRF token.
-
-6. **No migrations — schema lives in database only**: The `app/Database/Migrations/` directory is empty. The schema was created manually (likely via phpMyAdmin or direct SQL). Any schema changes must be applied directly.
-
-7. **`baseURL` must be `http://localhost/FlowDesk/`**: Set in `app/Config/App.php` line 19. Change this if deploying elsewhere.
-
-8. **`.htaccess RewriteBase` must be `/FlowDesk/`**: Set in `.htaccess` line 12. Must match the `baseURL` path.
-
-9. **Two database configs**: `app/Config/Database.php` has `'database' => 'flowdesk'` but `.env` has `database.default.database = flowdesk`. The `.env` value wins. The actual database is `flowdesk`.
+1. **Always use `job_cards`, not `jobs`**, for transactional job data. The `jobs` table is legacy and unused.
+2. **Always use `UsersController`** (with 's'), not `UserController`.
+3. **Always use `App\Controllers\CustomersController`**, not `Admin\CustomersController` — there is no `Admin\` subdirectory in Controllers.
+4. **`registration_number`** is the correct column name in the `vehicles` table (not `vehicle_number`).
+5. **CSRF is globally enabled.** Every POST form must include `<?= csrf_field() ?>`. AJAX POST requests must pass the CSRF token (via `meta` tag or header). There are no CSRF exemptions configured.
+6. **`baseURL`** (`app/Config/App.php`) must be `http://localhost/FlowDesk/` and **`.htaccess RewriteBase`** must be `/FlowDesk/`. Both must match. Change both when deploying elsewhere.
+7. **Database name is `flowdesk`** (all lowercase). Set in `.env` as `database.default.database = flowdesk`. The value in `app/Config/Database.php` is overridden by `.env`.
+8. **`users.name` is a STORED GENERATED column** (concatenation of `first_name` + `last_name`). Some code references `first_name`/`last_name` directly — use whichever is appropriate for the query context.
+9. **No auto-routing** — every route is explicitly defined in `Routes.php`. Adding a new controller method requires a corresponding route entry.

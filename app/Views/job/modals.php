@@ -98,6 +98,7 @@
             <div class="modal-body">
                 <p class="text-muted">Please fill in the details below to create a new job card.</p>
                 <form id="jobIntakeForm" action="<?= base_url('job_intake/create_job_card') ?>" enctype="multipart/form-data" method="post">
+                    <?= csrf_field() ?>
                     <div class="mb-3 position-relative">
                         <label for="search_input" class="form-label">Search Customer/Vehicle</label>
                         <input type="text" class="form-control" id="search_input" placeholder="License Plate, VIN, or Phone Number">

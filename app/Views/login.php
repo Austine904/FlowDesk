@@ -174,7 +174,7 @@
 <body>
 
 <div class="login-container">
-    <h2>Garage Login</h2>
+    <h2>FlowDesk Login</h2>
 
     <?php if (session()->getFlashdata('error')): ?>
         <div class="alert alert-danger" role="alert">
@@ -183,6 +183,7 @@
     <?php endif; ?>
 
     <form method="post" action="<?= base_url('login/auth') ?>" id="loginForm">
+        <?= csrf_field() ?>
         <div class="input-group-modern">
             <label for="company_id" class="form-label visually-hidden">Company ID</label>
             <i class="bi bi-building input-icon"></i>

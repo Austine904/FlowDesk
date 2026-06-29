@@ -6,7 +6,7 @@
 
 <div class="container  mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>📅 Garage Schedule</h2>
+        <h2>📅 FlowDesk Schedule</h2>
         <div class="legend d-flex">
             <div class="legend-item"><span style="background-color: #198754;"></span> Service</div>
             <div class="legend-item"><span style="background-color: #0dcaf0;"></span> Inspection</div>

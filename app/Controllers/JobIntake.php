@@ -52,7 +52,7 @@ class JobIntake extends BaseController
             return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
 
-        $query = $this->request->getVar('query', FILTER_SANITIZE_STRING); // Use getVar for CI4, with filter
+        $query = $this->request->getVar('query', FILTER_SANITIZE_SPECIAL_CHARS); // Use getVar for CI4, with filter
 
         $results = [
             'customers' => [],
@@ -370,7 +370,7 @@ class JobIntake extends BaseController
             return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
 
-        $query = $this->request->getVar('query', FILTER_SANITIZE_STRING);
+        $query = $this->request->getVar('query', FILTER_SANITIZE_SPECIAL_CHARS);
         $results = [];
 
         if (!empty($query)) {
@@ -420,7 +420,7 @@ class JobIntake extends BaseController
 
         try {
             $update_data = [
-                'diagnosis' => $this->request->getVar('diagnosis', FILTER_SANITIZE_STRING),
+                'diagnosis' => $this->request->getVar('diagnosis', FILTER_SANITIZE_SPECIAL_CHARS),
                 'estimated_labor_hours' => $this->request->getVar('estimated_labor_hours', FILTER_SANITIZE_NUMBER_FLOAT),
                 'job_status' => 'Diagnosis Complete'
             ];

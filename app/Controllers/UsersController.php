@@ -31,17 +31,15 @@ class UsersController extends BaseController
                 ->orLike('company_id', $search);
         }
 
-        $perPage = 10;
-        $currentPage = $this->request->getVar('page') ?? 1;
-
-        $users = $query->limit($perPage, ($currentPage - 1) * $perPage)->get()->getResultArray();
+        $users = $query->paginate(10);
         $pager = \Config\Services::pager();
+        $total = $pager->getTotal();
 
         if ($this->request->isAJAX()) {
-            return view('admin/users/user_list', ['users' => $users, 'pager' => $pager]);
+            return view('admin/users/user_list', ['users' => $users, 'pager' => $pager, 'total' => $total]);
         }
 
-        return view('admin/users', ['users' => $users, 'pager' => $pager]);
+        return view('admin/users', ['users' => $users, 'pager' => $pager, 'total' => $total]);
     }
 
     // Show the add user form

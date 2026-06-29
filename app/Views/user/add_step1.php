@@ -115,9 +115,3 @@
     });
 </script>
 
-<?php
-$hashedPassword = password_hash('123456', PASSWORD_DEFAULT);
-
-echo "<script>
-    console.log('Hashed Password: $hashedPassword');
-</script>";
