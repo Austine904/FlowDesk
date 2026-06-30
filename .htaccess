@@ -9,16 +9,16 @@ Options -Indexes
 # FollowSymLinks must be enabled for this to work.
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /gms/
+    RewriteBase /GMSystem/
 
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.+)/$ /gms/$1 [L,R=301]
+    RewriteRule ^(.+)/$ /GMSystem/$1 [L,R=301]
 
     # Handle Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.*)$ /gms/index.php/$1 [L]
+    RewriteRule ^(.*)$ /GMSystem/index.php/$1 [L]
 </IfModule>
 
 <IfModule !mod_rewrite.c>
