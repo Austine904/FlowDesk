@@ -2,7 +2,7 @@
 $(document).ready(function () {
     // Initialize DataTable
     const table = $('#vehicleTable').DataTable({
-        "ajax": BASE_URL + 'admin/vehicles/fetch/',
+        "ajax": BASE_URL + 'admin/vehicles/fetch',
         "columns": [{
             "data": "id"
         },

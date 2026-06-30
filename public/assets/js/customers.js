@@ -49,7 +49,7 @@ $(document).ready(function () {
         processing: true,
         serverSide: true,
         ajax: {
-            url: BASE_URL + 'customers/load',
+            url: BASE_URL + 'admin/customers/load',
             type: "POST"
         },
         columns: [

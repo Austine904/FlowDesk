@@ -3,6 +3,9 @@
 namespace App\Controllers;
 
 use App\Controllers\BaseController;
+use App\Models\SubletModel;
+use App\Models\SupplierModel;
+use App\Models\JobCardModel;
 use CodeIgniter\API\ResponseTrait;
 use CodeIgniter\Database\Exceptions\DatabaseException;
 use Exception;
@@ -11,19 +14,13 @@ class SubletsController extends BaseController
 {
     use ResponseTrait;
 
-    protected $db;
     protected $session;
 
     public function __construct()
     {
-        $this->db = \Config\Database::connect();
         $this->session = \Config\Services::session();
     }
 
-    /**
-     * Displays the main sublet management page.
-     * Accessible by Admin and Receptionist.
-     */
     public function index()
     {
         if (!$this->session->get('isLoggedIn') || (!in_array($this->session->get('role'), ['admin', 'receptionist']))) {
@@ -32,9 +29,6 @@ class SubletsController extends BaseController
         return view('sublets/index');
     }
 
-    /**
-     * AJAX endpoint to load sublet data for DataTables.
-     */
     public function load()
     {
         if (!$this->session->get('isLoggedIn') || (!in_array($this->session->get('role'), ['admin', 'receptionist']))) {
@@ -50,9 +44,8 @@ class SubletsController extends BaseController
         $order_dir = $request->getPost('order')[0]['dir'];
         $columns = $request->getPost('columns');
 
-        // Map DataTables column index to database column name
         $orderableColumns = [
-            0 => 'sublets.id', // Checkbox column, not directly orderable by DB, but safe placeholder
+            0 => 'sublets.id',
             1 => 'sublets.id',
             2 => 'job_cards.job_no',
             3 => 'sublets.description',
@@ -61,56 +54,68 @@ class SubletsController extends BaseController
             6 => 'sublets.status',
             7 => 'sublets.date_sent',
             8 => 'sublets.date_returned',
-            9 => 'sublets.id', // Actions column
+            9 => 'sublets.id',
         ];
-        $order_by = $orderableColumns[$order_column] ?? 'sublets.id'; // Default to ID if column not found
+        $order_by = $orderableColumns[$order_column] ?? 'sublets.id';
 
         try {
-            $builder = $this->db->table('sublets')
-                                ->select('
-                                    sublets.id,
-                                    sublets.description,
-                                    sublets.cost,
-                                    sublets.status,
-                                    sublets.date_sent,
-                                    sublets.date_returned,
-                                    job_cards.job_no,
-                                    job_cards.id as job_card_id,
-                                    suppliers.name as provider_name
-                                ');
+            $subletModel = new SubletModel();
+
+            // Step 1 — total unfiltered count
+            $totalRecords = $subletModel->countAllResults();
+
+            // Step 2 — filtered count (fresh builder)
+            $builder = $subletModel->builder();
             $builder->join('job_cards', 'job_cards.id = sublets.job_card_id', 'left');
             $builder->join('suppliers', 'suppliers.id = sublets.sublet_provider_id', 'left');
-
-            // Apply search filter
             if (!empty($search_value)) {
                 $builder->groupStart()
-                        ->like('sublets.description', $search_value)
-                        ->orLike('sublets.status', $search_value)
-                        ->orLike('job_cards.job_no', $search_value)
-                        ->orLike('suppliers.name', $search_value)
-                        ->groupEnd();
+                    ->like('job_cards.job_no', $search_value)
+                    ->orLike('suppliers.name', $search_value)
+                    ->orLike('sublets.description', $search_value)
+                    ->orLike('sublets.status', $search_value)
+                    ->groupEnd();
             }
-
-            // Apply status filter from JS
             $statusFilter = $request->getPost('status_filter');
             if (!empty($statusFilter)) {
                 $builder->where('sublets.status', $statusFilter);
             }
+            $filteredRecords = $builder->countAllResults(true);
 
-            // Get total count (before pagination and filtering)
-            $totalRecords = $builder->countAllResults(false); // Pass false to keep the WHERE/JOIN clauses
-
-            // Apply ordering
+            // Step 3 — data query (fresh builder again)
+            $builder = $subletModel->builder();
+            $builder->select('
+                sublets.id,
+                sublets.description,
+                sublets.cost,
+                sublets.status,
+                sublets.date_sent,
+                sublets.date_returned,
+                job_cards.job_no,
+                job_cards.id as job_card_id,
+                suppliers.name as provider_name
+            ');
+            $builder->join('job_cards', 'job_cards.id = sublets.job_card_id', 'left');
+            $builder->join('suppliers', 'suppliers.id = sublets.sublet_provider_id', 'left');
+            if (!empty($search_value)) {
+                $builder->groupStart()
+                    ->like('job_cards.job_no', $search_value)
+                    ->orLike('suppliers.name', $search_value)
+                    ->orLike('sublets.description', $search_value)
+                    ->orLike('sublets.status', $search_value)
+                    ->groupEnd();
+            }
+            $statusFilter = $request->getPost('status_filter');
+            if (!empty($statusFilter)) {
+                $builder->where('sublets.status', $statusFilter);
+            }
             $builder->orderBy($order_by, $order_dir);
-
-            // Apply pagination
-            $query = $builder->limit($length, $start)->get();
-            $data = $query->getResultArray();
+            $data = $builder->limit($length, $start)->get()->getResultArray();
 
             $response = [
                 "draw" => intval($draw),
                 "recordsTotal" => $totalRecords,
-                "recordsFiltered" => $totalRecords, // For simplicity, recordsFiltered is same as totalRecords after filtering
+                "recordsFiltered" => $filteredRecords,
                 "data" => $data
             ];
 
@@ -125,10 +130,6 @@ class SubletsController extends BaseController
         }
     }
 
-    /**
-     * Displays the add/edit sublet form (loaded into a modal).
-     * @param int|null $id Sublet ID to edit, or null for new.
-     */
     public function add($id = null)
     {
         if (!$this->session->get('isLoggedIn') || (!in_array($this->session->get('role'), ['admin', 'receptionist']))) {
@@ -137,41 +138,31 @@ class SubletsController extends BaseController
 
         $data['sublet'] = null;
         if ($id) {
-            $data['sublet'] = $this->db->table('sublets')
-                                       ->where('id', $id)
-                                       ->get()
-                                       ->getRowArray();
+            $subletModel = new SubletModel();
+            $data['sublet'] = $subletModel->find($id);
             if (!$data['sublet']) {
                 return $this->failNotFound('Sublet not found.');
             }
         }
 
-        // Fetch necessary data for dropdowns using direct DB calls
-        $data['job_cards'] = $this->db->table('job_cards')
-                                     ->select('job_cards.id, job_cards.job_no, vehicles.registration_number')
-                                     ->join('vehicles', 'vehicles.id = job_cards.vehicle_id', 'left')
-                                     ->get()
-                                     ->getResultArray();
+        $jobCardModel = new JobCardModel();
+        $data['job_cards'] = $jobCardModel->select('job_cards.id, job_cards.job_no, vehicles.registration_number')
+            ->join('vehicles', 'vehicles.id = job_cards.vehicle_id', 'left')
+            ->findAll();
 
-        // Fetch suppliers using direct DB calls
-        $data['sublet_providers'] = $this->db->table('suppliers')
-                                            ->select('id, name')
-                                            ->get()
-                                            ->getResultArray();
+        $supplierModel = new SupplierModel();
+        $data['sublet_providers'] = $supplierModel->getAll();
 
         return view('sublets/form', $data);
     }
 
-    /**
-     * Handles saving (add/edit) a sublet record via AJAX.
-     */
     public function save()
     {
         if (!$this->session->get('isLoggedIn') || (!in_array($this->session->get('role'), ['admin', 'receptionist']))) {
             return $this->failForbidden('Forbidden: Insufficient permissions.');
         }
 
-        $sublet_id = $this->request->getPost('id'); // Will be null for new sublets
+        $sublet_id = $this->request->getPost('id');
         $rules = [
             'job_card_id'        => 'required|integer',
             'sublet_provider_id' => 'required|integer',
@@ -183,7 +174,6 @@ class SubletsController extends BaseController
             'notes'              => 'permit_empty|max_length[1000]',
         ];
 
-        // Custom validation for date_returned to be after date_sent
         if (!empty($this->request->getPost('date_returned')) && !empty($this->request->getPost('date_sent'))) {
             if (strtotime($this->request->getPost('date_returned')) < strtotime($this->request->getPost('date_sent'))) {
                 $this->validator->setError('date_returned', 'Date Returned cannot be earlier than Date Sent.');
@@ -206,18 +196,17 @@ class SubletsController extends BaseController
         ];
 
         try {
+            $subletModel = new SubletModel();
             if ($sublet_id) {
-                // Update existing record
-                $this->db->table('sublets')->where('id', $sublet_id)->update($data);
-                if ($this->db->affectedRows() > 0) {
+                $subletModel->update($sublet_id, $data);
+                if ($subletModel->db->affectedRows() > 0) {
                     return $this->respond(['status' => 'success', 'message' => 'Sublet updated successfully!']);
                 } else {
                     return $this->respond(['status' => 'info', 'message' => 'No changes were made to the sublet.']);
                 }
             } else {
-                // Insert new record
-                $this->db->table('sublets')->insert($data);
-                $newId = $this->db->insertID();
+                $subletModel->insert($data);
+                $newId = $subletModel->insertID();
                 if ($newId) {
                     return $this->respondCreated(['status' => 'success', 'message' => 'Sublet added successfully!', 'id' => $newId]);
                 } else {
@@ -231,14 +220,8 @@ class SubletsController extends BaseController
             log_message('error', 'Error saving sublet: ' . $e->getMessage());
             return $this->failServerError('An unexpected error occurred while saving the sublet.');
         }
-        //error in console
-        
     }
 
-    /**
-     * Fetches details of a single sublet for display in a modal.
-     * @param int $id The ID of the sublet.
-     */
     public function details($id)
     {
         if (!$this->session->get('isLoggedIn') || (!in_array($this->session->get('role'), ['admin', 'receptionist']))) {
@@ -246,19 +229,9 @@ class SubletsController extends BaseController
         }
 
         try {
-            $sublet = $this->db->table('sublets')
-                               ->select('
-                                   sublets.*,
-                                   job_cards.job_no,
-                                   vehicles.registration_number,
-                                   suppliers.name as provider_name
-                               ')
-                               ->join('job_cards', 'job_cards.id = sublets.job_card_id', 'left')
-                               ->join('vehicles', 'vehicles.id = job_cards.vehicle_id', 'left')
-                               ->join('suppliers', 'suppliers.id = sublets.sublet_provider_id', 'left')
-                               ->where('sublets.id', $id)
-                               ->get()
-                               ->getRowArray();
+            $subletModel = new SubletModel();
+            $result = $subletModel->getWithDetails($id);
+            $sublet = $result ? $result[0] : null;
 
             if (!$sublet) {
                 return $this->failNotFound('Sublet not found.');
@@ -275,10 +248,6 @@ class SubletsController extends BaseController
         }
     }
 
-    /**
-     * Deletes a single sublet record.
-     * @param int $id The ID of the sublet to delete.
-     */
     public function delete($id)
     {
         if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'admin') {
@@ -286,8 +255,9 @@ class SubletsController extends BaseController
         }
 
         try {
-            $this->db->table('sublets')->where('id', $id)->delete();
-            if ($this->db->affectedRows() > 0) {
+            $subletModel = new SubletModel();
+            $subletModel->delete($id);
+            if ($subletModel->db->affectedRows() > 0) {
                 return $this->respondDeleted(['status' => 'success', 'message' => 'Sublet deleted successfully.']);
             } else {
                 return $this->failNotFound('Sublet not found or already deleted.');
@@ -301,9 +271,6 @@ class SubletsController extends BaseController
         }
     }
 
-    /**
-     * Handles bulk actions for sublets (e.g., bulk delete).
-     */
     public function bulkAction()
     {
         if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'admin') {
@@ -311,7 +278,7 @@ class SubletsController extends BaseController
         }
 
         $action = $this->request->getPost('action');
-        $ids = $this->request->getPost('ids'); // Array of IDs
+        $ids = $this->request->getPost('ids');
 
         if (empty($ids) || !is_array($ids)) {
             return $this->failValidationErrors('No items selected for bulk action.');
@@ -320,9 +287,10 @@ class SubletsController extends BaseController
         try {
             if ($action === 'delete') {
                 $deletedCount = 0;
+                $subletModel = new SubletModel();
                 foreach ($ids as $id) {
-                    $this->db->table('sublets')->where('id', $id)->delete();
-                    $deletedCount += $this->db->affectedRows();
+                    $subletModel->delete($id);
+                    $deletedCount += $subletModel->db->affectedRows();
                 }
                 if ($deletedCount > 0) {
                     return $this->respondDeleted(['status' => 'success', 'message' => "Successfully deleted {$deletedCount} sublet(s)."]);

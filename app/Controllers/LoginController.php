@@ -1,7 +1,9 @@
 <?php
 
 namespace App\Controllers;
+
 use App\Controllers\BaseController;
+use App\Models\UserModel;
 
 class LoginController extends BaseController
 {
@@ -12,10 +14,8 @@ class LoginController extends BaseController
 
     public function auth()
     {
-        $db = \Config\Database::connect();
         $session = session();
 
-        
         $companyid = $this->request->getPost('company_id');
         $password = $this->request->getPost('password');
         $validation = \Config\Services::validation();
@@ -26,11 +26,9 @@ class LoginController extends BaseController
         if (!$this->validate($validation->getRules())) {
             return redirect()->back()->withInput()->with('error', $validation->getErrors());
         }
-        // Check if the company ID exists in the database
-        
 
-        $builder = $db->table('users');
-        $user = $builder->where('company_id', $companyid)->get()->getRowArray();
+        $userModel = new UserModel();
+        $user = $userModel->getByCompanyId($companyid);
 
         if ($user) {
             if (password_verify($password, $user['password'])) {
@@ -40,19 +38,18 @@ class LoginController extends BaseController
                     'role' => $user['role'],
                     'company_id' => $user['company_id'],
                     'profile_picture' => $user['profile_picture'],
-                    
+
                     'isLoggedIn' => true
                 ];
                 $session->set($sessionData);
 
-                // Redirect by role
                 if ($user['role'] === 'admin') {
                     return redirect()->to('/admin/dashboard');
                 } elseif ($user['role'] === 'receptionist') {
                     return redirect()->to('/receptionist/dashboard');
                 } elseif ($user['role'] === 'mechanic') {
                     return redirect()->to('/mechanic/dashboard');
-                } 
+                }
             } else {
                 return redirect()->back()->with('error', 'Wrong password');
             }

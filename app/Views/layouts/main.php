@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="<?= csrf_hash() ?>">
+    <meta name="csrf-name" content="<?= csrf_token() ?>">
 
     <title>FlowDesk</title>
 
@@ -66,6 +68,36 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+
+    <!-- CSRF token setup for AJAX -- reads from meta tags (cookie is httpOnly) -->
+    <script>
+      function getCsrfMeta() {
+        return {
+          name: $('meta[name="csrf-name"]').attr('content'),
+          hash: $('meta[name="csrf-token"]').attr('content')
+        };
+      }
+
+      $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+          if (settings.type === 'POST' || settings.type === 'PUT' || settings.type === 'DELETE') {
+            var csrf = getCsrfMeta();
+            xhr.setRequestHeader('X-CSRF-TOKEN', csrf.hash);
+            if (typeof settings.data === 'string' && settings.data.length > 0) {
+              settings.data += '&' + csrf.name + '=' + csrf.hash;
+            } else if (typeof settings.data === 'object' && settings.data !== null) {
+              settings.data[csrf.name] = csrf.hash;
+            }
+          }
+        },
+        complete: function(xhr) {
+          var newToken = xhr.getResponseHeader('X-CSRF-TOKEN');
+          if (newToken) {
+            $('meta[name="csrf-token"]').attr('content', newToken);
+          }
+        }
+      });
+    </script>
 
     <!-- Custom JS (after all libraries) -->
     <script src="<?= base_url('public/assets/js/vehicles.js') ?>"></script>
