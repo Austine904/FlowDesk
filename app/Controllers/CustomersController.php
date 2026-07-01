@@ -3,24 +3,23 @@
 namespace App\Controllers;
 
 use App\Controllers\BaseController;
+use App\Models\CustomerModel;
+use App\Models\VehicleModel;
+use App\Models\JobCardModel;
 use CodeIgniter\API\ResponseTrait;
 use CodeIgniter\Database\Exceptions\DatabaseException;
 use Exception;
-use CodeIgniter\Exceptions\PageNotFoundException; // Import for 404 handling
 
 class CustomersController extends BaseController
 {
     use ResponseTrait;
 
-    protected $db;
     protected $session;
 
     public function __construct()
     {
-        $this->db = \Config\Database::connect();
         $this->session = \Config\Services::session();
     }
-
 
     public function index()
     {
@@ -28,8 +27,8 @@ class CustomersController extends BaseController
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('You are not authorized to view this page.');
         }
 
-        $db = \Config\Database::connect();
-        $builder = $db->table('customers')
+        $customerModel = new CustomerModel();
+        $builder = $customerModel->builder()
             ->select('id, name, phone, email, address, created_at');
         $search = $this->request->getVar('search');
         if (!empty($search)) {
@@ -44,7 +43,6 @@ class CustomersController extends BaseController
         $customers = $builder->limit($perpage, ($currentPage - 1) * $perpage)->get()->getResultArray();
         $pager = \Config\Services::pager();
 
-        // If the request is AJAX, return a partial view for DataTables
         if ($this->request->isAJAX()) {
             return view('customers/customers_list', ['customers' => $customers, 'pager' => $pager]);
         }
@@ -56,15 +54,13 @@ class CustomersController extends BaseController
         ]);
     }
 
-    /**
-     * AJAX endpoint for DataTables to load customer data.
-     * Handles pagination, searching, and sorting.
-     */
     public function load()
     {
         if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'admin') {
             return $this->failUnauthorized('Unauthorized access.');
         }
+
+        $customerModel = new CustomerModel();
 
         $request = $this->request;
         $draw = $request->getPost('draw');
@@ -74,7 +70,11 @@ class CustomersController extends BaseController
         $order = $request->getPost('order');
         $columns = $request->getPost('columns');
 
-        $builder = $this->db->table('customers');
+        // Total unfiltered count (fresh builder)
+        $totalRecords = $customerModel->countAllResults();
+
+        // Filtered count
+        $builder = $customerModel->builder();
 
         if (!empty($search)) {
             $builder->groupStart()
@@ -84,28 +84,30 @@ class CustomersController extends BaseController
                 ->groupEnd();
         }
 
-        // Get total records count without filtering
-        $totalRecords = $builder->countAllResults(false); // `false` to keep the WHERE clause for filtered count
+        $filteredRecords = $builder->countAllResults(true);
 
-        // Get filtered records count
-        $filteredRecords = $builder->countAllResults(false);
+        // Data query (fresh builder since countAllResults(true) resets)
+        $builder = $customerModel->builder();
 
-        // Subquery to count vehicles for each customer
-        $subQuery = $this->db->table('vehicles')
+        if (!empty($search)) {
+            $builder->groupStart()
+                ->like('name', $search)
+                ->orLike('phone', $search)
+                ->orLike('email', $search)
+                ->groupEnd();
+        }
+
+        $subQuery = $customerModel->builder('vehicles')
             ->select('COUNT(id)')
             ->where('vehicles.owner_id = customers.id')
             ->getCompiledSelect();
 
-        // Select main customer columns and the vehicle count
         $builder->select('customers.id, customers.name, customers.phone, customers.email, customers.address, customers.created_at');
-        $builder->select("({$subQuery}) as vehicle_count"); // Add vehicle count
+        $builder->select("({$subQuery}) as vehicle_count");
 
-        // Apply ordering
         if ($order) {
             $columnName = $columns[$order[0]['column']]['data'];
             $columnDir = $order[0]['dir'];
-            // Map DataTables column names to actual database column names if necessary
-            // For 'vehicle_count', we order by the alias
             if ($columnName === 'vehicle_count') {
                 $builder->orderBy('vehicle_count', $columnDir);
             } else {
@@ -113,7 +115,6 @@ class CustomersController extends BaseController
             }
         }
 
-        // Apply pagination
         $builder->limit($length, $start);
 
         $data = $builder->get()->getResultArray();
@@ -128,11 +129,6 @@ class CustomersController extends BaseController
         return $this->respond($response);
     }
 
-    /**
-     * AJAX endpoint to fetch details for a specific customer, including their vehicles.
-     * @param int $id Customer ID
-     */
-
     public function details($id)
     {
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
@@ -144,26 +140,27 @@ class CustomersController extends BaseController
         }
 
         try {
-            $customer = $this->db->table('customers')->where('id', $id)->get()->getRowArray();
+            $customerModel = new CustomerModel();
+            $vehicleModel = new VehicleModel();
+            $jobCardModel = new JobCardModel();
+
+            $customer = $customerModel->find($id);
 
             if (!$customer) {
                 return $this->failNotFound('Customer not found.');
             }
 
-            $vehicles = $this->db->table('vehicles')->where('owner_id', $id)->get()->getResultArray();
+            $vehicles = $vehicleModel->getByOwner($id);
             $customer['vehicles'] = $vehicles;
 
-            $jobs = $this->db->table('job_cards')->where('customer_id', $id)->get()->getResultArray();
-            //fetch vehicle registration numbers for each job
+            $jobs = $jobCardModel->where('customer_id', $id)->findAll();
             foreach ($jobs as &$job) {
-                $vehicle = $this->db->table('vehicles')
-                    ->select('registration_number')
+                $vehicle = $vehicleModel->select('registration_number')
                     ->where('id', $job['vehicle_id'])
-                    ->get()
-                    ->getRowArray();
+                    ->first();
                 $job['registration_number'] = $vehicle ? $vehicle['registration_number'] : 'Unknown';
             }
-           
+
             $customer['jobs'] = $jobs;
 
             return $this->respond($customer);
@@ -176,44 +173,36 @@ class CustomersController extends BaseController
         }
     }
 
-
     public function add()
     {
         if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'admin') {
             return $this->failForbidden('Forbidden: Insufficient permissions.');
         }
-        // You would load your add customer form view here
         return view('admin/forms/add_customer_form');
     }
 
-    /**
-     * Placeholder for loading the 'Edit Customer' form.
-     * This method would typically return a view segment for a modal, pre-filled with customer data.
-     * @param int $id Customer ID
-     */
     public function edit($id)
     {
         if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'admin') {
             return $this->failForbidden('Forbidden: Insufficient permissions.');
         }
-        // Fetch customer data and load edit form view
-        $customer = $this->db->table('customers')->where('id', $id)->get()->getRowArray();
+
+        $customerModel = new CustomerModel();
+        $customer = $customerModel->find($id);
+
         if (!$customer) {
             return $this->failNotFound('Customer not found for editing.');
         }
-        return view('admin/forms/edit_customer_form', ['customer' => $customer]); // Create this view file
+        return view('admin/forms/edit_customer_form', ['customer' => $customer]);
     }
 
-    /**
-     * Placeholder for handling bulk actions (e.g., delete selected customers).
-     */
     public function bulk_action()
     {
         if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'admin') {
             return $this->failForbidden('Forbidden: Insufficient permissions.');
         }
 
-        $customer_ids = $this->request->getPost('customers'); // Array of IDs from checkboxes
+        $customer_ids = $this->request->getPost('customers');
 
         if (empty($customer_ids)) {
             session()->setFlashdata('error', 'No customers selected for deletion.');
@@ -221,28 +210,21 @@ class CustomersController extends BaseController
         }
 
         try {
-            // Start a transaction for bulk deletion
-            $this->db->transStart();
+            $customerModel = new CustomerModel();
+            $db = \Config\Database::connect();
+            $db->transStart();
 
-            // First, delete associated vehicles to satisfy foreign key constraints
-            // (assuming vehicles are CASCADE DELETE or you handle them explicitly)
-            // If `vehicles.owner_id` has ON DELETE CASCADE, this step might not be strictly necessary
-            // if you delete the customer directly. However, if not, you must delete related records first.
-            // For safety, you might want to soft-delete or archive instead of hard delete.
-            $this->db->table('vehicles')->whereIn('owner_id', $customer_ids)->delete();
+            $customerModel->whereIn('id', $customer_ids)->delete();
 
-            // Then, delete the customers
-            $this->db->table('customers')->whereIn('id', $customer_ids)->delete();
+            $db->transComplete();
 
-            $this->db->transComplete();
-
-            if ($this->db->transStatus() === FALSE) {
+            if ($db->transStatus() === FALSE) {
                 throw new Exception('Transaction failed during bulk customer deletion.');
             }
 
-            session()->setFlashdata('success', count($customer_ids) . ' customer(s) and their associated vehicles deleted successfully.');
+            session()->setFlashdata('success', count($customer_ids) . ' customer(s) deleted successfully.');
         } catch (Exception $e) {
-            $this->db->transRollback();
+            $db->transRollback();
             session()->setFlashdata('error', 'Failed to delete customers: ' . $e->getMessage());
         }
 

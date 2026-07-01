@@ -3,16 +3,12 @@
 namespace App\Controllers;
 
 use App\Controllers\BaseController;
+use App\Models\JobCardModel;
+use App\Models\UserModel;
 
 class JobsController extends BaseController
 {
     use \CodeIgniter\API\ResponseTrait;
-    protected $db;
-
-    public function __construct()
-    {
-        $this->db = \Config\Database::connect();
-    }
 
     public function index()
     {
@@ -20,33 +16,24 @@ class JobsController extends BaseController
             return redirect()->to('/login');
         }
 
-        $db = \Config\Database::connect();
-        $builder = $db->table('job_cards')
-            ->select('id, job_no, vehicle_id, diagnosis, job_status');
+        $jobCardModel = new JobCardModel();
+        $userModel = new UserModel();
+
+        $jobCardModel->select('id, job_no, vehicle_id, diagnosis, job_status');
 
         $search = $this->request->getVar('search');
         if (!empty($search)) {
-            $builder->like('job_no', $search)
+            $jobCardModel->like('job_no', $search)
                 ->orLike('vehicle_id', $search);
         }
 
-        $service_advisors = $db->table('users')
-            ->where('role', 'mechanic')
-            ->select('id, company_id, first_name, last_name')
-            ->orderBy('first_name', 'ASC')
-            ->get()
-            ->getResultArray();
+        $service_advisors = $userModel->getByRole('mechanic');
 
-
-        $perPage = 10;
-        $currentPage = $this->request->getVar('page') ?? 1;
-
-        $total = $builder->countAllResults(false);
-        $jobs = $builder->limit($perPage, ($currentPage - 1) * $perPage)->get()->getResultArray();
-        $pager = \Config\Services::pager();
+        $jobs = $jobCardModel->paginate(10);
+        $pager = $jobCardModel->pager;
 
         if ($this->request->isAJAX()) {
-            return view('admin/jobs/jobs_list', ['jobs' => $jobs, 'pager' => $pager,]);
+            return view('admin/jobs/jobs_list', ['jobs' => $jobs, 'pager' => $pager]);
         }
 
         return view('job/index', ['jobs' => $jobs, 'pager' => $pager, 'service_advisors' => $service_advisors]);
@@ -54,26 +41,21 @@ class JobsController extends BaseController
 
     public function fetchJobs()
     {
-        // Check for 'isLoggedIn' if this endpoint requires authentication
         if (!session()->get('isLoggedIn')) {
             return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
 
-        // Join job_cards with vehicles table to get the registration_number
-        $builder = $this->db->table('job_cards')
-            ->select('job_cards.id, job_cards.job_no, job_cards.diagnosis, job_cards.job_status, job_cards.date_in, job_cards.start_date, job_cards.end_date, job_cards.created_at, job_cards.updated_at, vehicles.registration_number')
-            ->join('vehicles', 'vehicles.id = job_cards.vehicle_id');
-
-
-        $query = $builder->get();
-        $result = $query->getResultArray();
+        $jobCardModel = new JobCardModel();
+        $result = $jobCardModel->select('job_cards.id, job_cards.job_no, job_cards.diagnosis, job_cards.job_status, job_cards.date_in, job_cards.start_date, job_cards.end_date, job_cards.created_at, job_cards.updated_at, vehicles.registration_number')
+            ->join('vehicles', 'vehicles.id = job_cards.vehicle_id')
+            ->findAll();
 
         $jobs = [];
         foreach ($result as $row) {
             $jobs[] = [
                 'id' => $row['id'],
                 'job_no' => $row['job_no'],
-                'registration_number' => $row['registration_number'], 
+                'registration_number' => $row['registration_number'],
                 'diagnosis' => $row['diagnosis'],
                 'job_status' => $row['job_status'],
                 'date_in' => $row['date_in'],
@@ -92,46 +74,15 @@ class JobsController extends BaseController
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
             return redirect()->to('/login');
         }
-        $db = \Config\Database::connect();
-        $service_advisors = $db->table('users')
-            ->where('role', 'mechanic')
-            ->select('id, company_id, first_name, last_name')
-            ->orderBy('first_name', 'ASC')
-            ->get()
-            ->getResultArray();
+        $userModel = new UserModel();
+        $service_advisors = $userModel->getByRole('mechanic');
         return view('jobs/add', ['service_advisors' => $service_advisors]);
     }
 
-    // public function store()
-    // {
-    //     $rules = [
-    //         'job_name' => 'required|min_length[3]',
-    //         'description' => 'permit_empty|max_length[255]',
-    //         'status' => 'required|in_list[pending,completed,cancelled]', // Example statuses
-    //         'assigned_to' => 'permit_empty|integer', // This is a user ID
-    //         'created_at' => 'required|valid_date',
-    //         'updated_at' => 'permit_empty|valid_date',
-    //     ];
-
-    //     if (!$this->validate($rules)) {
-    //         return redirect()->back()
-    //             ->withInput()
-    //             ->with('errors', $this->validator->getErrors());
-    //     }
-
-    //     $data = $this->request->getPost();
-
-    //     try {
-    //         $this->db->table('jobs')->insert($data);
-    //         return redirect()->to('/admin/jobs')->with('success', 'Job added successfully!');
-    //     } catch (\Exception $e) {
-    //         return redirect()->back()->withInput()->with('error', 'Error: ' . $e->getMessage());
-    //     }
-    // }
-
     public function edit($id)
     {
-        $job = $this->db->table('jobs')->where('id', $id)->get()->getRowArray();
+        $jobCardModel = new JobCardModel();
+        $job = $jobCardModel->find($id);
 
         if (!$job) {
             return redirect()->to('/admin/jobs')->with('error', 'Job not found.');
@@ -144,7 +95,6 @@ class JobsController extends BaseController
     {
         $rules = [
             'job_name' => 'required|min_length[3]',
-            // Add other validation rules here
         ];
 
         if (!$this->validate($rules)) {
@@ -156,7 +106,8 @@ class JobsController extends BaseController
         $data = $this->request->getPost();
 
         try {
-            $this->db->table('jobs')->update($data, ['id' => $id]);
+            $jobCardModel = new JobCardModel();
+            $jobCardModel->update($id, $data);
             return redirect()->to('/admin/jobs')->with('success', 'Job updated successfully!');
         } catch (\Exception $e) {
             return redirect()->back()->withInput()->with('error', 'Error: ' . $e->getMessage());
@@ -166,11 +117,8 @@ class JobsController extends BaseController
     public function delete($id)
     {
         try {
-            // Soft delete
-            $this->db->table('jobs')->where('id', $id)->update(['deleted_at' => date('Y-m-d H:i:s')]);
-
-            // Hard delete
-            $this->db->table('jobs')->delete(['id' => $id]);
+            $jobCardModel = new JobCardModel();
+            $jobCardModel->update($id, ['deleted_at' => date('Y-m-d H:i:s')]);
 
             return redirect()->to('/admin/jobs')->with('success', 'Job deleted successfully!');
         } catch (\Exception $e) {

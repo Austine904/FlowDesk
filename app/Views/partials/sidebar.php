@@ -189,7 +189,7 @@ function isActive($segment, $currentSegment)
 
 <div class="sidebar">
     <div class="d-flex align-items-center mb-4">
-        <span class="fs-4 fw-bold text-dark">GarageMS</span>
+        <span class="fs-4 fw-bold text-dark">FlowDesk</span>
     </div>
 
     <nav>

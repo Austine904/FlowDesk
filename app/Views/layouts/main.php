@@ -4,8 +4,10 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="<?= csrf_hash() ?>">
+    <meta name="csrf-name" content="<?= csrf_token() ?>">
 
-    <title>GarageMS</title>
+    <title>FlowDesk</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -67,6 +69,36 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 
+    <!-- CSRF token setup for AJAX -- reads from meta tags (cookie is httpOnly) -->
+    <script>
+      function getCsrfMeta() {
+        return {
+          name: $('meta[name="csrf-name"]').attr('content'),
+          hash: $('meta[name="csrf-token"]').attr('content')
+        };
+      }
+
+      $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+          if (settings.type === 'POST' || settings.type === 'PUT' || settings.type === 'DELETE') {
+            var csrf = getCsrfMeta();
+            xhr.setRequestHeader('X-CSRF-TOKEN', csrf.hash);
+            if (typeof settings.data === 'string' && settings.data.length > 0) {
+              settings.data += '&' + csrf.name + '=' + csrf.hash;
+            } else if (typeof settings.data === 'object' && settings.data !== null) {
+              settings.data[csrf.name] = csrf.hash;
+            }
+          }
+        },
+        complete: function(xhr) {
+          var newToken = xhr.getResponseHeader('X-CSRF-TOKEN');
+          if (newToken) {
+            $('meta[name="csrf-token"]').attr('content', newToken);
+          }
+        }
+      });
+    </script>
+
     <!-- Custom JS (after all libraries) -->
     <script src="<?= base_url('public/assets/js/vehicles.js') ?>"></script>
     <script src="<?= base_url('public/assets/js/job_intake.js') ?>"></script>
@@ -85,7 +117,7 @@
     <footer class="bg-light text-dark text-center py-3" style="margin-left: 200px;">
         <div class="container">
             <p>Developed by Austiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiine</p>
-            <small>&copy; <?= date('Y') ?> Garage Management System. All rights reserved.</small>
+            <small>&copy; <?= date('Y') ?> FlowDesk. All rights reserved.</small>
         </div>
     </footer>
 

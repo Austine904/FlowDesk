@@ -2,6 +2,10 @@
 
 namespace App\Controllers;
 
+use App\Models\JobCardModel;
+use App\Models\UserModel;
+use App\Models\VehicleModel;
+
 class DashboardController extends BaseController
 {
     public function index()
@@ -16,24 +20,25 @@ class DashboardController extends BaseController
             'userId' => session()->get('user_id'),
         ];
 
-        return view('dashboard', $data);
+        return view('admin/dashboard', $data);
     }
 
     public function admin()
     {
         helper('activity');
         helper('time');
-        // Check login and admin role
+
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
             return redirect()->to('/login');
         }
 
-        $db = \Config\Database::connect();
+        $jobCardModel = new JobCardModel();
+        $userModel = new UserModel();
+        $vehicleModel = new VehicleModel();
 
         $recentActivity = [];
 
-        // Jobs
-        $jobs = $db->query("SELECT id, updated_at, job_status FROM job_cards ORDER BY updated_at DESC LIMIT 3")->getResultArray();
+        $jobs = $jobCardModel->select('id, updated_at, job_status')->orderBy('updated_at', 'DESC')->findAll(3);
         foreach ($jobs as $job) {
             $recentActivity[] = [
                 'type' => 'jobs',
@@ -43,8 +48,7 @@ class DashboardController extends BaseController
             ];
         }
 
-        // Users
-        $users = $db->query("SELECT id, first_name, last_name, role, created_at FROM users ORDER BY created_at DESC LIMIT 3")->getResultArray();
+        $users = $userModel->select('id, first_name, last_name, role, created_at')->orderBy('created_at', 'DESC')->findAll(3);
         foreach ($users as $user) {
             $name = esc($user['first_name'] . ' ' . $user['last_name']);
             $recentActivity[] = [
@@ -55,8 +59,7 @@ class DashboardController extends BaseController
             ];
         }
 
-        // Vehicles
-        $vehicles = $db->query("SELECT registration_number, make, model, owner_id, created_at FROM vehicles ORDER BY created_at DESC LIMIT 3")->getResultArray();
+        $vehicles = $vehicleModel->select('registration_number, make, model, owner_id, created_at')->orderBy('created_at', 'DESC')->findAll(3);
         foreach ($vehicles as $v) {
             $vehicleText = "{$v['make']} {$v['model']} ({$v['registration_number']})";
             $recentActivity[] = [
@@ -67,15 +70,9 @@ class DashboardController extends BaseController
             ];
         }
 
-        //New Job card
-        $jobCards = $db->query("SELECT id, vehicle_id, diagnosis, created_at FROM job_cards ORDER BY created_at DESC LIMIT 3")->getResultArray();
+        $jobCards = $jobCardModel->getRecentJobs(5);
         foreach ($jobCards as $jobCard) {
-            $vehicleregistration = $db->table('vehicles')
-                ->select('registration_number')
-                ->where('id', $jobCard['vehicle_id'])
-                ->get()
-                ->getRow();
-            $vehicleregistration = esc($vehicleregistration->registration_number ?? 'Unknown Vehicle');
+            $vehicleregistration = esc($jobCard['registration_number'] ?? 'Unknown Vehicle');
             $diagnosis = esc($jobCard['diagnosis']);
             $recentActivity[] = [
                 'type' => 'job_cards',
@@ -85,50 +82,22 @@ class DashboardController extends BaseController
             ];
         }
 
-        // Sort all activity by timestamp descending
         usort($recentActivity, fn($a, $b) => strtotime($b['time']) - strtotime($a['time']));
 
+        $userCount = $userModel->countAllResults();
 
-        // Count total users
-        $userCount = $db->table('users')
-            ->selectCount('id', 'total_users')
-            ->get()
-            ->getRow()
-            ->total_users ?? 0;
+        $vehicleCount = $vehicleModel->where('status', 'On Job')->countAllResults();
 
-        // Count total vehicles
-        $vehicleCount = $db->table('vehicles')
-            // ->selectCount('id', 'total_vehicles')
-            ->selectCount('status', 'total_vehicles')
-            ->where('status', 'On Job')
-            ->get()
-            ->getRow()
-            ->total_vehicles ?? 0;
+        $latestUsers = $userModel->orderBy('created_at', 'DESC')->findAll(5);
 
-        // Latest 5 users
-        $latestUsers = $db->table('users')
-            ->orderBy('created_at', 'DESC')
-            ->limit(5)
-            ->get()
-            ->getResultArray();
+        $latestVehicles = $vehicleModel->orderBy('created_at', 'DESC')->findAll(5);
 
-        // Latest 5 vehicles
-        $latestVehicles = $db->table('vehicles')
-            ->orderBy('created_at', 'DESC')
-            ->limit(5)
-            ->get()
-            ->getResultArray();
-
-        // Get job status counts in a single query
-        $jobStatusQuery = $db->table('job_cards')
+        $jobStatusQuery = $jobCardModel->builder()
             ->select("job_status, COUNT(*) as count")
             ->groupBy("job_status")
             ->get()
             ->getResult();
 
-
-        // Prepare job status data
-        // $jobStatusData = [];
         $jobStatusQuery = array_map(function ($row) {
             return (object)[
                 'job_status' => $row->job_status,
@@ -141,33 +110,26 @@ class DashboardController extends BaseController
         $backgroundColors = [];
         $borderColors = [];
 
-
-        //statusColors
         $statusColors = [
-            'Awaiting Diagnosis' => '#007bff', // Bootstrap Primary Blue
-            'Diagnosis Complete' => '#ffc107', // Bootstrap Warning Yellow
-            'Approved' => '#17a2b8',           // Bootstrap Info Cyan
-            'In Progress' => '#6f42c1',         // Bootstrap Purple
-            'Awaiting Parts' => '#fd7e14',      // Bootstrap Orange
-            'Quality Check' => '#20c997',       // Bootstrap Teal
-            'Ready for Invoice' => '#e83e8c',   // Bootstrap Pink
-            'Paid' => '#28a745',                // Bootstrap Success Green
-            'Completed' => '#28a745',           // Bootstrap Success Green (same as Paid, or a shade different)
-            'Cancelled' => '#dc3545',           // Bootstrap Danger Red
-            'Rework' => '#6c757d',              // Bootstrap Secondary Gray
-            'On Hold' => '#343a40',             // Bootstrap Dark Gray
-            'Quote Sent' => '#6610f2'           // Bootstrap Indigo (if you have this status)
-            // Add more statuses and their desired colors here
+            'Awaiting Diagnosis' => '#007bff',
+            'Diagnosis Complete' => '#ffc107',
+            'Approved' => '#17a2b8',
+            'In Progress' => '#6f42c1',
+            'Awaiting Parts' => '#fd7e14',
+            'Quality Check' => '#20c997',
+            'Ready for Invoice' => '#e83e8c',
+            'Paid' => '#28a745',
+            'Completed' => '#28a745',
+            'Cancelled' => '#dc3545',
+            'Rework' => '#6c757d',
+            'On Hold' => '#343a40',
+            'Quote Sent' => '#6610f2'
         ];
 
-        $defaultColor = '#999999'; // Fallback color for undefined statuses
-        $defaultBorderColor = '#ffffff'; // White border for doughnut segments
+        $defaultColor = '#999999';
+        $defaultBorderColor = '#ffffff';
 
-
-
-        // Initialize default values
         $jobStatusData = [
-
             'Awaiting Diagnosis' => 0,
             'Diagnosis Complete' => 0,
             'Approved' => 0,
@@ -183,12 +145,11 @@ class DashboardController extends BaseController
 
         foreach ($jobStatusQuery as $row) {
             $currentStatus = $row->job_status;
-            $count= (int)$row->count;
+            $count = (int)$row->count;
 
-              $labels[] = $currentStatus;
+            $labels[] = $currentStatus;
             $counts[] = $count;
-            
-            // Assign specific color or default
+
             $backgroundColors[] = $statusColors[$currentStatus] ?? $defaultColor;
             $borderColor[] = $defaultBorderColor;
 
@@ -199,10 +160,12 @@ class DashboardController extends BaseController
             }
         }
 
-        // Count total jobs
         $totalJobsQuery = array_sum($jobStatusData);
 
+        $pendingLPOs = 0;
+
         $data = [
+            'pendingLPOs'     => $pendingLPOs,
             'userCount'       => $userCount,
             'vehicleCount'    => $vehicleCount,
             'latestUsers'     => $latestUsers,
@@ -226,12 +189,8 @@ class DashboardController extends BaseController
             'recentActivity'  => $recentActivity,
         ];
 
-
-
-        // Merge the data arrays
         $mergedData = array_merge($data, ['recentActivity' => $recentActivity]);
 
-        // Return the view with the combined data
         return view('admin/dashboard', $mergedData);
     }
 

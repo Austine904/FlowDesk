@@ -18,30 +18,27 @@ class UsersController extends BaseController
             return redirect()->to('/login');
         }
 
-        $db = \Config\Database::connect();
-        $query = $db->table('users');
+        $userModel = new \App\Models\UserModel();
         $role = $this->request->getVar('role');
 
         $search = $this->request->getVar('search');
 
         if (!empty($search)) {
-            $query->like('name', $search)
+            $userModel->like('name', $search)
                 ->orLike('phone', $search)
                 ->orLike('role', $search)
                 ->orLike('company_id', $search);
         }
 
-        $perPage = 10;
-        $currentPage = $this->request->getVar('page') ?? 1;
-
-        $users = $query->limit($perPage, ($currentPage - 1) * $perPage)->get()->getResultArray();
-        $pager = \Config\Services::pager();
+        $data['users'] = $userModel->paginate(10);
+        $data['pager'] = $userModel->pager;
+        $total = $data['pager']->getTotal();
 
         if ($this->request->isAJAX()) {
-            return view('admin/users/user_list', ['users' => $users, 'pager' => $pager]);
+            return view('admin/users/user_list', $data + ['total' => $total]);
         }
 
-        return view('admin/users', ['users' => $users, 'pager' => $pager]);
+        return view('admin/users', $data + ['total' => $total]);
     }
 
     // Show the add user form

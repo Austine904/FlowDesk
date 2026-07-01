@@ -28,9 +28,9 @@ $routes->post('user/addUserStep3', 'UsersController::addUserStep3');
 $routes->get('user/preview', 'UsersController::preview');
 $routes->get('user/saveUser', 'UsersController::saveUser');
 
-$routes->post('/save-step-data/(:num)', 'UserController::saveStepData/$1');
+$routes->post('/save-step-data/(:num)', 'UsersController::saveStepData/$1');
 
-$routes->post('/final-submit', 'UserController::finalSubmit');
+$routes->post('/final-submit', 'UsersController::finalSubmit');
 
 // $routes->get('user/getLastId/(:any)', 'UsersController::getLastId/$1');
 $routes->get('user/getLastId', 'UsersController::getLastId');
@@ -67,7 +67,6 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     // Users
     $routes->get('users', 'UsersController::index');
     $routes->get('users/add', 'UsersController::add');
-    $routes->post('users/create', 'UsersController::create');
     $routes->get('users/(:num)', 'UsersController::details/$1');
     $routes->get('users/edit/(:num)', 'UsersController::edit/$1');
     $routes->post('users/update/(:num)', 'UsersController::update/$1');
@@ -113,7 +112,7 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
 
     //customers
     $routes->get('customers', 'CustomersController::index');
-    $routes->post('customers/load', 'Admin\CustomersController::load');
+    $routes->post('customers/load', 'CustomersController::load');
     $routes->get('customers/load', 'CustomersController::load');
     $routes->get('customers/details/(:num)', 'CustomersController::details/$1');
     $routes->get('customers/add', 'CustomersController::add');

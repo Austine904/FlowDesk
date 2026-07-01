@@ -7,11 +7,12 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="addVehicleForm" action="<?= base_url('admin/vehicles/add') ?>" method="post">
+                <?= csrf_field() ?>
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6">
                             <label>Registration No</label>
-                            <input type="text" name="registration_no" class="form-control" required>
+                            <input type="text" name="registration_number" class="form-control" required>
                         </div>
                         <div class="col-md-6">
                             <label>Make</label>
@@ -141,35 +142,19 @@
                     <div class="col-md-6">
                         <label>Status</label>
                         <select class="form-control" id="edit_status" name="status">
-                            <option value="In Queue">In Queue</option>
-                            <option value="Awaiting Diagnosis">Awaiting Diagnosis</option>
-                            <option value="Pending Client approval">Pending Client approval</option>
-                            <option value="Pending Parts">Pending Parts</option>
-                            <option value="Under Repair">Under Repair</option>
-                            <option value="Checkout">Checkout</option>
-                            <option value="Ready for Pickup">Ready for Pickup</option>
-                            <option value="Delivered">Delivered</option>
-                            <option value="Cancelled">Cancelled</option>
-
+                            <option value="On Job">On Job</option>
+                            <option value="Available">Available</option>
+                            <option value="Under Maintenance">Under Maintenance</option>
+                            <option value="Written Off">Written Off</option>
                         </select>
                     </div>
 
                 </div>
 
-
                 <div class="col-md-6">
                     <label>Color</label>
                     <input type="text" class="form-control" id="edit_color" name="color">
                 </div>
-                <div class="col-md-6">
-                    <label>Status</label>
-                    <select class="form-control" id="edit_status" name="status">
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
-                        <option value="Maintenance">Maintenance</option>
-                    </select>
-                </div>
-                <!-- Add more fields if you like -->
             </div>
             <div class="modal-footer">
                 <button type="submit" class="btn btn-success">Save Changes</button>

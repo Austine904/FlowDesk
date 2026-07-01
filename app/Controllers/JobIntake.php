@@ -3,11 +3,19 @@
 namespace App\Controllers;
 
 use App\Controllers\BaseController;
+use App\Models\CustomerModel;
+use App\Models\VehicleModel;
+use App\Models\JobCardModel;
+use App\Models\JobCardPhotoModel;
+use App\Models\JobCardPartModel;
+use App\Models\JobCardLaborModel;
+use App\Models\InventoryModel;
+use App\Models\UserModel;
 use CodeIgniter\API\ResponseTrait;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 use Psr\Log\LoggerInterface;
-use Exception; // Import Exception class
+use Exception;
 
 class JobIntake extends BaseController
 {
@@ -15,20 +23,18 @@ class JobIntake extends BaseController
 
     protected $db;
     protected $session;
-    protected $validation; // Use $validation for CI4
+    protected $validation;
 
     public function initController(RequestInterface $request, ResponseInterface $response, LoggerInterface $logger)
     {
         parent::initController($request, $response, $logger);
         $this->db = \Config\Database::connect();
         $this->session = \Config\Services::session();
-        $this->validation = \Config\Services::validation(); // Initialize validation service
+        $this->validation = \Config\Services::validation();
     }
 
-    // Displays the initial job intake form
     public function index()
     {
-        // Check for 'isLoggedIn' for consistency with LoginController
         if (!$this->session->get('isLoggedIn')) {
             return redirect()->to('auth/login');
         }
@@ -38,21 +44,19 @@ class JobIntake extends BaseController
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('You are not authorized to access this page.');
         }
 
-        // Fetch active service advisors for assignment dropdown
-        $service_advisors = $this->db->table('users')->whereIn('role', ['admin', 'receptionist', 'mechanic'])->get()->getResultArray();
+        $userModel = new UserModel();
+        $service_advisors = $userModel->whereIn('role', ['admin', 'receptionist', 'mechanic'])->findAll();
         $data['service_advisors'] = $service_advisors;
         return view('job_intake_form', $data);
     }
 
-    // AJAX endpoint for searching customers and vehicles
     public function search()
     {
-        // Check for 'isLoggedIn' for consistency with LoginController
         if (!$this->session->get('isLoggedIn')) {
             return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
 
-        $query = $this->request->getVar('query', FILTER_SANITIZE_STRING); // Use getVar for CI4, with filter
+        $query = $this->request->getVar('query', FILTER_SANITIZE_SPECIAL_CHARS);
 
         $results = [
             'customers' => [],
@@ -62,13 +66,10 @@ class JobIntake extends BaseController
         $sanitizedQuery = (string)$query;
 
         if (!empty($sanitizedQuery)) {
-            $customerModel = $this->db->table('customers');
-            $customerModel->like('phone', $sanitizedQuery);
-            $customerModel->orLike('name', $sanitizedQuery);
-            $customers = $customerModel->get()->getResultArray();
+            $customerModel = new CustomerModel();
+            $customers = $customerModel->searchByPhoneOrName($sanitizedQuery);
 
             foreach ($customers as &$customer) {
-                // Ensure array keys exist, provide default empty string if not
                 $customer['name'] = $customer['name'] ?? '';
                 $customer['phone'] = $customer['phone'] ?? '';
                 $customer['email'] = $customer['email'] ?? '';
@@ -76,14 +77,12 @@ class JobIntake extends BaseController
             }
             $results['customers'] = $customers;
 
-            $vehicleModel = $this->db->table('vehicles');
-            $vehicleModel->like('registration_number', $sanitizedQuery);
-            $vehicleModel->orLike('vin', $sanitizedQuery);
-            $vehicleModel->orLike('chassis_number', $sanitizedQuery);
-            $vehicles = $vehicleModel->get()->getResultArray();
+            $vehicleModel = new VehicleModel();
+            $vehicles = $vehicleModel->searchByTerm($sanitizedQuery);
 
+            $customerModel = new CustomerModel();
             foreach ($vehicles as &$vehicle) {
-                $owner = $this->db->table('customers')->where('id', $vehicle['owner_id'])->get()->getRowArray();
+                $owner = $customerModel->find($vehicle['owner_id']);
 
                 $processedOwner = [
                     'id'      => $owner['id'] ?? null,
@@ -94,9 +93,8 @@ class JobIntake extends BaseController
                 ];
 
                 $vehicle['owner_name'] = $processedOwner['name'];
-                $vehicle['owner'] = $processedOwner; // Store full owner data if needed by JS
+                $vehicle['owner'] = $processedOwner;
 
-                // Ensure vehicle keys exist, provide default empty string if not
                 $vehicle['registration_number'] = $vehicle['registration_number'] ?? '';
                 $vehicle['vin'] = $vehicle['vin'] ?? '';
                 $vehicle['make'] = $vehicle['make'] ?? '';
@@ -114,10 +112,8 @@ class JobIntake extends BaseController
         return $this->respond($results);
     }
 
-    // AJAX endpoint for creating a new job card
     public function create_job_card()
     {
-
         if (!$this->session->get('isLoggedIn')) {
             return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
@@ -135,7 +131,6 @@ class JobIntake extends BaseController
             'assigned_service_advisor_id' => 'required|integer',
         ];
 
-        // Conditional rules for customer_id and vehicle_id
         if ($this->request->getPost('customer_id') === 'new') {
             $rules = array_merge($rules, [
                 'new_customer_first_name' => 'required|max_length[50]',
@@ -144,7 +139,6 @@ class JobIntake extends BaseController
                 'new_customer_email' => 'permit_empty|valid_email|max_length[255]',
                 'new_customer_address' => 'permit_empty',
             ]);
-            // No need to explicitly add 'customer_id' required rule as it's handled by 'new' or integer
         } else {
             $rules['customer_id'] = 'required|integer';
         }
@@ -162,12 +156,10 @@ class JobIntake extends BaseController
                 'new_vehicle_transmission' => 'required|in_list[Manual,Automatic,CVT]',
                 'new_vehicle_color' => 'permit_empty|max_length[30]',
             ]);
-            // No need to explicitly add 'vehicle_id' required rule as it's handled by 'new' or integer
         } else {
             $rules['vehicle_id'] = 'required|integer';
         }
 
-        // Set validation rules
         $this->validation->setRules($rules);
 
         if (!$this->validation->withRequest($this->request)->run()) {
@@ -177,10 +169,14 @@ class JobIntake extends BaseController
         $this->db->transStart();
 
         try {
+            $customerModel = new CustomerModel();
+            $vehicleModel = new VehicleModel();
+            $jobCardModel = new JobCardModel();
+            $jobCardPhotoModel = new JobCardPhotoModel();
+
             $customer_id = $this->request->getPost('customer_id');
             $vehicle_id = $this->request->getPost('vehicle_id');
 
-            // Handle new customer creation
             if ($customer_id === 'new') {
                 $customer_data = [
                     'name' => $this->request->getPost('new_customer_first_name') . ' ' . $this->request->getPost('new_customer_last_name'),
@@ -188,8 +184,8 @@ class JobIntake extends BaseController
                     'email' => $this->request->getPost('new_customer_email'),
                     'address' => $this->request->getPost('new_customer_address')
                 ];
-                $this->db->table('customers')->insert($customer_data);
-                $customer_id = $this->db->insertID();
+                $customerModel->insert($customer_data);
+                $customer_id = $customerModel->insertID();
                 if (!$customer_id) {
                     throw new Exception('Failed to create new customer.');
                 }
@@ -197,20 +193,15 @@ class JobIntake extends BaseController
                 $customer_id = (int)$customer_id;
             }
 
-            // Handle new vehicle creation or update existing one
             if ($vehicle_id === 'new') {
-                // Prepare vehicle data
                 $registration_number = $this->request->getPost('new_vehicle_license_plate');
                 $vin = $this->request->getPost('new_vehicle_vin');
 
-                // Check for existing vehicle by registration number or VIN
-                $existingVehicle = $this->db->table('vehicles')
-                    ->groupStart()
+                $existingVehicle = $vehicleModel->groupStart()
                     ->where('registration_number', $registration_number)
                     ->orWhere('vin', $vin)
                     ->groupEnd()
-                    ->get()
-                    ->getRowArray();
+                    ->first();
 
                 if ($existingVehicle) {
                     throw new \Exception("A vehicle with the same registration number or VIN already exists.");
@@ -233,8 +224,8 @@ class JobIntake extends BaseController
                     'reported_problem' => $this->request->getPost('reported_problem'),
                 ];
 
-                $this->db->table('vehicles')->insert($vehicle_data);
-                $vehicle_id = $this->db->insertID();
+                $vehicleModel->insert($vehicle_data);
+                $vehicle_id = $vehicleModel->insertID();
 
                 if (!$vehicle_id) {
                     throw new \Exception('Failed to create new vehicle.');
@@ -242,24 +233,19 @@ class JobIntake extends BaseController
             } else {
                 $vehicle_id = (int)$vehicle_id;
 
-                // Safety check: make sure vehicle exists before updating
-                $vehicleExists = $this->db->table('vehicles')
-                    ->where('id', $vehicle_id)
-                    ->countAllResults();
+                $vehicleExists = $vehicleModel->find($vehicle_id);
 
-                if ($vehicleExists === 0) {
+                if (!$vehicleExists) {
                     throw new \Exception("Vehicle with ID $vehicle_id not found.");
                 }
 
-                $this->db->table('vehicles')->where('id', $vehicle_id)->update([
+                $vehicleModel->update($vehicle_id, [
                     'mileage' => $this->request->getPost('mileage_in'),
                     'reported_problem' => $this->request->getPost('reported_problem')
                 ]);
             }
 
-
-            // Create Job Card
-            $job_no = $this->_generate_job_no();
+            $job_no = $jobCardModel->generateJobNo();
             $job_card_data = [
                 'job_no' => $job_no,
                 'customer_id' => $customer_id,
@@ -274,18 +260,14 @@ class JobIntake extends BaseController
                 'fuel_level' => $this->request->getPost('fuel_level')
             ];
 
-            $this->db->table('job_cards')->insert($job_card_data);
-            $job_card_id = $this->db->insertID();
+            $jobCardModel->insert($job_card_data);
+            $job_card_id = $jobCardModel->insertID();
 
             if (!$job_card_id) {
-                // --- DEBUGGING LINE START ---
-                // Log the exact database error for debugging
                 log_message('critical', 'DB Error on job card insert: ' . var_export($this->db->error(), true));
-                // --- DEBUGGING LINE END ---
                 throw new Exception('Failed to create job card. Database insert failed.');
             }
 
-            // Handle photo uploads
             $files = $this->request->getFiles();
 
             if (isset($files['job_card_photos'])) {
@@ -294,7 +276,7 @@ class JobIntake extends BaseController
                         $newName = $file->getRandomName();
                         $uploadPath = ROOTPATH . 'public/uploads/job_card_photos/';
                         if (!is_dir($uploadPath)) {
-                            mkdir($uploadPath, 0777, true); // Ensure permissions are correct
+                            mkdir($uploadPath, 0777, true);
                         }
                         $file->move($uploadPath, $newName);
 
@@ -303,8 +285,8 @@ class JobIntake extends BaseController
                             'file_path' => 'uploads/job_card_photos/' . $newName,
                             'file_name' => $file->getClientName()
                         ];
-                        $this->db->table('job_card_photos')->insert($photo_data);
-                    } elseif ($file->getError() !== 4) { // Error 4 means no file was uploaded (OK for optional field)
+                        $jobCardPhotoModel->insert($photo_data);
+                    } elseif ($file->getError() !== 4) {
                         log_message('error', 'Photo upload failed for job ID ' . $job_card_id . ': ' . $file->getErrorString());
                     }
                 }
@@ -323,70 +305,53 @@ class JobIntake extends BaseController
         }
     }
 
-    // Helper to generate a unique Job Number
-    private function _generate_job_no()
-    {
-        $today = date('Ymd');
-        $builder = $this->db->table('job_cards');
-        $builder->like('job_no', 'JOB-' . $today, 'after');
-        $count = $builder->countAllResults();
-        return 'JOB-' . $today . '-' . str_pad($count + 1, 3, '0', STR_PAD_LEFT);
-    }
-
-    // Display the mechanic's diagnosis and estimation form
     public function mechanic_view($job_id)
     {
-        // Check for 'isLoggedIn' for consistency with LoginController
         if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'mechanic') {
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Unauthorized');
         }
 
-        $jobModel = $this->db->table('job_cards')->where('id', $job_id);
-        $data['job'] = $jobModel->get()->getRowArray();
+        $jobCardModel = new JobCardModel();
+        $customerModel = new CustomerModel();
+        $vehicleModel = new VehicleModel();
+        $jobCardPartModel = new JobCardPartModel();
+        $jobCardLaborModel = new JobCardLaborModel();
+
+        $data['job'] = $jobCardModel->find($job_id);
 
         if (!$data['job']) {
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Job not found.');
         }
 
-        $data['customer'] = $this->db->table('customers')->where('id', $data['job']['customer_id'])->get()->getRowArray();
-        $data['vehicle'] = $this->db->table('vehicles')->where('id', $data['job']['vehicle_id'])->get()->getRowArray();
+        $data['customer'] = $customerModel->find($data['job']['customer_id']);
+        $data['vehicle'] = $vehicleModel->find($data['job']['vehicle_id']);
 
-        $data['job_parts'] = $this->db->table('job_card_parts_required')
-            ->select('job_card_parts_required.*, inventory.name, inventory.part_number, inventory.unit_price')
-            ->join('inventory', 'job_card_parts_required.inventory_id = inventory.id')
-            ->where('job_card_id', $job_id)
-            ->get()->getResultArray();
+        $data['job_parts'] = $jobCardPartModel->getByJobCard($job_id);
 
-        $data['job_tasks'] = $this->db->table('job_card_labor_tasks')->where('job_card_id', $job_id)->get()->getResultArray();
+        $data['job_tasks'] = $jobCardLaborModel->getByJobCard($job_id);
 
         return view('mechanic_diagnosis_form', $data);
     }
 
-    // AJAX endpoint to search for parts
     public function search_parts()
     {
-        // Check for 'isLoggedIn' for consistency with LoginController
         if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'mechanic') {
             return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
 
-        $query = $this->request->getVar('query', FILTER_SANITIZE_STRING);
+        $query = $this->request->getVar('query', FILTER_SANITIZE_SPECIAL_CHARS);
         $results = [];
 
         if (!empty($query)) {
-            $results = $this->db->table('inventory')
-                ->like('name', $query)
-                ->orLike('part_number', $query)
-                ->get()->getResultArray();
+            $inventoryModel = new InventoryModel();
+            $results = $inventoryModel->search($query);
         }
 
         return $this->respond($results);
     }
 
-    // AJAX endpoint to save the mechanic's diagnosis and estimate
     public function save_diagnosis()
     {
-       
         if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'mechanic') {
             return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
@@ -400,16 +365,6 @@ class JobIntake extends BaseController
             'tasks' => 'permit_empty|array',
         ];
 
-        if ($this->request->getVar('parts')) {
-            // These would typically be 'parts.*.inventory_id' for validation,
-            // but for simplicity in this example, assuming backend handles deeper validation
-            // or that parts data is structured differently.
-        }
-
-        if ($this->request->getVar('tasks')) {
-            // Similar to parts, ensure correct validation rules for nested tasks
-        }
-
         $this->validation->setRules($rules);
 
         if (!$this->validation->withRequest($this->request)->run()) {
@@ -419,15 +374,18 @@ class JobIntake extends BaseController
         $this->db->transStart();
 
         try {
+            $jobCardModel = new JobCardModel();
+            $jobCardPartModel = new JobCardPartModel();
+            $jobCardLaborModel = new JobCardLaborModel();
+
             $update_data = [
-                'diagnosis' => $this->request->getVar('diagnosis', FILTER_SANITIZE_STRING),
+                'diagnosis' => $this->request->getVar('diagnosis', FILTER_SANITIZE_SPECIAL_CHARS),
                 'estimated_labor_hours' => $this->request->getVar('estimated_labor_hours', FILTER_SANITIZE_NUMBER_FLOAT),
                 'job_status' => 'Diagnosis Complete'
             ];
-            $this->db->table('job_cards')->where('id', $job_id)->update($update_data);
+            $jobCardModel->update($job_id, $update_data);
 
-            // Delete existing parts and tasks and re-insert
-            $this->db->table('job_card_parts_required')->where('job_card_id', $job_id)->delete();
+            $jobCardPartModel->deleteByJobCard($job_id);
             $parts = $this->request->getVar('parts');
             if ($parts && is_array($parts)) {
                 $batchInsertParts = [];
@@ -440,11 +398,11 @@ class JobIntake extends BaseController
                     ];
                 }
                 if (!empty($batchInsertParts)) {
-                    $this->db->table('job_card_parts_required')->insertBatch($batchInsertParts);
+                    $jobCardPartModel->insertBatch($batchInsertParts);
                 }
             }
 
-            $this->db->table('job_card_labor_tasks')->where('job_card_id', $job_id)->delete();
+            $jobCardLaborModel->deleteByJobCard($job_id);
             $tasks = $this->request->getVar('tasks');
             if ($tasks && is_array($tasks)) {
                 $batchInsertTasks = [];
@@ -457,7 +415,7 @@ class JobIntake extends BaseController
                     ];
                 }
                 if (!empty($batchInsertTasks)) {
-                    $this->db->table('job_card_labor_tasks')->insertBatch($batchInsertTasks);
+                    $jobCardLaborModel->insertBatch($batchInsertTasks);
                 }
             }
 

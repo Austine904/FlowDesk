@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Garage Management System</title>
+    <title>Login - FlowDesk</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
@@ -174,7 +174,7 @@
 <body>
 
 <div class="login-container">
-    <h2>Garage Login</h2>
+    <h2>FlowDesk Login</h2>
 
     <?php if (session()->getFlashdata('error')): ?>
         <div class="alert alert-danger" role="alert">
@@ -183,6 +183,7 @@
     <?php endif; ?>
 
     <form method="post" action="<?= base_url('login/auth') ?>" id="loginForm">
+        <?= csrf_field() ?>
         <div class="input-group-modern">
             <label for="company_id" class="form-label visually-hidden">Company ID</label>
             <i class="bi bi-building input-icon"></i>

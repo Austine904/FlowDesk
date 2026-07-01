@@ -28,7 +28,14 @@ class CalendarController extends BaseController
         if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'admin') {
             return redirect()->to('/login')->with('error', 'You do not have permission to access this page.');
         }
-        return view('calendar/calendar');
+
+        $users_for_notification = $this->db->table('users')->where('deleted_at', null)->get()->getResultArray();
+        $loggedInUserId = $this->session->get('user_id');
+
+        return view('calendar/calendar', [
+            'users_for_notification' => $users_for_notification,
+            'loggedInUserId' => $loggedInUserId,
+        ]);
     }
 
     /**

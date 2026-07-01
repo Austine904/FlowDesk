@@ -2,25 +2,23 @@
 
 namespace App\Controllers;
 
-use CodeIgniter\Controller;
-use CodeIgniter\Database\Exceptions\DataException;
+use App\Controllers\BaseController;
+use App\Models\VehicleModel;
+use App\Models\CustomerModel;
 
-class VehicleController extends Controller
+class VehicleController extends BaseController
 {
     public function index()
     {
-        $db = \Config\Database::connect();
-        $vehicles = $db->table('vehicles')->get()->getResultArray();
+        $vehicleModel = new VehicleModel();
+        $vehicles = $vehicleModel->findAll();
         return view('vehicles/index', ['vehicles' => $vehicles]);
     }
 
     public function fetchVehicles()
     {
-
-        $db = \Config\Database::connect();
-        $builder = $db->table('vehicles');
-        $query = $builder->get();
-        $result = $query->getResultArray();
+        $vehicleModel = new VehicleModel();
+        $result = $vehicleModel->findAll();
 
         $vehicles = [];
         foreach ($result as $row) {
@@ -39,29 +37,29 @@ class VehicleController extends Controller
     public function add()
     {
         $vehicleData = [
-            'vehicle_number' => $this->request->getPost('vehicle_number'),
+            'registration_number' => $this->request->getPost('registration_number'),
             'make' => $this->request->getPost('make'),
             'model' => $this->request->getPost('model'),
             'year' => $this->request->getPost('year'),
             'color' => $this->request->getPost('color'),
         ];
-        $db = \Config\Database::connect();
-        $db->table('vehicles')->insert($vehicleData);
+        $vehicleModel = new VehicleModel();
+        $vehicleModel->insert($vehicleData);
         return view('vehicles/add');
     }
 
     public function store()
     {
         $data = $this->request->getPost();
-        $db = \Config\Database::connect();
-        $db->table('vehicles')->insert($data);
+        $vehicleModel = new VehicleModel();
+        $vehicleModel->insert($data);
 
         return $this->response->setJSON(['status' => 'success']);
     }
     public function edit($id)
     {
-        $db = \Config\Database::connect();
-        $vehicle = $db->table('vehicles')->where('id', $id)->get()->getRowArray();
+        $vehicleModel = new VehicleModel();
+        $vehicle = $vehicleModel->find($id);
 
         if ($vehicle) {
             return view('vehicles/edit', ['vehicle' => $vehicle]);
@@ -69,20 +67,19 @@ class VehicleController extends Controller
             return redirect()->to('/vehicles')->with('error', 'Vehicle not found');
         }
     }
-    
+
     public function delete($id)
     {
-        $db = \Config\Database::connect();
-        $db->table('vehicles')->where('id', $id)->delete();
+        $vehicleModel = new VehicleModel();
+        $vehicleModel->delete($id);
 
         return $this->response->setJSON(['status' => 'success']);
     }
 
     public function details($id)
     {
-        $db = db_connect();
-        $query = $db->query("SELECT * FROM vehicles WHERE id = ?", [$id]);
-        $vehicle = $query->getRowArray();
+        $vehicleModel = new VehicleModel();
+        $vehicle = $vehicleModel->find($id);
 
         if ($vehicle) {
             return $this->response->setJSON($vehicle);
@@ -92,23 +89,21 @@ class VehicleController extends Controller
     }
 
     public function get($id)
-{
-    $db = \Config\Database::connect();
-    $builder = $db->table('vehicles');
-    $vehicle = $builder->where('id', $id)->get()->getRowArray();
+    {
+        $vehicleModel = new VehicleModel();
+        $vehicle = $vehicleModel->find($id);
 
-    return $this->response->setJSON($vehicle);
-}
+        return $this->response->setJSON($vehicle);
+    }
 
-public function update($id) 
-{
-    $data = $this->request->getPost();
+    public function update($id)
+    {
+        $data = $this->request->getPost();
 
-    $db = \Config\Database::connect();
-    $builder = $db->table('vehicles');
-    $builder->where('id', $data['id'])->update($data);
+        $vehicleModel = new VehicleModel();
+        $vehicleModel->update($id, $data);
 
-    return $this->response->setJSON(['status' => 'success']);
-}
+        return $this->response->setJSON(['status' => 'success']);
+    }
 
 }
