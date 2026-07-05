@@ -244,7 +244,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (query.length < 2) return;
 
             searchTimeout = setTimeout(function() {
-                fetch('<?= base_url('mechanic/search_parts') ?>?query=' + encodeURIComponent(query), {
+                fetch('<?= base_url('mechanic/inventory/search') ?>?query=' + encodeURIComponent(query), {
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 })
                 .then(function(res) { return res.json(); })
@@ -260,7 +260,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         data.forEach(function(part) {
                             const item = document.createElement('div');
                             item.className = 'part-item';
-                            item.textContent = part.name + ' (' + part.part_number + ') - $' + parseFloat(part.unit_price).toFixed(2);
+                            item.textContent = part.name + ' (' + (part.part_number || 'N/A') + ') - ' + parseFloat(part.unit_price).toFixed(2);
                             item.dataset.id = part.id;
                             item.dataset.name = part.name;
                             item.dataset.partNumber = part.part_number || '';

@@ -16,7 +16,7 @@
 C:\xampp\htdocs\FlowDesk\
 ├── app/
 │   ├── Config/           # App, Database, Routes, Filters, JobStatus, etc.
-│   ├── Controllers/      # 13 controllers in root namespace (no Admin/ subdirectory)
+│   ├── Controllers/      # 15 controllers in root namespace (no Admin/ subdirectory)
 │   ├── Database/
 │   │   ├── Migrations/   # Empty
 │   │   └── Seeds/        # Empty
@@ -27,7 +27,7 @@ C:\xampp\htdocs\FlowDesk\
 │   │   └── activity_helper.php   # timeAgo() — used by dashboard
 │   ├── Models/            # 16 models
 │   └── Views/
-│       ├── admin/         # dashboard, users, invoices, settings, forms
+│       ├── admin/         # dashboard, users, invoices, settings, inventory, suppliers, forms
 │       ├── calendar/      # calendar, modals
 │       ├── customers/     # customers, modals
 │       ├── errors/        # unauthorized, html/, cli/
@@ -495,16 +495,18 @@ Transition map:
 - **Key functionality:** Full invoice lifecycle. `generateFromJobCard()` sums parts (qty × unit_price_at_estimate), labor (generated `labor_cost`), and sublet costs (non-cancelled), applies VAT from org settings. Idempotent — returns existing invoice if one exists. Invoice view shows full breakdown with line items, totals, payment history, and inline payment form. Payments recorded with method (Cash, M-Pesa, Bank Transfer, Insurance, Credit). Each payment calls `updateAmountPaid()` to recalculate status. When invoice becomes Paid, job status auto-updates to Paid with history entry. Server-side DataTable processing. Overdue marking (`markOverdue`).
 
 ### Inventory
-- **Status:** Partial — DB table and model exist, used by JobIntake for parts lookup
-- **Controller:** None
-- **Routes:** None (sidebar link leads to 404)
-- **Key functionality:** `InventoryModel::search()` used by mechanic diagnosis and job intake parts search. No CRUD UI.
+- **Status:** Complete
+- **Controller:** `InventoryController`
+- **Routes:** `/admin/inventory/*` (all under admin group); `/mechanic/inventory/search` (mechanic group)
+- **Views:** `admin/inventory/index.php`, `admin/inventory/form.php`
+- **Key functionality:** DataTable with server-side processing (`load()`), add/edit forms with validation, delete with referential integrity check (cannot delete if referenced in `job_card_parts_required`), `fetch($id)` JSON endpoint, `search()` endpoint used by mechanic diagnosis form. Mechanics access search via `/mechanic/inventory/search`.
 
 ### Suppliers
-- **Status:** Partial — DB table and model exist, used by Sublets
-- **Controller:** None
-- **Routes:** None (sidebar link leads to 404)
-- **Key functionality:** `SupplierModel::getAll()` used by sublets form for dropdown. No CRUD UI.
+- **Status:** Complete
+- **Controller:** `SuppliersController`
+- **Routes:** `/admin/suppliers/*` (all under admin group)
+- **Views:** `admin/suppliers/index.php`, `admin/suppliers/form.php`
+- **Key functionality:** DataTable with server-side processing (`load()`), add/edit forms with validation, delete with referential integrity check (cannot delete if referenced in sublets), `getAll()` JSON endpoint used by sublets form dropdown.
 
 ### LPOs
 - **Status:** Not built — no DB table, no controller, no routes
@@ -781,8 +783,6 @@ GET /customer/ -> DashboardController::customer
 
 ## 12. PENDING / NOT BUILT
 
-- **Inventory CRUD UI** — DB table (`inventory`) and model (`InventoryModel`) exist. Used by JobIntake for parts search. No controller, no routes, no management UI.
-- **Suppliers CRUD UI** — DB table (`suppliers`) and model (`SupplierModel`) exist. Used by Sublets for provider dropdown. No controller, no routes, no management UI.
 - **LPOs module** — No DB table, no controller, no routes. Sidebar link and dashboard quick action card lead to 404.
 - **Petty Cash module** — No DB table, no controller, no routes. Sidebar link and dashboard quick action card lead to 404.
 - **Reports module** — No controller, no routes. Sidebar link leads to 404.

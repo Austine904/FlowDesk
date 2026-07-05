@@ -141,6 +141,27 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->post('invoices/record_payment/(:num)', 'InvoicesController::recordPayment/$1');
     $routes->get('invoices/mark_overdue', 'InvoicesController::markOverdue');
 
+    // Inventory
+    $routes->get('inventory', 'InventoryController::index');
+    $routes->get('inventory/load', 'InventoryController::load');
+    $routes->get('inventory/add', 'InventoryController::add');
+    $routes->post('inventory/create', 'InventoryController::create');
+    $routes->get('inventory/edit/(:num)', 'InventoryController::edit/$1');
+    $routes->post('inventory/update/(:num)', 'InventoryController::update/$1');
+    $routes->post('inventory/delete/(:num)', 'InventoryController::delete/$1');
+    $routes->get('inventory/fetch/(:num)', 'InventoryController::fetch/$1');
+    $routes->get('inventory/search', 'InventoryController::search');
+
+    // Suppliers
+    $routes->get('suppliers', 'SuppliersController::index');
+    $routes->get('suppliers/load', 'SuppliersController::load');
+    $routes->get('suppliers/add', 'SuppliersController::add');
+    $routes->post('suppliers/create', 'SuppliersController::create');
+    $routes->get('suppliers/edit/(:num)', 'SuppliersController::edit/$1');
+    $routes->post('suppliers/update/(:num)', 'SuppliersController::update/$1');
+    $routes->post('suppliers/delete/(:num)', 'SuppliersController::delete/$1');
+    $routes->get('suppliers/all', 'SuppliersController::getAll');
+
     // Sublets
     $routes->get('sublets', 'SubletsController::index');
     $routes->get('sublets/add', 'SubletsController::add');
@@ -176,6 +197,7 @@ $routes->group('mechanic', ['filter' => 'auth:mechanic'], function ($routes) {
     $routes->post('save_diagnosis', 'JobIntake::save_diagnosis');
     $routes->get('search_parts', 'JobIntake::search_parts');
     $routes->post('jobs/update_status/(:num)', 'JobsController::update_status/$1');
+    $routes->get('inventory/search', 'InventoryController::search');
 });
 
 // Customer-only
