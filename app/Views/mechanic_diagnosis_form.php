@@ -18,6 +18,49 @@
         </div>
     </div>
 
+    <?php if (!empty($valid_transitions)): ?>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Job Status</h5>
+        </div>
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-4">
+                    <strong>Current Status:</strong>
+                    <span class="badge fs-6 ms-2 <?php
+                        $colorMap = [
+                            'Awaiting Assignment' => 'bg-secondary',
+                            'Awaiting Diagnosis' => 'bg-info',
+                            'Diagnosis Complete' => 'bg-primary',
+                            'Quote Sent' => 'bg-primary',
+                            'Approved' => 'bg-success',
+                            'In Progress' => 'bg-primary',
+                            'Awaiting Parts' => 'bg-warning text-dark',
+                            'Quality Check' => 'bg-info',
+                            'Ready for Invoice' => 'bg-success',
+                            'Paid' => 'bg-success',
+                            'Completed' => 'bg-success',
+                            'On Hold' => 'bg-warning text-dark',
+                            'Rework' => 'bg-danger',
+                            'Cancelled' => 'bg-danger',
+                        ];
+                        echo $colorMap[$job['job_status']] ?? 'bg-secondary';
+                    ?>"><?= esc($job['job_status']) ?></span>
+                </div>
+                <div class="col-md-8">
+                    <strong>Actions:</strong>
+                    <div class="d-inline-flex flex-wrap gap-1 ms-2" id="mechanicTransitionButtons">
+                        <?php foreach ($valid_transitions as $nextStatus): ?>
+                            <button class="btn btn-sm btn-outline-primary btn-mechanic-status" data-job-id="<?= $job['id'] ?>" data-new-status="<?= $nextStatus ?>"><?= $nextStatus ?></button>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+            <div id="mechanicStatusMessage" class="mt-2"></div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <form method="POST" action="<?= base_url('mechanic/save_diagnosis') ?>">
         <?= csrf_field() ?>
         <input type="hidden" name="job_id" value="<?= esc($job['id']) ?>">
@@ -79,6 +122,8 @@
                         <tr>
                             <th>Task Name</th>
                             <th>Est. Hours</th>
+                            <th>Rate/hr</th>
+                            <th>Cost</th>
                             <th>Notes</th>
                             <th>Action</th>
                         </tr>
@@ -88,7 +133,9 @@
                             <?php foreach ($job_tasks as $task): ?>
                             <tr>
                                 <td><input type="text" class="form-control" name="tasks[][task_name]" value="<?= esc($task['task_name'] ?? '') ?>"></td>
-                                <td><input type="number" step="0.5" class="form-control" name="tasks[][estimated_hours]" value="<?= esc($task['estimated_hours'] ?? 0) ?>"></td>
+                                <td><input type="number" step="0.5" class="form-control task-hours" name="tasks[][estimated_hours]" value="<?= esc($task['estimated_hours'] ?? 0) ?>"></td>
+                                <td><input type="number" step="0.01" class="form-control task-rate" name="tasks[][rate_per_hour]" value="<?= esc($task['rate_per_hour'] ?? org_setting('default_labor_rate', 1500)) ?>"></td>
+                                <td><input type="text" class="form-control task-cost" value="<?= esc(($task['rate_per_hour'] ?? org_setting('default_labor_rate', 1500)) * ($task['estimated_hours'] ?? 0)) ?>" readonly></td>
                                 <td><input type="text" class="form-control" name="tasks[][notes]" value="<?= esc($task['notes'] ?? '') ?>"></td>
                                 <td><button type="button" class="btn btn-sm btn-danger remove-row">Remove</button></td>
                             </tr>
@@ -148,13 +195,27 @@ document.addEventListener('DOMContentLoaded', function() {
         tbody.appendChild(row);
     });
 
+    // Auto-calculate labor cost when hours or rate changes
+    document.addEventListener('input', function(e) {
+        if (e.target.classList.contains('task-hours') || e.target.classList.contains('task-rate')) {
+            const tr = e.target.closest('tr');
+            const hours = parseFloat(tr.querySelector('.task-hours').value) || 0;
+            const rate = parseFloat(tr.querySelector('.task-rate').value) || 0;
+            const costInput = tr.querySelector('.task-cost');
+            costInput.value = (hours * rate).toFixed(2);
+        }
+    });
+
     // Add task row
     document.getElementById('addTaskRow')?.addEventListener('click', function() {
         const tbody = document.querySelector('#tasksTable tbody');
         const row = document.createElement('tr');
+        const defaultRate = <?= org_setting('default_labor_rate', 1500) ?>;
         row.innerHTML = `
             <td><input type="text" class="form-control" name="tasks[][task_name]"></td>
-            <td><input type="number" step="0.5" class="form-control" name="tasks[][estimated_hours]" value="0"></td>
+            <td><input type="number" step="0.5" class="form-control task-hours" name="tasks[][estimated_hours]" value="0"></td>
+            <td><input type="number" step="0.01" class="form-control task-rate" name="tasks[][rate_per_hour]" value="${defaultRate}"></td>
+            <td><input type="text" class="form-control task-cost" value="0" readonly></td>
             <td><input type="text" class="form-control" name="tasks[][notes]"></td>
             <td><button type="button" class="btn btn-sm btn-danger remove-row">Remove</button></td>
         `;
@@ -228,6 +289,55 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!e.target.classList.contains('part-search')) {
             document.querySelectorAll('.search-parts-dropdown').forEach(function(el) { el.remove(); });
         }
+    });
+
+    // Mechanic status transition buttons
+    document.querySelectorAll('.btn-mechanic-status').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const jobId = this.dataset.jobId;
+            const newStatus = this.dataset.newStatus;
+            const msgDiv = document.getElementById('mechanicStatusMessage');
+            const originalText = this.textContent;
+
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            msgDiv.innerHTML = '';
+
+            var csrfName = document.querySelector('meta[name="csrf-name"]')?.getAttribute('content');
+            var csrfHash = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            var formData = new URLSearchParams();
+            formData.append('new_status', newStatus);
+            if (csrfName && csrfHash) {
+                formData.append(csrfName, csrfHash);
+            }
+
+            fetch(BASE_URL + '/mechanic/jobs/update_status/' + jobId, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: formData.toString()
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(response) {
+                if (response.status === 'success') {
+                    msgDiv.innerHTML = '<span class="text-success">' + response.message + '</span>';
+                    // Reload page to reflect new status
+                    setTimeout(function() { location.reload(); }, 1000);
+                } else {
+                    msgDiv.innerHTML = '<span class="text-danger">' + (response.message || 'Error updating status') + '</span>';
+                }
+            })
+            .catch(function() {
+                msgDiv.innerHTML = '<span class="text-danger">Error updating status. Please try again.</span>';
+            })
+            .finally(function() {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            });
+        });
     });
 });
 </script>

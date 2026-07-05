@@ -5,6 +5,9 @@ namespace App\Controllers;
 use App\Controllers\BaseController;
 use App\Models\JobCardModel;
 use App\Models\UserModel;
+use App\Models\JobStatusHistoryModel;
+use App\Models\InvoiceModel;
+use Config\JobStatus;
 
 class JobsController extends BaseController
 {
@@ -143,10 +146,26 @@ class JobsController extends BaseController
         $userModel = new UserModel();
         $mechanics = $userModel->getByRole('mechanic');
 
+        $invoiceModel = new InvoiceModel();
+        $invoice = $invoiceModel->where('job_card_id', $id)->first();
+
+        $config = new JobStatus();
+        $role = session()->get('role');
+        $validTransitions = $config->getValidTransitions($job['job_status'], $role);
+
         return $this->respond([
             'id' => $job['id'],
             'job_no' => $job['job_no'],
             'job_status' => $job['job_status'],
+            'invoice' => $invoice ? [
+                'invoice_id'    => $invoice['id'],
+                'invoice_no'    => $invoice['invoice_no'],
+                'grand_total'   => $invoice['grand_total'],
+                'balance_due'   => $invoice['balance_due'],
+                'status'        => $invoice['status'],
+            ] : null,
+            'valid_transitions' => $validTransitions,
+            'current_role' => $role,
             'diagnosis' => $job['diagnosis'],
             'initial_damage_notes' => $job['initial_damage_notes'],
             'mileage_in' => $job['mileage_in'],
@@ -209,5 +228,86 @@ class JobsController extends BaseController
         } catch (\Exception $e) {
             return redirect()->to('/admin/jobs')->with('error', 'Deletion failed: ' . $e->getMessage());
         }
+    }
+
+    public function update_status($id)
+    {
+        if (!session()->get('isLoggedIn')) {
+            return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        $role = session()->get('role');
+        $userId = session()->get('user_id');
+        $newStatus = $this->request->getPost('new_status');
+        $notes = $this->request->getPost('notes');
+
+        if (empty($newStatus)) {
+            return $this->respond(['status' => 'error', 'message' => 'New status is required'], 400);
+        }
+
+        $jobCardModel = new JobCardModel();
+        $job = $jobCardModel->find($id);
+
+        if (!$job) {
+            return $this->respond(['status' => 'error', 'message' => 'Job not found'], 404);
+        }
+
+        $currentStatus = $job['job_status'];
+
+        $config = new JobStatus();
+        $validTransitions = $config->getValidTransitions($currentStatus, $role);
+
+        if (!in_array($newStatus, $validTransitions)) {
+            return $this->respond(['status' => 'error', 'message' => 'This status transition is not allowed for your role'], 403);
+        }
+
+        $db = \Config\Database::connect();
+        $db->transBegin();
+
+        try {
+            $jobCardModel->update($id, ['job_status' => $newStatus]);
+
+            $historyModel = new JobStatusHistoryModel();
+            $historyModel->insert([
+                'job_card_id' => $id,
+                'from_status' => $currentStatus,
+                'to_status'   => $newStatus,
+                'changed_by'  => $userId,
+                'notes'       => $notes,
+            ]);
+
+            // Auto-generate invoice when job reaches Ready for Invoice
+            if ($newStatus === 'Ready for Invoice') {
+                $invoiceModel = new InvoiceModel();
+                $invoiceModel->generateFromJobCard($id, $userId);
+            }
+
+            $db->transCommit();
+
+            $config = new JobStatus();
+            $nextTransitions = $config->getValidTransitions($newStatus, $role);
+
+            return $this->respond([
+                'status' => 'success',
+                'message' => 'Status updated successfully',
+                'new_status' => $newStatus,
+                'valid_transitions' => $nextTransitions,
+            ]);
+        } catch (\Exception $e) {
+            $db->transRollback();
+            return $this->respond(['status' => 'error', 'message' => 'Failed to update status: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function status_history($id)
+    {
+        if (!session()->get('isLoggedIn')) {
+            return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        $historyModel = new JobStatusHistoryModel();
+        $history = $historyModel->getByJobCard($id);
+
+        return $this->respond(['data' => $history]);
     }
 }

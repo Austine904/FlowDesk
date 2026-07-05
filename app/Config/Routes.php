@@ -101,6 +101,8 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->get('jobs/delete/(:num)', 'JobsController::delete/$1');
     $routes->post('jobs/bulk_action', 'JobsController::bulk_action');
     $routes->post('jobs/assign_mechanic/(:num)', 'JobsController::assign_mechanic/$1');
+    $routes->post('jobs/update_status/(:num)', 'JobsController::update_status/$1');
+    $routes->get('jobs/status_history/(:num)', 'JobsController::status_history/$1');
     // $routes->get('job/job_intake_form', 'JobIntake::index');
 
     // Job Intake
@@ -126,6 +128,18 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->get('calendar/addEvent', 'CalendarController::addEvent');
     $routes->post('calendar/addEvent', 'CalendarController::addEvent');
     $routes->post('calendar/updateEventDate', 'CalendarController::updateEventDate');
+
+    // Settings
+    $routes->get('settings', 'SettingsController::index');
+    $routes->post('settings/update', 'SettingsController::update');
+
+    // Invoices
+    $routes->get('invoices', 'InvoicesController::index');
+    $routes->get('invoices/load', 'InvoicesController::load');
+    $routes->get('invoices/view/(:num)', 'InvoicesController::view/$1');
+    $routes->get('invoices/generate/(:num)', 'InvoicesController::generate/$1');
+    $routes->post('invoices/record_payment/(:num)', 'InvoicesController::recordPayment/$1');
+    $routes->get('invoices/mark_overdue', 'InvoicesController::markOverdue');
 
     // Sublets
     $routes->get('sublets', 'SubletsController::index');
@@ -161,6 +175,7 @@ $routes->group('mechanic', ['filter' => 'auth:mechanic'], function ($routes) {
     $routes->get('jobs/(:num)', 'JobIntake::mechanic_view/$1');
     $routes->post('save_diagnosis', 'JobIntake::save_diagnosis');
     $routes->get('search_parts', 'JobIntake::search_parts');
+    $routes->post('jobs/update_status/(:num)', 'JobsController::update_status/$1');
 });
 
 // Customer-only

@@ -166,11 +166,56 @@ class DashboardController extends BaseController
 
         $totalJobsQuery = array_sum($jobStatusData);
 
+        $db = \Config\Database::connect();
+
+        $revenueData = $db->table('payments')
+            ->select("MONTH(payment_date) as month, SUM(amount) as total")
+            ->where('payment_date >=', date('Y-m-d', strtotime('-6 months')))
+            ->groupBy('MONTH(payment_date)')
+            ->orderBy('MONTH(payment_date)', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        $revenueByMonth = [];
+        $revenueLabels = [];
+        $monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        for ($i = 5; $i >= 0; $i--) {
+            $m = (int) date('m', strtotime("-{$i} months"));
+            $revenueByMonth[] = 0;
+            $revenueLabels[] = $monthNames[$m];
+        }
+        foreach ($revenueData as $row) {
+            $monthIdx = (int) $row['month'];
+            $revIdx = 5 - ((int) date('m') - $monthIdx);
+            if ($revIdx >= 0 && $revIdx < 6) {
+                $revenueByMonth[$revIdx] = (float) $row['total'];
+            }
+        }
+
+        $thisMonthRevenue = $db->table('payments')
+            ->selectSum('amount', 'total')
+            ->where('payment_date >=', date('Y-m-01'))
+            ->where('payment_date <=', date('Y-m-t'))
+            ->get()
+            ->getRowArray();
+        $totalRevenue = (float) ($thisMonthRevenue['total'] ?? 0);
+
+        $outstandingRow = $db->table('invoices')
+            ->selectSum('balance_due', 'total')
+            ->whereNotIn('status', ['Paid', 'Cancelled'])
+            ->get()
+            ->getRowArray();
+        $outstandingBalance = (float) ($outstandingRow['total'] ?? 0);
+
         $pendingLPOs = 0;
 
         $data = [
-            'pendingLPOs'     => $pendingLPOs,
-            'userCount'       => $userCount,
+            'pendingLPOs'        => $pendingLPOs,
+            'totalRevenue'       => $totalRevenue,
+            'outstandingBalance' => $outstandingBalance,
+            'revenueByMonth'     => json_encode($revenueByMonth),
+            'revenueLabels'      => json_encode($revenueLabels),
+            'userCount'          => $userCount,
             'vehicleCount'    => $vehicleCount,
             'latestUsers'     => $latestUsers,
             'latestVehicles'  => $latestVehicles,

@@ -91,4 +91,10 @@ class JobCardModel extends Model
 
         return $prefix . str_pad((string) $suffix, 3, '0', STR_PAD_LEFT);
     }
+
+    public function getStatusHistory(int $job_card_id): array
+    {
+        $historyModel = new \App\Models\JobStatusHistoryModel();
+        return $historyModel->getByJobCard($job_card_id);
+    }
 }

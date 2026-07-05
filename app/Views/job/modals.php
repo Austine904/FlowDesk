@@ -346,6 +346,17 @@
                         </div>
                     </div>
 
+                    <!-- Status Actions -->
+                    <div class="card p-3 mb-3" id="statusActionsCard">
+                        <h6 class="mb-3 text-primary">Status</h6>
+                        <div class="info-item">
+                            <span class="info-label">Current Status:</span>
+                            <span class="info-value"><span class="badge fs-6" id="detail_status_badge"></span></span>
+                        </div>
+                        <div class="mt-2" id="transitionButtonsContainer"></div>
+                        <div class="mt-2" id="statusTransitionMessage"></div>
+                    </div>
+
                     <div class="col-md-7">
                         <ul class="nav nav-tabs mb-3" id="jobDetailsTab" role="tablist">
                             <li class="nav-item" role="presentation">
@@ -356,6 +367,12 @@
                             </li>
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="photos-tab" data-bs-toggle="tab" data-bs-target="#photos" type="button" role="tab" aria-controls="photos" aria-selected="false">Photos</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="status-history-tab" data-bs-toggle="tab" data-bs-target="#status-history" type="button" role="tab" aria-controls="status-history" aria-selected="false">Status History</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="invoice-tab" data-bs-toggle="tab" data-bs-target="#invoice-tab-panel" type="button" role="tab" aria-controls="invoice-tab-panel" aria-selected="false">Invoice</button>
                             </li>
                         </ul>
                         <div class="tab-content" id="jobDetailsTabContent">
@@ -419,6 +436,33 @@
                                 <h6 class="mb-3 text-secondary">Job Card Photos</h6>
                                 <div id="detail_photos_gallery" class="row g-2">
                                     <div class="col-12 text-center text-muted">No photos available.</div>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="status-history" role="tabpanel" aria-labelledby="status-history-tab">
+                                <h6 class="mb-3 text-secondary">Status Transition History</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered">
+                                        <thead>
+                                            <tr>
+                                                <th>From</th>
+                                                <th>To</th>
+                                                <th>Changed By</th>
+                                                <th>Date/Time</th>
+                                                <th>Notes</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="detail_status_history">
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted">Loading history...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="invoice-tab-panel" role="tabpanel" aria-labelledby="invoice-tab">
+                                <h6 class="mb-3 text-secondary">Invoice</h6>
+                                <div id="detail_invoice_content">
+                                    <p class="text-muted text-center">Loading invoice data...</p>
                                 </div>
                             </div>
                         </div>
@@ -641,6 +685,38 @@
                     photosGallery.append('<div class="col-12 text-center text-muted">No photos available.</div>');
                 }
 
+
+                renderStatusSection(data.job_status, data.valid_transitions, data.id);
+
+                // Populate Invoice Tab
+                const invoiceContent = $('#detail_invoice_content');
+                invoiceContent.empty();
+                if (data.invoice) {
+                    const inv = data.invoice;
+                    const badgeMap = {
+                        'Draft': 'bg-secondary', 'Sent': 'bg-primary',
+                        'Partially Paid': 'bg-warning text-dark', 'Paid': 'bg-success',
+                        'Overdue': 'bg-danger', 'Cancelled': 'bg-dark'
+                    };
+                    const badgeClass = badgeMap[inv.status] || 'bg-secondary';
+                    invoiceContent.html(`
+                        <div class="info-item"><span class="info-label">Invoice No:</span> <span class="info-value">${inv.invoice_no}</span></div>
+                        <div class="info-item"><span class="info-label">Grand Total:</span> <span class="info-value">KSh ${parseFloat(inv.grand_total).toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
+                        <div class="info-item"><span class="info-label">Balance Due:</span> <span class="info-value">KSh ${parseFloat(inv.balance_due).toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
+                        <div class="info-item"><span class="info-label">Status:</span> <span class="info-value"><span class="badge ${badgeClass}">${inv.status}</span></span></div>
+                        <div class="mt-3">
+                            <a href="<?= base_url('admin/invoices/view/') ?>${inv.invoice_id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i> View Invoice</a>
+                        </div>
+                    `);
+                } else {
+                    const jobId = data.id;
+                    invoiceContent.html(`
+                        <p class="text-muted">No invoice generated yet for this job.</p>
+                        <a href="<?= base_url('admin/invoices/generate/') ?>${jobId}" class="btn btn-sm btn-primary" onclick="return confirm('Generate invoice from this job card?')">
+                            <i class="bi bi-receipt"></i> Generate Invoice
+                        </a>
+                    `);
+                }
 
             } catch (error) {
                 const modalBody = jobDetailsModalElement.querySelector('.modal-body');
@@ -1034,6 +1110,125 @@
                 }
             });
         });
+
+        // Status transition button click handler
+        $(document).on('click', '.btn-status-transition', function() {
+            const jobId = $(this).data('job-id');
+            const newStatus = $(this).data('new-status');
+            const $btn = $(this);
+            const $msg = $('#statusTransitionMessage');
+
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+            $msg.html('');
+
+            $.ajax({
+                url: BASE_URL + '/admin/jobs/update_status/' + jobId,
+                method: 'POST',
+                data: { new_status: newStatus },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 'success') {
+                        $msg.html('<span class="text-success">' + response.message + '</span>');
+                        renderStatusSection(response.new_status, response.valid_transitions, jobId);
+                        $('#detail_job_status').text(response.new_status);
+                    } else {
+                        $msg.html('<span class="text-danger">' + (response.message || 'Error updating status') + '</span>');
+                    }
+                },
+                error: function(xhr) {
+                    let msg = 'Error updating status.';
+                    try {
+                        const r = JSON.parse(xhr.responseText);
+                        msg = r.message || msg;
+                    } catch(e) {}
+                    $msg.html('<span class="text-danger">' + msg + '</span>');
+                },
+                complete: function() {
+                    $btn.prop('disabled', false).text($btn.data('original-text') || 'Update');
+                }
+            });
+        });
+
+        // Load status history when tab is shown
+        $(document).on('shown.bs.tab', '#status-history-tab', function() {
+            const jobId = window._currentJobId;
+            if (!jobId) return;
+            loadStatusHistory(jobId);
+        });
+
+        function renderStatusSection(status, transitions, jobId) {
+            const badge = $('#detail_status_badge');
+            badge.text(status);
+            badge.removeClass('bg-secondary bg-success bg-warning bg-danger bg-info bg-primary');
+            const colorMap = {
+                'Awaiting Assignment': 'bg-secondary',
+                'Awaiting Diagnosis': 'bg-info',
+                'Diagnosis Complete': 'bg-primary',
+                'Quote Sent': 'bg-primary',
+                'Approved': 'bg-success',
+                'In Progress': 'bg-primary',
+                'Awaiting Parts': 'bg-warning text-dark',
+                'Quality Check': 'bg-info',
+                'Ready for Invoice': 'bg-success',
+                'Paid': 'bg-success',
+                'Completed': 'bg-success',
+                'On Hold': 'bg-warning text-dark',
+                'Rework': 'bg-danger',
+                'Cancelled': 'bg-danger'
+            };
+            badge.addClass(colorMap[status] || 'bg-secondary');
+
+            const container = $('#transitionButtonsContainer');
+            container.empty();
+
+            if (transitions && transitions.length > 0) {
+                const label = $('<div class="info-label mb-1">Actions:</div>');
+                container.append(label);
+                transitions.forEach(function(nextStatus) {
+                    const btn = $('<button class="btn btn-sm btn-outline-primary me-1 mb-1 btn-status-transition"></button>');
+                    btn.data('job-id', jobId);
+                    btn.data('new-status', nextStatus);
+                    btn.data('original-text', nextStatus);
+                    btn.text(nextStatus);
+                    container.append(btn);
+                });
+            } else {
+                container.append('<span class="text-muted small">No status transitions available for your role.</span>');
+            }
+        }
+
+        function loadStatusHistory(jobId) {
+            const tbody = $('#detail_status_history');
+            tbody.html('<tr><td colspan="5" class="text-center text-muted">Loading history...</td></tr>');
+
+            $.ajax({
+                url: BASE_URL + '/admin/jobs/status_history/' + jobId,
+                method: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    tbody.empty();
+                    if (response.data && response.data.length > 0) {
+                        response.data.forEach(function(entry) {
+                            const date = new Date(entry.created_at).toLocaleString();
+                            tbody.append(`
+                                <tr>
+                                    <td>${entry.from_status}</td>
+                                    <td>${entry.to_status}</td>
+                                    <td>${entry.changed_by_name || 'N/A'}</td>
+                                    <td>${date}</td>
+                                    <td>${entry.notes || ''}</td>
+                                </tr>
+                            `);
+                        });
+                    } else {
+                        tbody.append('<tr><td colspan="5" class="text-center text-muted">No status history recorded.</td></tr>');
+                    }
+                },
+                error: function() {
+                    tbody.html('<tr><td colspan="5" class="text-center text-danger">Failed to load status history.</td></tr>');
+                }
+            });
+        }
     });
 </script>
 

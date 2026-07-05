@@ -17,12 +17,15 @@ class JobCardLaborModel extends Model
         'job_card_id',
         'task_name',
         'estimated_hours',
+        'rate_per_hour',
         'notes',
     ];
 
     public function getByJobCard(int $job_card_id): array
     {
-        return $this->where('job_card_id', $job_card_id)->findAll();
+        return $this->select('job_card_labor_tasks.*, (estimated_hours * rate_per_hour) AS labor_cost')
+            ->where('job_card_id', $job_card_id)
+            ->findAll();
     }
 
     public function deleteByJobCard(int $job_card_id): void

@@ -358,14 +358,27 @@
             </div>
         </div>
         <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6>This Month Revenue</h6>
+                            <h3><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($totalRevenue ?? 0, 0) ?></h3>
+                        </div>
+                        <i class="bi bi-cash-stack" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
             <div class="card text-white bg-danger">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6>Pending LPOs</h6>
-                            <h3><?= $pendingLPOs ?? '0' ?></h3>
+                            <h6>Outstanding Balance</h6>
+                            <h3><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($outstandingBalance ?? 0, 0) ?></h3>
                         </div>
-                        <i class="bi bi-file-earmark-text" style="font-size: 2.5rem;"></i>
+                        <i class="bi bi-credit-card-2-front" style="font-size: 2.5rem;"></i>
                     </div>
                 </div>
             </div>
@@ -386,7 +399,7 @@
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header">
-                    <strong>Revenue Trends (Last 7 Days)</strong>
+                    <strong>Revenue Trends (Last 6 Months)</strong>
                 </div>
                 <div class="card-body">
                     <canvas id="revenueTrendsChart"></canvas>
@@ -556,22 +569,8 @@
             return;
         }
 
-        const mockRevenueTrendsData = {
-            labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
-            datasets: [{
-                label: 'Revenue ($)',
-                data: [500, 750, 600, 900, 800, 1200, 1000], // Example revenue
-                fill: true,
-                backgroundColor: 'rgba(0, 123, 255, 0.2)', // Light primary color
-                borderColor: 'var(--primary-color)',
-                tension: 0.4, // Smooth curve
-                pointBackgroundColor: 'var(--primary-color)',
-                pointBorderColor: 'white',
-                pointBorderWidth: 2,
-                pointRadius: 5,
-                pointHoverRadius: 7
-            }]
-        };
+        const revenueLabels = <?= $revenueLabels ?? '["Jan","Feb","Mar","Apr","May","Jun"]' ?>;
+        const revenueData = <?= $revenueByMonth ?? '[0,0,0,0,0,0]' ?>;
 
 
         // Job Status Breakdown Chart
@@ -656,7 +655,22 @@
         if (revenueTrendsCtx) {
             new Chart(revenueTrendsCtx, {
                 type: 'line',
-                data: mockRevenueTrendsData,
+                data: {
+                    labels: revenueLabels,
+                    datasets: [{
+                        label: 'Revenue (<?= org_setting('currency_symbol', 'KSh') ?>)',
+                        data: revenueData,
+                        fill: true,
+                        backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                        borderColor: 'var(--primary-color)',
+                        tension: 0.4,
+                        pointBackgroundColor: 'var(--primary-color)',
+                        pointBorderColor: 'white',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,

@@ -163,6 +163,13 @@ class CustomersController extends BaseController
 
             $customer['jobs'] = $jobs;
 
+            $invoiceModel = new \App\Models\InvoiceModel();
+            $invoices = $invoiceModel->select('invoice_no, invoice_date, grand_total, amount_paid, balance_due, status')
+                ->where('customer_id', $id)
+                ->orderBy('invoice_date', 'DESC')
+                ->findAll();
+            $customer['invoices'] = $invoices;
+
             return $this->respond($customer);
         } catch (DatabaseException $e) {
             log_message('error', 'Database error: ' . $e->getMessage());
