@@ -2,64 +2,25 @@
 
 <?= $this->section('content') ?>
 <div class="container mt-5">
-    <h3 class="mb-4">Mechanic Dashboard</h3>
-    <p class="text-muted">Welcome, <?= esc($name) ?>. Here are your assigned jobs.</p>
-
-    <div class="row g-4 mb-4">
-        <div class="col-md-3">
-            <div class="card text-white bg-primary">
-                <div class="card-body">
-                    <h6>Total Assigned</h6>
-                    <h3><?= $totalJobs ?? 0 ?></h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-warning">
-                <div class="card-body">
-                    <h6>Awaiting Diagnosis</h6>
-                    <h3><?= $awaitingDiagnosis ?? 0 ?></h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-info">
-                <div class="card-body">
-                    <h6>In Progress</h6>
-                    <h3><?= $inProgress ?? 0 ?></h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-success">
-                <div class="card-body">
-                    <h6>Completed</h6>
-                    <h3><?= $completed ?? 0 ?></h3>
-                </div>
-            </div>
-        </div>
-    </div>
+    <h3 class="mb-4">My Assigned Jobs</h3>
 
     <div class="card">
-        <div class="card-header">
-            <strong>My Recent Jobs</strong>
-        </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-striped table-bordered">
+                <table class="table table-striped table-bordered" id="mechanicJobsTable">
                     <thead>
                         <tr>
                             <th>Job No</th>
                             <th>Customer</th>
-                            <th>Vehicle</th>
+                            <th>Vehicle Reg</th>
                             <th>Status</th>
                             <th>Date In</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if (!empty($recentJobs)): ?>
-                            <?php foreach ($recentJobs as $job): ?>
+                        <?php if (!empty($jobs)): ?>
+                            <?php foreach ($jobs as $job): ?>
                             <tr>
                                 <td><?= esc($job['job_no'] ?? '') ?></td>
                                 <td><?= esc($job['customer_name'] ?? '') ?></td>
@@ -81,8 +42,18 @@
                     </tbody>
                 </table>
             </div>
-            <a href="<?= base_url('mechanic/jobs') ?>" class="btn btn-outline-primary mt-2">View All Assigned Jobs</a>
         </div>
     </div>
 </div>
+
+<?php if (!empty($jobs)): ?>
+<script>
+$(document).ready(function() {
+    $('#mechanicJobsTable').DataTable({
+        order: [[4, 'desc']]
+    });
+});
+</script>
+<?php endif; ?>
+
 <?= $this->endSection() ?>

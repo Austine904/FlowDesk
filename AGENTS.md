@@ -38,6 +38,7 @@ C:\xampp\htdocs\FlowDesk\
 │       ├── sublets/     # index.php, form.php, _details.php, modals.php
 │       ├── user/        # add_step1/2/3.php, preview.php, success.php, getLastId.php
 │       ├── vehicles/    # index.php, add.php, edit.php, modals.php
+│       ├── mechanic/    # jobs.php (mechanic job list)
 │       └── *.php        # login.php, dashboard variants (receptionist, mechanic, customer), welcome_message.php
 ├── public/
 │   ├── assets/js/       # vehicles.js, job_intake.js, customers.js, calendar.js, sublets.js
@@ -145,11 +146,12 @@ C:\xampp\htdocs\FlowDesk\
 | end_date | date | NULL |
 | diagnosis | text | NULL |
 | initial_damage_notes | text | NULL |
-| job_status | varchar(30) | NOT NULL, INDEX, default 'Awaiting Diagnosis' |
+| job_status | varchar(30) | NOT NULL, INDEX, default 'Awaiting Assignment' |
 | mileage_in | int(11) | NULL |
 | fuel_level | enum('Empty','1/4','1/2','3/4','Full') | NULL |
 | estimated_labor_hours | decimal(8,2) | NULL |
 | assigned_service_advisor_id | int(10) unsigned | FK → users.id |
+| assigned_mechanic_id | int(10) unsigned | NULL, FK → users.id, INDEX idx_jc_mechanic |
 | job_summary | text | NULL |
 | quote_amount | decimal(12,2) | NULL |
 | quote_status | varchar(30) | NULL |
@@ -251,6 +253,7 @@ C:\xampp\htdocs\FlowDesk\
 | job_cards.customer_id | customers.id | fk_jc_customer |
 | job_cards.vehicle_id | vehicles.id | fk_jc_vehicle |
 | job_cards.assigned_service_advisor_id | users.id | fk_jc_advisor |
+| job_cards.assigned_mechanic_id | users.id | fk_jc_mechanic |
 | job_card_photos.job_card_id | job_cards.id | fk_jcp_job_card |
 | job_card_parts_required.job_card_id | job_cards.id | fk_jcpr_job_card |
 | job_card_parts_required.inventory_id | inventory.id | fk_jcpr_inventory |
@@ -298,17 +301,17 @@ C:\xampp\htdocs\FlowDesk\
 - **Limitations:** No `store()` or `update()` routes exist — forms cannot submit. No soft-delete column on the table.
 
 ### Job Intake
-- **Status:** Partial
+- **Status:** Complete
 - **Controllers:** `JobIntake`
-- **Views:** `job/index.php`, `job/modals.php`
-- **What it does:** Search customers/vehicles, create new customers+vehicles inline, create job card with photo uploads, validation, transaction safety, unique job number generation (`JOB-YYYYMMDD-NNN`). Includes mechanic diagnosis view, parts/tasks assignment, inventory search.
-- **Limitations:** `mechanic_view()`, `search_parts()`, and `save_diagnosis()` exist in the controller but have no routes defined.
+- **Views:** `job/index.php`, `job/modals.php`, `mechanic_diagnosis_form.php`
+- **What it does:** Search customers/vehicles, create new customers+vehicles inline, create job card with photo uploads, validation, transaction safety, unique job number generation (`JOB-YYYYMMDD-NNN`). Includes mechanic diagnosis view, parts/tasks assignment, inventory search, dispatch mechanic assignment. Job status defaults to `Awaiting Assignment` unless a mechanic is assigned at intake (then `Awaiting Diagnosis`).
+- **Limitations:** None.
 
 ### Jobs (Job Cards Management)
 - **Status:** Partial
 - **Controllers:** `JobsController`
 - **Views:** `admin/jobs/jobs_list.php`, `jobs/add.php`, `jobs/edit.php`, `job/index.php`, `job/modals.php`
-- **What it does:** DataTable listing (with vehicle join), add form, edit form, update, soft delete.
+- **What it does:** DataTable listing (with vehicle join), add form, edit form, update, soft delete, dispatch mechanic assignment via job details modal.
 - **Limitations:** `create()` method is referenced in routes (`admin/jobs/create`) but does not exist in `JobsController`.
 
 ### Calendar
@@ -361,12 +364,31 @@ C:\xampp\htdocs\FlowDesk\
 |------|-------------|-------------|
 | **admin** | `/admin/*` (filter: `auth:admin`) | Full access to all modules. Can manage users, customers, inventory, suppliers, invoices, calendar, LPOs, petty cash, reports, settings. |
 | **receptionist** | `/receptionist/` (filter: `auth:receptionist`), `/job_intake/*` (filter: `auth:admin,receptionist`) | Can perform job intake (create job cards, search customers/vehicles). Has own dashboard view. |
-| **mechanic** | `/mechanic/` (filter: `auth:mechanic`) | Has own dashboard view. No functionality-specific routes exist yet — the mechanic role currently lands on a standalone dashboard view. |
+| **mechanic** | `/mechanic/` (filter: `auth:mechanic`) | Has own dashboard with stat cards and assigned jobs list. Can view assigned jobs, perform diagnosis (add parts/tasks, submit diagnosis), and search inventory parts. |
 | **customer** | `/customer/` (filter: `auth:customer`) | Has own dashboard view. No customer-facing functionality exists beyond the standalone dashboard view. |
 
 **AuthFilter arguments:** Route groups pass role arguments to the filter, e.g. `['filter' => 'auth:admin']` or `['filter' => 'auth:admin,receptionist']`. If no arguments are provided, the filter only checks `isLoggedIn`.
 
 **Sidebar visibility:** The sidebar (`partials/sidebar.php`) conditionally shows admin-only links (`users`, `customers`, `inventory`, `suppliers`, `invoices`, `calendar`, `LPOs`, `petty cash`, `reports`, `settings`) when `$role == 'admin'`. All roles see `Dashboard`, `Jobs`, `Vehicles`, and `Sublets`.
+
+### Mechanic Workflow (Full Lifecycle)
+
+Intake → Awaiting Assignment → Dispatch (admin assigns mechanic) → Awaiting Diagnosis → Mechanic Diagnosis → Diagnosis Complete → Admin Approval → In Progress → [Awaiting Parts / Sublets] → Quality Check → Ready for Invoice → Paid → Completed
+
+**Mechanic-specific routes:**
+```
+GET  /mechanic/                 -> DashboardController::mechanic
+GET  /mechanic/dashboard        -> DashboardController::mechanic
+GET  /mechanic/jobs             -> JobIntake::mechanic_jobs
+GET  /mechanic/jobs/(:num)      -> JobIntake::mechanic_view/$1
+POST /mechanic/save_diagnosis   -> JobIntake::save_diagnosis
+GET  /mechanic/search_parts     -> JobIntake::search_parts
+```
+
+**Dispatch route (admin):**
+```
+POST /admin/jobs/assign_mechanic/(:num) -> JobsController::assign_mechanic/$1
+```
 
 ## 6. CODING CONVENTIONS
 
@@ -501,7 +523,7 @@ All links rendered in `app/Views/partials/sidebar.php`.
 | Link | Route | Visible To | Built? |
 |------|-------|------------|--------|
 | Dashboard | `/admin/dashboard` | All roles | Yes |
-| Jobs | `/admin/jobs` | All roles | Yes (partial) |
+| Jobs | `/admin/jobs` | All roles | Yes (dispatch mechanic assignment added) |
 | Users | `/admin/users` | Admin only | Yes |
 | Customers | `/admin/customers` | Admin only | Partial — no store/update routes |
 | Vehicles | `/admin/vehicles` | All roles | Partial |
@@ -531,8 +553,8 @@ All links rendered in `app/Views/partials/sidebar.php`.
 11. **`UsersController::submit()` referenced in route but does not exist.**
 12. **`VehicleController` route has a typo** — `vechicles/edit/(:num)` instead of `vehicles/edit/(:num)`.
 13. **`CustomersController` has no `store()` or `update()` routes** — customer add/edit forms cannot be submitted.
-14. **`JobIntake` methods `mechanic_view()`, `search_parts()`, `save_diagnosis()`** exist in the controller but have no routes.
-15. **Vehicles index view** does not extend `layouts/main`, so it renders without the sidebar.
+
+14. **Vehicles index view** does not extend `layouts/main`, so it renders without the sidebar.
 
 ## 10. GOTCHAS
 

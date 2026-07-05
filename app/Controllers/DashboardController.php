@@ -111,6 +111,7 @@ class DashboardController extends BaseController
         $borderColors = [];
 
         $statusColors = [
+            'Awaiting Assignment' => '#6c757d',
             'Awaiting Diagnosis' => '#007bff',
             'Diagnosis Complete' => '#ffc107',
             'Approved' => '#17a2b8',
@@ -118,18 +119,19 @@ class DashboardController extends BaseController
             'Awaiting Parts' => '#fd7e14',
             'Quality Check' => '#20c997',
             'Ready for Invoice' => '#e83e8c',
+            'Quote Sent' => '#6610f2',
             'Paid' => '#28a745',
             'Completed' => '#28a745',
-            'Cancelled' => '#dc3545',
-            'Rework' => '#6c757d',
             'On Hold' => '#343a40',
-            'Quote Sent' => '#6610f2'
+            'Rework' => '#6c757d',
+            'Cancelled' => '#dc3545',
         ];
 
         $defaultColor = '#999999';
         $defaultBorderColor = '#ffffff';
 
         $jobStatusData = [
+            'Awaiting Assignment' => 0,
             'Awaiting Diagnosis' => 0,
             'Diagnosis Complete' => 0,
             'Approved' => 0,
@@ -137,10 +139,12 @@ class DashboardController extends BaseController
             'Awaiting Parts' => 0,
             'Quality Check' => 0,
             'Ready for Invoice' => 0,
+            'Quote Sent' => 0,
             'Paid' => 0,
             'Completed' => 0,
-            'Cancelled' => 0,
+            'On Hold' => 0,
             'Rework' => 0,
+            'Cancelled' => 0,
         ];
 
         foreach ($jobStatusQuery as $row) {
@@ -171,6 +175,7 @@ class DashboardController extends BaseController
             'latestUsers'     => $latestUsers,
             'latestVehicles'  => $latestVehicles,
 
+            'awaitingAssignmentJobs' => $jobStatusData['Awaiting Assignment'],
             'awaitingDiagnosisJobs' => $jobStatusData['Awaiting Diagnosis'],
             'diagnosedJobs' => $jobStatusData['Diagnosis Complete'],
             'approvedJobs'    => $jobStatusData['Approved'],
@@ -178,10 +183,12 @@ class DashboardController extends BaseController
             'awaitingPartsJobs' => $jobStatusData['Awaiting Parts'],
             'qualityCheckJobs' => $jobStatusData['Quality Check'],
             'readyForInvoiceJobs' => $jobStatusData['Ready for Invoice'],
+            'quoteSentJobs'   => $jobStatusData['Quote Sent'],
             'paidJobs'        => $jobStatusData['Paid'],
             'completedJobs'   => $jobStatusData['Completed'],
-            'cancelledJobs'   => $jobStatusData['Cancelled'],
+            'onHoldJobs'      => $jobStatusData['On Hold'],
             'reworkJobs'      => $jobStatusData['Rework'],
+            'cancelledJobs'   => $jobStatusData['Cancelled'],
             'activeJobs'      => $jobStatusData['In Progress'] + $jobStatusData['Awaiting Parts'] + $jobStatusData['Quality Check'] + $jobStatusData['Ready for Invoice'],
             'totalJobs'       => $totalJobsQuery,
             'jobStatusData'   => json_encode($jobStatusData),
@@ -196,7 +203,45 @@ class DashboardController extends BaseController
 
     public function mechanic()
     {
-        return $this->restrictTo('mechanic', 'mechanic_dashboard');
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'mechanic') {
+            return redirect()->to('/login');
+        }
+
+        $userId = session()->get('user_id');
+        $jobCardModel = new JobCardModel();
+
+        $allJobs = $jobCardModel->getAssignedToMechanic($userId);
+        $totalJobs = count($allJobs);
+
+        $awaitingDiagnosis = 0;
+        $inProgress = 0;
+        $completed = 0;
+        $recentJobs = [];
+
+        foreach ($allJobs as $job) {
+            switch ($job['job_status']) {
+                case 'Awaiting Diagnosis':
+                    $awaitingDiagnosis++;
+                    break;
+                case 'In Progress':
+                    $inProgress++;
+                    break;
+                case 'Completed':
+                    $completed++;
+                    break;
+            }
+        }
+
+        $recentJobs = array_slice($allJobs, 0, 5);
+
+        return view('mechanic_dashboard', [
+            'name' => session()->get('user_name'),
+            'totalJobs' => $totalJobs,
+            'awaitingDiagnosis' => $awaitingDiagnosis,
+            'inProgress' => $inProgress,
+            'completed' => $completed,
+            'recentJobs' => $recentJobs,
+        ]);
     }
 
     private function restrictTo($requiredRole, $view)

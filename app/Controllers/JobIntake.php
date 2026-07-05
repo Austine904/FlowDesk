@@ -45,8 +45,10 @@ class JobIntake extends BaseController
         }
 
         $userModel = new UserModel();
-        $service_advisors = $userModel->whereIn('role', ['admin', 'receptionist', 'mechanic'])->findAll();
+        $service_advisors = $userModel->whereIn('role', ['admin', 'receptionist'])->findAll();
+        $mechanics = $userModel->getByRole('mechanic');
         $data['service_advisors'] = $service_advisors;
+        $data['mechanics'] = $mechanics;
         return view('job_intake_form', $data);
     }
 
@@ -245,6 +247,9 @@ class JobIntake extends BaseController
                 ]);
             }
 
+            $assigned_mechanic_id = $this->request->getPost('assigned_mechanic_id');
+            $assigned_mechanic_id = !empty($assigned_mechanic_id) ? (int)$assigned_mechanic_id : null;
+
             $job_no = $jobCardModel->generateJobNo();
             $job_card_data = [
                 'job_no' => $job_no,
@@ -255,7 +260,8 @@ class JobIntake extends BaseController
                 'diagnosis' => $this->request->getPost('reported_problem'),
                 'initial_damage_notes' => $this->request->getPost('initial_damage_notes'),
                 'assigned_service_advisor_id' => (int)$this->request->getPost('assigned_service_advisor_id'),
-                'job_status' => 'Awaiting Diagnosis',
+                'assigned_mechanic_id' => $assigned_mechanic_id,
+                'job_status' => $assigned_mechanic_id ? 'Awaiting Diagnosis' : 'Awaiting Assignment',
                 'mileage_in' => $this->request->getPost('mileage_in'),
                 'fuel_level' => $this->request->getPost('fuel_level')
             ];
@@ -303,6 +309,20 @@ class JobIntake extends BaseController
             $this->db->transRollback();
             return $this->fail(['message' => $e->getMessage()], 500);
         }
+    }
+
+    public function mechanic_jobs()
+    {
+        if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'mechanic') {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Unauthorized');
+        }
+
+        $mechanic_id = $this->session->get('user_id');
+        $jobCardModel = new JobCardModel();
+        $data['jobs'] = $jobCardModel->getAssignedToMechanic($mechanic_id);
+        $data['name'] = $this->session->get('user_name');
+
+        return view('mechanic/jobs', $data);
     }
 
     public function mechanic_view($job_id)

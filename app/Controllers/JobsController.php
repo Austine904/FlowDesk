@@ -27,7 +27,8 @@ class JobsController extends BaseController
                 ->orLike('vehicle_id', $search);
         }
 
-        $service_advisors = $userModel->getByRole('mechanic');
+        $service_advisors = $userModel->whereIn('role', ['admin', 'receptionist'])->findAll();
+        $mechanics = $userModel->getByRole('mechanic');
 
         $jobs = $jobCardModel->paginate(10);
         $pager = $jobCardModel->pager;
@@ -36,7 +37,7 @@ class JobsController extends BaseController
             return view('admin/jobs/jobs_list', ['jobs' => $jobs, 'pager' => $pager]);
         }
 
-        return view('job/index', ['jobs' => $jobs, 'pager' => $pager, 'service_advisors' => $service_advisors]);
+        return view('job/index', ['jobs' => $jobs, 'pager' => $pager, 'service_advisors' => $service_advisors, 'mechanics' => $mechanics]);
     }
 
     public function fetchJobs()
@@ -112,6 +113,90 @@ class JobsController extends BaseController
         } catch (\Exception $e) {
             return redirect()->back()->withInput()->with('error', 'Error: ' . $e->getMessage());
         }
+    }
+
+    public function details($id)
+    {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
+            return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        $jobCardModel = new JobCardModel();
+        $job = $jobCardModel->getWithDetails($id);
+
+        if (!$job) {
+            return $this->respond(['status' => 'error', 'message' => 'Job not found'], 404);
+        }
+
+        $customerModel = new \App\Models\CustomerModel();
+        $vehicleModel = new \App\Models\VehicleModel();
+        $jobCardPartModel = new \App\Models\JobCardPartModel();
+        $jobCardLaborModel = new \App\Models\JobCardLaborModel();
+        $jobCardPhotoModel = new \App\Models\JobCardPhotoModel();
+
+        $customer = $customerModel->find($job['customer_id']);
+        $vehicle = $vehicleModel->find($job['vehicle_id']);
+        $parts = $jobCardPartModel->getByJobCard($id);
+        $tasks = $jobCardLaborModel->getByJobCard($id);
+        $photos = $jobCardPhotoModel->where('job_card_id', $id)->findAll();
+
+        $userModel = new UserModel();
+        $mechanics = $userModel->getByRole('mechanic');
+
+        return $this->respond([
+            'id' => $job['id'],
+            'job_no' => $job['job_no'],
+            'job_status' => $job['job_status'],
+            'diagnosis' => $job['diagnosis'],
+            'initial_damage_notes' => $job['initial_damage_notes'],
+            'mileage_in' => $job['mileage_in'],
+            'fuel_level' => $job['fuel_level'],
+            'date_in' => $job['date_in'],
+            'time_in' => $job['time_in'],
+            'estimated_labor_hours' => $job['estimated_labor_hours'],
+            'quote_status' => $job['quote_status'],
+            'quote_amount' => $job['quote_amount'],
+            'assigned_service_advisor' => $job['advisor_name'] ?? 'N/A',
+            'assigned_mechanic_id' => $job['assigned_mechanic_id'],
+            'mechanic_name' => $job['mechanic_name'] ?? null,
+            'job_summary' => $job['job_summary'],
+            'customer' => $customer ?: [],
+            'vehicle' => $vehicle ?: [],
+            'parts' => $parts,
+            'tasks' => $tasks,
+            'photos' => $photos,
+            'mechanics' => $mechanics,
+        ]);
+    }
+
+    public function assign_mechanic($id)
+    {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
+            return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        $mechanic_id = $this->request->getPost('mechanic_id');
+        if (empty($mechanic_id)) {
+            return $this->respond(['status' => 'error', 'message' => 'Mechanic ID is required'], 400);
+        }
+
+        $jobCardModel = new JobCardModel();
+        $job = $jobCardModel->find($id);
+
+        if (!$job) {
+            return $this->respond(['status' => 'error', 'message' => 'Job not found'], 404);
+        }
+
+        $updateData = ['assigned_mechanic_id' => (int)$mechanic_id];
+
+        // If job is Awaiting Assignment, move to Awaiting Diagnosis
+        if ($job['job_status'] === 'Awaiting Assignment') {
+            $updateData['job_status'] = 'Awaiting Diagnosis';
+        }
+
+        $jobCardModel->update($id, $updateData);
+
+        return $this->respond(['status' => 'success', 'message' => 'Mechanic assigned successfully']);
     }
 
     public function delete($id)

@@ -263,17 +263,30 @@
                                 <div class="error-message" id="error_job_card_photos"></div>
                             </div>
                             <div class="col-md-6">
-                                <label for="assigned_service_advisor_id" class="form-label">Assigned Service Advisor</label>
-
-
+                                <label for="assigned_service_advisor_id" class="form-label">Service Advisor</label>
                                 <select class="form-select" id="assigned_service_advisor_id" name="assigned_service_advisor_id" required>
                                     <option value="">Select Advisor</option>
-                                    <?php foreach ($service_advisors as $advisor): ?>
-                                        <option value="<?= esc($advisor['id'] ?? '') ?>">
-                                            <?= esc(($advisor['first_name'] ?? '') . ' ' . ($advisor['last_name'] ?? '') . ' (' . ($advisor['company_id'] ?? '') . ')') ?></option>
-                                    <?php endforeach; ?>
+                                    <?php if (isset($service_advisors)): ?>
+                                        <?php foreach ($service_advisors as $advisor): ?>
+                                            <option value="<?= esc($advisor['id'] ?? '') ?>">
+                                                <?= esc(($advisor['first_name'] ?? '') . ' ' . ($advisor['last_name'] ?? '') . ' (' . ($advisor['company_id'] ?? '') . ')') ?></option>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </select>
                                 <div class="error-message" id="error_assigned_service_advisor_id"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="assigned_mechanic_id" class="form-label">Assign Mechanic <small class="text-muted">(optional)</small></label>
+                                <select class="form-select" id="assigned_mechanic_id" name="assigned_mechanic_id">
+                                    <option value="">-- Select --</option>
+                                    <?php if (isset($mechanics)): ?>
+                                        <?php foreach ($mechanics as $mech): ?>
+                                            <option value="<?= esc($mech['id'] ?? '') ?>">
+                                                <?= esc(($mech['first_name'] ?? '') . ' ' . ($mech['last_name'] ?? '') . ' (' . ($mech['company_id'] ?? '') . ')') ?></option>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </select>
+                                <div class="error-message" id="error_assigned_mechanic_id"></div>
                             </div>
                         </div>
                     </div>
@@ -315,6 +328,19 @@
                             <div class="info-item"><span class="info-label">Quote Status:</span> <span class="info-value" id="detail_quote_status"></span></div>
                             <div class="info-item"><span class="info-label">Quote Amount:</span> <span class="info-value" id="detail_quote_amount"></span></div>
                             <div class="info-item"><span class="info-label">Assigned Service Advisor:</span> <span class="info-value" id="detail_assigned_service_advisor"></span></div>
+                            <div class="info-item">
+                                <span class="info-label">Assigned Mechanic:</span>
+                                <span class="info-value" id="detail_assigned_mechanic"></span>
+                                <div class="mt-2" id="dispatch_section">
+                                    <div class="input-group input-group-sm">
+                                        <select class="form-select" id="dispatch_mechanic_id">
+                                            <option value="">-- Select Mechanic --</option>
+                                        </select>
+                                        <button class="btn btn-primary btn-sm" type="button" id="btnAssignMechanic">Assign</button>
+                                    </div>
+                                    <div id="dispatch_message" class="mt-1"></div>
+                                </div>
+                            </div>
                             <div class="info-item"><span class="info-label">Diagnosis:</span> <span class="info-value" id="detail_diagnosis"></span></div>
                             <div class="info-item"><span class="info-label">Job Summary:</span> <span class="info-value" id="detail_job_summary"></span></div>
                         </div>
@@ -533,9 +559,21 @@
                 $('#detail_estimated_labor_hours').text(data.estimated_labor_hours ? `${data.estimated_labor_hours} hrs` : 'N/A');
                 $('#detail_quote_status').text(data.quote_status || 'N/A');
                 $('#detail_quote_amount').text(data.quote_amount ? `Ksh ${parseFloat(data.quote_amount).toLocaleString('en-US', {minimumFractionDigits: 2})}` : 'N/A');
-                $('#detail_assigned_service_advisor').text(data.assigned_service_advisor_name || 'N/A'); // Assuming backend provides name
+                $('#detail_assigned_service_advisor').text(data.assigned_service_advisor || 'N/A');
+                $('#detail_assigned_mechanic').text(data.mechanic_name || 'Unassigned');
                 $('#detail_diagnosis').text(data.diagnosis || 'N/A');
-                $('#detail_job_summary').text(data.job_summary || 'N/A'); // From merged `jobs` table
+                $('#detail_job_summary').text(data.job_summary || 'N/A');
+
+                // Populate dispatch mechanic dropdown
+                const dispatchSelect = $('#dispatch_mechanic_id');
+                dispatchSelect.empty().append('<option value="">-- Select Mechanic --</option>');
+                if (data.mechanics && data.mechanics.length > 0) {
+                    data.mechanics.forEach(function(mech) {
+                        const selected = (mech.id == data.assigned_mechanic_id) ? ' selected' : '';
+                        dispatchSelect.append(`<option value="${mech.id}"${selected}>${mech.first_name} ${mech.last_name}</option>`);
+                    });
+                }
+                window._currentJobId = data.id;
 
                 // Populate Customer & Vehicle Tab
                 $('#detail_customer_name').text(data.customer.name || 'N/A');
@@ -948,6 +986,51 @@
                 },
                 complete: function() {
                     submitButton.prop('disabled', false).html('<i class="bi bi-plus-circle"></i> Create Job Card');
+                }
+            });
+        });
+
+        // Assign Mechanic button handler
+        $(document).on('click', '#btnAssignMechanic', function() {
+            const jobId = window._currentJobId;
+            const mechanicId = $('#dispatch_mechanic_id').val();
+            const $btn = $(this);
+            const $msg = $('#dispatch_message');
+
+            if (!mechanicId) {
+                $msg.html('<span class="text-danger">Please select a mechanic.</span>');
+                return;
+            }
+
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Assigning...');
+            $msg.html('');
+
+            $.ajax({
+                url: '<?= base_url('admin/jobs/assign_mechanic') ?>/' + jobId,
+                method: 'POST',
+                data: { mechanic_id: mechanicId },
+                dataType: 'json',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                success: function(response) {
+                    if (response.status === 'success') {
+                        $msg.html('<span class="text-success">' + response.message + '</span>');
+                        Swal.fire('Assigned!', response.message, 'success').then(function() {
+                            location.reload();
+                        });
+                    } else {
+                        $msg.html('<span class="text-danger">' + (response.message || 'Error assigning mechanic') + '</span>');
+                    }
+                },
+                error: function(xhr) {
+                    let msg = 'Error assigning mechanic.';
+                    try {
+                        const r = JSON.parse(xhr.responseText);
+                        msg = r.message || msg;
+                    } catch(e) {}
+                    $msg.html('<span class="text-danger">' + msg + '</span>');
+                },
+                complete: function() {
+                    $btn.prop('disabled', false).text('Assign');
                 }
             });
         });

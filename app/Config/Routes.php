@@ -100,6 +100,7 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->post('jobs/update/(:num)', 'JobsController::update/$1');
     $routes->get('jobs/delete/(:num)', 'JobsController::delete/$1');
     $routes->post('jobs/bulk_action', 'JobsController::bulk_action');
+    $routes->post('jobs/assign_mechanic/(:num)', 'JobsController::assign_mechanic/$1');
     // $routes->get('job/job_intake_form', 'JobIntake::index');
 
     // Job Intake
@@ -155,6 +156,11 @@ $routes->group('receptionist', ['filter' => 'auth:receptionist'], function ($rou
 // Mechanic-only
 $routes->group('mechanic', ['filter' => 'auth:mechanic'], function ($routes) {
     $routes->get('/', 'DashboardController::mechanic');
+    $routes->get('dashboard', 'DashboardController::mechanic');
+    $routes->get('jobs', 'JobIntake::mechanic_jobs');
+    $routes->get('jobs/(:num)', 'JobIntake::mechanic_view/$1');
+    $routes->post('save_diagnosis', 'JobIntake::save_diagnosis');
+    $routes->get('search_parts', 'JobIntake::search_parts');
 });
 
 // Customer-only
