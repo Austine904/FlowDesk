@@ -55,7 +55,7 @@ class InvoiceModel extends Model
         return $like . str_pad((string) $suffix, 3, '0', STR_PAD_LEFT);
     }
 
-    public function generateFromJobCard(int $job_card_id, int $created_by): array
+    public function generateFromJobCard(int $job_card_id, int $created_by, float $discount = 0.00): array
     {
         $existing = $this->where('job_card_id', $job_card_id)->first();
         if ($existing) {
@@ -89,7 +89,7 @@ class InvoiceModel extends Model
         $subtotal    = $partsTotal + $laborTotal + $subletTotal;
         $vatRate     = (float) org_setting('vat_rate', 16);
         $vatAmount   = $subtotal * ($vatRate / 100);
-        $grandTotal  = $subtotal + $vatAmount;
+        $grandTotal  = $subtotal + $vatAmount - $discount;
 
         $job = $db->table('job_cards')
             ->select('customer_id')
@@ -115,7 +115,7 @@ class InvoiceModel extends Model
             'subtotal'      => $subtotal,
             'vat_rate'      => $vatRate,
             'vat_amount'    => $vatAmount,
-            'discount'      => 0.00,
+            'discount'      => $discount,
             'grand_total'   => $grandTotal,
             'amount_paid'   => 0.00,
             'status'        => 'Draft',

@@ -29,8 +29,10 @@ class InvoicesController extends BaseController
             return redirect()->to('/login');
         }
 
+        $discount = (float) ($this->request->getPost('discount') ?? 0);
+
         $invoiceModel = new InvoiceModel();
-        $invoice = $invoiceModel->generateFromJobCard((int) $job_card_id, (int) session()->get('user_id'));
+        $invoice = $invoiceModel->generateFromJobCard((int) $job_card_id, (int) session()->get('user_id'), $discount);
 
         return redirect()->to('/admin/invoices/view/' . $invoice['id'])
             ->with('success', 'Invoice generated successfully.');
@@ -140,6 +142,10 @@ class InvoicesController extends BaseController
 
             $db->transComplete();
         }
+
+        $amount = $this->request->getPost('amount');
+        $payment_method = $this->request->getPost('payment_method');
+        log_activity('payment_recorded', 'invoice', (int) $invoice_id, "Payment of {$amount} recorded via {$payment_method}");
 
         return redirect()->to('/admin/invoices/view/' . $invoice_id)
             ->with('success', 'Payment recorded successfully.');

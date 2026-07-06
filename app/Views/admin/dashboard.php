@@ -383,6 +383,19 @@
                 </div>
             </div>
         </div>
+        <div class="col-md-3">
+            <div class="card text-white <?= ($pettyCashBalance ?? 0) >= 0 ? 'bg-primary' : 'bg-danger' ?>">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6>Petty Cash Balance</h6>
+                            <h3><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($pettyCashBalance ?? 0, 0) ?></h3>
+                        </div>
+                        <i class="bi bi-wallet2" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="row mt-5 g-4">
@@ -413,19 +426,21 @@
                 </div>
                 <div class="card-body">
                     <div id="criticalAlertsList">
-                        <div class="alert-item alert-low-stock">
-                            <i class="bi bi-exclamation-triangle-fill"></i>
-                            <span>Low Stock: Brake Pads (SKU: BP-123) are below minimum level. <a href="#" class="text-warning">Order Now</a></span>
-                        </div>
-                        <div class="alert-item alert-overdue">
-                            <i class="bi bi-clock-fill"></i>
-                            <span>Overdue Job: Job #456 for Customer X was due yesterday. <a href="#" class="text-danger">View Job</a></span>
-                        </div>
+                        <?php if (!empty($lowStockItems)): ?>
+                            <?php foreach ($lowStockItems as $item): ?>
+                            <div class="alert-item alert-low-stock">
+                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                <span>Low Stock: <?= esc($item['name']) ?> (<?= esc($item['part_number'] ?? 'N/A') ?>) — <?= esc($item['quantity_in_hand']) ?> left, reorder at <?= esc($item['reorder_level']) ?>. <a href="<?= base_url('admin/inventory') ?>" class="text-warning">View Inventory</a></span>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                        <?php if ($pendingLPOs > 0): ?>
                         <div class="alert-item alert-pending">
                             <i class="bi bi-file-earmark-text-fill"></i>
-                            <span>Pending LPO: LPO #789 for Supplier Y needs approval. <a href="#" class="text-info">Approve</a></span>
+                            <span>Pending LPOs: <?= $pendingLPOs ?> LPO(s) need attention. <a href="<?= base_url('admin/lpos') ?>" class="text-info">View LPOs</a></span>
                         </div>
-                        <?php if (empty($criticalAlerts ?? [])): ?>
+                        <?php endif; ?>
+                        <?php if (empty($lowStockItems) && $pendingLPOs == 0): ?>
                             <div class="text-muted text-center py-3">No critical alerts at the moment.</div>
                         <?php endif; ?>
                     </div>
@@ -486,12 +501,15 @@
                     <button onclick="openModal('<?= base_url('admin/sublets/add') ?>', 'Add New Sublet')" class="btn btn-outline-info d-flex align-items-center gap-2">
                         <i class="bi bi-arrow-repeat"></i> Add Sublet
                     </button>
-                    <button onclick="openModal('<?= base_url('admin/lpos/add') ?>', 'Create New LPO')" class="btn btn-outline-danger d-flex align-items-center gap-2">
+                    <a href="<?= base_url('admin/lpos/add') ?>" class="btn btn-outline-danger d-flex align-items-center gap-2">
                         <i class="bi bi-file-earmark-plus"></i> New LPO
-                    </button>
+                    </a>
                     <button onclick="openModal('<?= base_url('admin/pettycash/add') ?>', 'Add Petty Cash Entry')" class="btn btn-outline-dark d-flex align-items-center gap-2">
                         <i class="bi bi-cash"></i> Add Petty Cash
                     </button>
+                    <a href="<?= base_url('admin/reports') ?>" class="btn btn-outline-info d-flex align-items-center gap-2">
+                        <i class="bi bi-bar-chart"></i> View Reports
+                    </a>
                 </div>
             </div>
         </div>

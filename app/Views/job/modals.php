@@ -374,6 +374,9 @@
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="invoice-tab" data-bs-toggle="tab" data-bs-target="#invoice-tab-panel" type="button" role="tab" aria-controls="invoice-tab-panel" aria-selected="false">Invoice</button>
                             </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="lpos-tab" data-bs-toggle="tab" data-bs-target="#lpos-tab-panel" type="button" role="tab" aria-controls="lpos-tab-panel" aria-selected="false">LPOs</button>
+                            </li>
                         </ul>
                         <div class="tab-content" id="jobDetailsTabContent">
                             <div class="tab-pane fade show active" id="customer-vehicle" role="tabpanel" aria-labelledby="customer-vehicle-tab">
@@ -463,6 +466,12 @@
                                 <h6 class="mb-3 text-secondary">Invoice</h6>
                                 <div id="detail_invoice_content">
                                     <p class="text-muted text-center">Loading invoice data...</p>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="lpos-tab-panel" role="tabpanel" aria-labelledby="lpos-tab">
+                                <h6 class="mb-3 text-secondary">Purchase Orders for this Job</h6>
+                                <div id="detail_lpos_content">
+                                    <p class="text-muted text-center">No LPOs linked to this job.</p>
                                 </div>
                             </div>
                         </div>
@@ -715,6 +724,36 @@
                         <a href="<?= base_url('admin/invoices/generate/') ?>${jobId}" class="btn btn-sm btn-primary" onclick="return confirm('Generate invoice from this job card?')">
                             <i class="bi bi-receipt"></i> Generate Invoice
                         </a>
+                    `);
+                }
+
+                // Populate LPOs Tab
+                var lposContent = $('#detail_lpos_content');
+                lposContent.empty();
+                if (data.lpos && data.lpos.length > 0) {
+                    var html = '<div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>LPO No.</th><th>Supplier</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>';
+                    data.lpos.forEach(function(lpo) {
+                        var badgeMap = {
+                            'Draft': 'bg-secondary', 'Sent': 'bg-primary',
+                            'Partially Received': 'bg-warning text-dark', 'Received': 'bg-success',
+                            'Cancelled': 'bg-dark'
+                        };
+                        var badgeClass = badgeMap[lpo.status] || 'bg-secondary';
+                        html += '<tr>' +
+                            '<td>' + lpo.lpo_no + '</td>' +
+                            '<td>' + (lpo.supplier_name || 'N/A') + '</td>' +
+                            '<td>KSh ' + parseFloat(lpo.total_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2}) + '</td>' +
+                            '<td><span class="badge ' + badgeClass + '">' + lpo.status + '</span></td>' +
+                            '<td><a href="<?= base_url('admin/lpos/view/') ?>' + lpo.id + '" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a></td>' +
+                            '</tr>';
+                    });
+                    html += '</tbody></table></div>';
+                    html += '<a href="<?= base_url('admin/lpos/add?job_card_id=') ?>' + data.id + '" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg"></i> Raise LPO</a>';
+                    lposContent.html(html);
+                } else {
+                    lposContent.html(`
+                        <p class="text-muted">No LPOs linked to this job.</p>
+                        <a href="<?= base_url('admin/lpos/add?job_card_id=') ?>${data.id}" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg"></i> Raise LPO</a>
                     `);
                 }
 

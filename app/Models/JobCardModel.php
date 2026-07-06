@@ -24,6 +24,7 @@ class JobCardModel extends Model
         'start_date',
         'end_date',
         'diagnosis',
+        'diagnosis_category',
         'initial_damage_notes',
         'job_status',
         'mileage_in',
@@ -34,6 +35,7 @@ class JobCardModel extends Model
         'job_summary',
         'quote_amount',
         'quote_status',
+        'completed_at',
     ];
 
     public function getWithDetails(int $id): ?array

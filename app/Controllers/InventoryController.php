@@ -70,9 +70,13 @@ class InventoryController extends BaseController
         }
 
         $rules = [
-            'name'       => 'required',
-            'part_number' => 'permit_empty',
-            'unit_price'  => 'required|numeric|greater_than_equal_to[0]',
+            'name'             => 'required',
+            'part_number'      => 'permit_empty',
+            'unit_price'       => 'required|numeric|greater_than_equal_to[0]',
+            'is_stocked'       => 'permit_empty|in_list[0,1]',
+            'quantity_in_hand' => 'permit_empty|numeric|greater_than_equal_to[0]',
+            'reorder_level'    => 'permit_empty|numeric|greater_than_equal_to[0]',
+            'unit'             => 'permit_empty',
         ];
 
         if (!$this->validate($rules)) {
@@ -81,9 +85,13 @@ class InventoryController extends BaseController
 
         $inventoryModel = new InventoryModel();
         $inventoryModel->insert([
-            'name'        => $this->request->getPost('name'),
-            'part_number' => $this->request->getPost('part_number'),
-            'unit_price'  => $this->request->getPost('unit_price'),
+            'name'             => $this->request->getPost('name'),
+            'part_number'      => $this->request->getPost('part_number'),
+            'unit_price'       => $this->request->getPost('unit_price'),
+            'is_stocked'       => $this->request->getPost('is_stocked') ? 1 : 0,
+            'quantity_in_hand' => (float) ($this->request->getPost('quantity_in_hand') ?? 0),
+            'reorder_level'    => (float) ($this->request->getPost('reorder_level') ?? 0),
+            'unit'             => $this->request->getPost('unit') ?? 'piece',
         ]);
 
         return redirect()->to('/admin/inventory')->with('success', 'Part added successfully.');
@@ -112,9 +120,13 @@ class InventoryController extends BaseController
         }
 
         $rules = [
-            'name'       => 'required',
-            'part_number' => 'permit_empty',
-            'unit_price'  => 'required|numeric|greater_than_equal_to[0]',
+            'name'             => 'required',
+            'part_number'      => 'permit_empty',
+            'unit_price'       => 'required|numeric|greater_than_equal_to[0]',
+            'is_stocked'       => 'permit_empty|in_list[0,1]',
+            'quantity_in_hand' => 'permit_empty|numeric|greater_than_equal_to[0]',
+            'reorder_level'    => 'permit_empty|numeric|greater_than_equal_to[0]',
+            'unit'             => 'permit_empty',
         ];
 
         if (!$this->validate($rules)) {
@@ -123,9 +135,13 @@ class InventoryController extends BaseController
 
         $inventoryModel = new InventoryModel();
         $inventoryModel->update($id, [
-            'name'        => $this->request->getPost('name'),
-            'part_number' => $this->request->getPost('part_number'),
-            'unit_price'  => $this->request->getPost('unit_price'),
+            'name'             => $this->request->getPost('name'),
+            'part_number'      => $this->request->getPost('part_number'),
+            'unit_price'       => $this->request->getPost('unit_price'),
+            'is_stocked'       => $this->request->getPost('is_stocked') ? 1 : 0,
+            'quantity_in_hand' => (float) ($this->request->getPost('quantity_in_hand') ?? 0),
+            'reorder_level'    => (float) ($this->request->getPost('reorder_level') ?? 0),
+            'unit'             => $this->request->getPost('unit') ?? 'piece',
         ]);
 
         return redirect()->to('/admin/inventory')->with('success', 'Part updated successfully.');

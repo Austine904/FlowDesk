@@ -304,6 +304,7 @@ class JobIntake extends BaseController
             if ($this->db->transStatus() === false) {
                 throw new Exception('Transaction failed, job card not fully created.');
             } else {
+                log_activity('job_created', 'job_card', $job_card_id, "Job card {$job_no} created for vehicle registration {$registration_number}");
                 return $this->respond(['status' => 'success', 'message' => 'Job Card created successfully!', 'job_id' => $job_card_id, 'job_no' => $job_no]);
             }
         } catch (Exception $e) {
@@ -405,8 +406,10 @@ class JobIntake extends BaseController
             $job = $jobCardModel->find($job_id);
             $fromStatus = $job ? $job['job_status'] : 'Awaiting Diagnosis';
 
+            $diagnosisCategory = $this->request->getVar('diagnosis_category');
             $update_data = [
                 'diagnosis' => $this->request->getVar('diagnosis', FILTER_SANITIZE_SPECIAL_CHARS),
+                'diagnosis_category' => !empty($diagnosisCategory) ? $diagnosisCategory : null,
                 'estimated_labor_hours' => $this->request->getVar('estimated_labor_hours', FILTER_SANITIZE_NUMBER_FLOAT),
                 'job_status' => 'Diagnosis Complete'
             ];
@@ -461,6 +464,7 @@ class JobIntake extends BaseController
             if ($this->db->transStatus() === false) {
                 throw new Exception('Transaction failed, diagnosis not saved.');
             } else {
+                log_activity('diagnosis_saved', 'job_card', (int)$job_id, "Diagnosis saved for job card ID {$job_id}");
                 return $this->respond(['status' => 'success', 'message' => 'Diagnosis and estimate saved successfully!']);
             }
         } catch (Exception $e) {

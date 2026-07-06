@@ -21,6 +21,12 @@
         </div>
     <?php endif; ?>
 
+    <div id="lowStockBanner" class="alert alert-warning d-none">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <strong id="lowStockCount"></strong> item(s) are low on stock or out of stock.
+        <a href="#inventoryTable" class="alert-link">Scroll to view</a>.
+    </div>
+
     <div class="card">
         <div class="card-body">
             <table id="inventoryTable" class="table table-striped table-bordered" style="width:100%">
@@ -29,6 +35,8 @@
                         <th>Part Name</th>
                         <th>Part Number</th>
                         <th>Unit Price</th>
+                        <th>Unit</th>
+                        <th>Stock Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -40,7 +48,7 @@
 
 <script>
 $(document).ready(function() {
-    $('#inventoryTable').DataTable({
+    var table = $('#inventoryTable').DataTable({
         processing: true,
         serverSide: true,
         ajax: {
@@ -62,6 +70,25 @@ $(document).ready(function() {
                     return '<?= org_setting('currency_symbol', 'KSh') ?> ' + parseFloat(data).toFixed(2);
                 }
             },
+            { data: 'unit', defaultContent: 'piece' },
+            {
+                data: null,
+                orderable: false,
+                render: function(data) {
+                    if (data.is_stocked == 0) {
+                        return '<span class="badge bg-secondary">Catalog Only</span>';
+                    }
+                    var qty = parseFloat(data.quantity_in_hand);
+                    var reorder = parseFloat(data.reorder_level);
+                    if (qty <= 0) {
+                        return '<span class="badge bg-danger">Out of Stock</span>';
+                    } else if (qty <= reorder) {
+                        return '<span class="badge bg-warning text-dark">Low Stock (' + qty + ')</span>';
+                    } else {
+                        return '<span class="badge bg-success">In Stock (' + qty + ')</span>';
+                    }
+                }
+            },
             {
                 data: 'id',
                 orderable: false,
@@ -72,7 +99,23 @@ $(document).ready(function() {
                     `;
                 }
             }
-        ]
+        ],
+        drawCallback: function(settings) {
+            var api = this.api();
+            var data = api.rows({ filter: 'applied' }).data().toArray();
+            var lowCount = 0;
+            data.forEach(function(row) {
+                if (row.is_stocked == 1 && parseFloat(row.quantity_in_hand) <= parseFloat(row.reorder_level)) {
+                    lowCount++;
+                }
+            });
+            if (lowCount > 0) {
+                $('#lowStockBanner').removeClass('d-none');
+                $('#lowStockCount').text(lowCount);
+            } else {
+                $('#lowStockBanner').addClass('d-none');
+            }
+        }
     });
 
     $(document).on('click', '.btn-delete', function() {

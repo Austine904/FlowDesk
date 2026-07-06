@@ -388,6 +388,9 @@ class UsersController extends BaseController
         session()->remove('step2_data');
         session()->remove('step3_data');
 
+        $userId = $db->insertID();
+        log_activity('user_created', 'user', $userId, "New user {$userData['company_id']} ({$userData['role']}) created");
+
         // Redirect to a success page
         return redirect()->to(base_url('user/success'))->with('message', 'User added successfully!');
     }

@@ -73,13 +73,21 @@ function isActive($segment, $currentSegment)
 
     .sidebar nav {
         flex-grow: 1;
-        /* Allows navigation to take available space */
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .sidebar nav ul {
         margin-top: 2rem;
+        margin-bottom: 0;
     }
 
     .sidebar .nav-item {
         margin-bottom: 0.5rem;
-        /* Consistent spacing between nav items */
     }
 
     .sidebar .nav-link {
@@ -139,51 +147,55 @@ function isActive($segment, $currentSegment)
         border-radius: 0 5px 5px 0;
     }
 
-    /* Sidebar Footer Styling */
-    .sidebar-footer {
-        padding-top: 1rem;
+    /* Profile item at bottom of sidebar */
+    .sidebar-profile {
+        flex-shrink: 0;
         border-top: 1px solid rgba(0, 0, 0, 0.05);
         background-color: var(--sidebar-bg);
-        /* Match sidebar background */
     }
 
-    .sidebar-footer .user-info {
+    .sidebar-profile .nav-link {
+        padding: 0.75rem 1rem;
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        padding: 0.5rem 0;
         color: var(--text-dark);
         font-weight: 500;
-        cursor: pointer;
-        /* Indicate it's clickable */
-        transition: color 0.2s ease;
+        text-decoration: none;
+        border-radius: 8px;
+        transition: all 0.2s ease;
     }
 
-    .sidebar-footer .user-info:hover {
+    .sidebar-profile .nav-link:hover {
+        background-color: var(--sidebar-hover-bg);
         color: var(--primary-color);
     }
 
-    .sidebar-footer .profile-picture {
-        width: 40px;
-        /* Size of profile picture */
-        height: 40px;
+    .sidebar-profile .profile-picture {
+        width: 32px;
+        height: 32px;
         border-radius: 50%;
-        /* Circular */
         object-fit: cover;
-        /* Ensure image covers area */
         border: 2px solid var(--primary-color);
-        /* Small border */
         flex-shrink: 0;
     }
 
-    .sidebar-footer .btn-outline-dark {
-        border-color: var(--dark-color);
-        color: var(--dark-color);
+    .sidebar-profile .profile-name {
+        flex-grow: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
-    .sidebar-footer .btn-outline-dark:hover {
-        background-color: var(--dark-color);
-        color: white;
+    .sidebar-profile .logout-icon {
+        font-size: 1.1rem;
+        flex-shrink: 0;
+        opacity: 0.6;
+        transition: opacity 0.2s;
+    }
+
+    .sidebar-profile .nav-link:hover .logout-icon {
+        opacity: 1;
     }
 </style>
 
@@ -313,13 +325,11 @@ function isActive($segment, $currentSegment)
         </ul>
     </nav>
 
-    <div class="sidebar-footer mt-auto">
-        <a class="user-info d-flex align-items-center gap-2 p-2 border-top" href="<?= base_url('admin/profile') ?>">
-            <img src="<?= $userPhoto ? base_url($userPhoto) : 'https://placehold.co/40x40/cccccc/333333?text=JP' ?>" class="profile-picture" alt="User Profile Picture">
-            <span><strong><?= esc($name) ?></strong> (<?= esc(ucfirst($role)) ?>)</span>
-        </a>
-        <a class="btn btn-outline-dark w-100 mt-2" href="<?= base_url('logout') ?>">
-            <i class="bi bi-box-arrow-right"></i> Logout
+    <div class="sidebar-profile">
+        <a class="nav-link" href="<?= base_url('logout') ?>">
+            <img src="<?= $userPhoto ? base_url($userPhoto) : 'https://placehold.co/32x32/cccccc/333333?text=JP' ?>" class="profile-picture" alt="">
+            <span class="profile-name"><strong><?= esc($name) ?></strong> (<?= esc(ucfirst($role)) ?>)</span>
+            <i class="bi bi-box-arrow-right logout-icon"></i>
         </a>
     </div>
 </div>

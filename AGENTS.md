@@ -16,7 +16,7 @@
 C:\xampp\htdocs\FlowDesk\
 ├── app/
 │   ├── Config/           # App, Database, Routes, Filters, JobStatus, etc.
-│   ├── Controllers/      # 15 controllers in root namespace (no Admin/ subdirectory)
+│   ├── Controllers/      # 17 controllers in root namespace (no Admin/ subdirectory)
 │   ├── Database/
 │   │   ├── Migrations/   # Empty
 │   │   └── Seeds/        # Empty
@@ -25,7 +25,7 @@ C:\xampp\htdocs\FlowDesk\
 │   ├── Helpers/
 │   │   ├── settings_helper.php   # org_setting() — globally available
 │   │   └── activity_helper.php   # timeAgo() — used by dashboard
-│   ├── Models/            # 16 models
+│   ├── Models/            # 19 models
 │   └── Views/
 │       ├── admin/         # dashboard, users, invoices, settings, inventory, suppliers, forms
 │       ├── calendar/      # calendar, modals
@@ -56,7 +56,7 @@ C:\xampp\htdocs\FlowDesk\
 
 **Views:** Most views extend `layouts/main` via `$this->extend('layouts/main')` with `$this->section('content')`. Standalone views (user registration wizard, admin/add_user) do not extend the layout.
 
-**Models:** 16 models in `app/Models/`. Some controllers use `$db->table()` query builder directly for complex joins and aggregations (DashboardController, InvoicesController, JobIntake).
+**Models:** 19 models in `app/Models/`. Some controllers use `$db->table()` query builder directly for complex joins and aggregations (DashboardController, InvoicesController, JobIntake).
 
 **CSRF:** Globally enabled via `app/Config/Filters.php` (`$globals['before']` includes `'csrf'`). Every POST form must include `<?= csrf_field() ?>`. CSRF token injected as meta tags in `layouts/main.php` — JS reads them via `getCsrfMeta()` for all AJAX POSTs. AJAX setup in main layout auto-appends CSRF token and refreshes on response.
 
@@ -172,6 +172,8 @@ C:\xampp\htdocs\FlowDesk\
 | quote_status | varchar(30) | NULL |
 | created_at | datetime | NOT NULL, DEFAULT current_timestamp() |
 | updated_at | datetime | NULL, on update current_timestamp() |
+| completed_at | datetime | NULL, set once on first transition to Completed |
+| diagnosis_category | varchar(100) | NULL, optional structured category for reporting |
 
 #### job_card_photos
 | Column | Type | Notes |
@@ -208,6 +210,10 @@ C:\xampp\htdocs\FlowDesk\
 | name | varchar(255) | NOT NULL |
 | part_number | varchar(100) | NULL |
 | unit_price | decimal(12,2) | NOT NULL, default 0.00 |
+| is_stocked | tinyint(1) | NOT NULL DEFAULT 0 — 0=catalog only, 1=tracked |
+| quantity_in_hand | decimal(10,2) | NOT NULL DEFAULT 0.00 |
+| reorder_level | decimal(10,2) | NOT NULL DEFAULT 0.00 |
+| unit | varchar(20) | NOT NULL DEFAULT 'piece' |
 
 #### suppliers
 | Column | Type | Notes |
@@ -313,6 +319,33 @@ C:\xampp\htdocs\FlowDesk\
 | received_by | int(10) unsigned | FK → users.id |
 | notes | text | NULL |
 
+#### lpos
+| Column | Type | Notes |
+|--------|------|-------|
+| id | int(10) unsigned | PK, auto_increment |
+| lpo_no | varchar(30) | NOT NULL, UNIQUE |
+| supplier_id | int(10) unsigned | FK → suppliers.id |
+| job_card_id | int(10) unsigned | NULL, FK → job_cards.id, ON DELETE SET NULL |
+| raised_by | int(10) unsigned | FK → users.id |
+| lpo_date | date | NOT NULL |
+| expected_date | date | NULL |
+| status | enum('Draft','Sent','Partially Received','Received','Cancelled') | NOT NULL, default 'Draft' |
+| notes | text | NULL |
+| total_amount | decimal(12,2) | NOT NULL DEFAULT 0.00 |
+| created_at | datetime | NOT NULL, DEFAULT current_timestamp() |
+| updated_at | datetime | NULL, on update current_timestamp() |
+
+#### lpo_items
+| Column | Type | Notes |
+|--------|------|-------|
+| id | int(10) unsigned | PK, auto_increment |
+| lpo_id | int(10) unsigned | FK → lpos.id, ON DELETE CASCADE |
+| inventory_id | int(10) unsigned | FK → inventory.id |
+| quantity_ordered | decimal(10,2) | NOT NULL DEFAULT 1.00 |
+| quantity_received | decimal(10,2) | NOT NULL DEFAULT 0.00 |
+| unit_price | decimal(12,2) | NOT NULL DEFAULT 0.00 |
+| line_total | decimal(12,2) | GENERATED ALWAYS AS (quantity_ordered * unit_price) STORED |
+
 #### jobs (legacy/unused table)
 | Column | Type | Notes |
 |--------|------|-------|
@@ -326,6 +359,19 @@ C:\xampp\htdocs\FlowDesk\
 | deleted_at | datetime | NULL |
 
 **Note:** The `jobs` table is legacy/unused. All current operations use `job_cards`. Do not write to `jobs`.
+
+#### petty_cash
+| Column | Type | Notes |
+|--------|------|-------|
+| id | int(10) unsigned | PK, auto_increment |
+| transaction_date | date | NOT NULL |
+| type | enum('Income','Expense') | NOT NULL |
+| category | varchar(100) | NOT NULL |
+| description | text | NOT NULL |
+| amount | decimal(12,2) | NOT NULL |
+| reference_no | varchar(100) | NULL |
+| recorded_by | int(10) unsigned | FK → users.id |
+| created_at | datetime | NOT NULL, DEFAULT current_timestamp() |
 
 ### FK Relationships
 
@@ -351,13 +397,36 @@ C:\xampp\htdocs\FlowDesk\
 | invoices.created_by | users.id | fk_inv_created_by |
 | payments.invoice_id | invoices.id | fk_pay_invoice (ON DELETE CASCADE) |
 | payments.received_by | users.id | fk_pay_received_by |
+| lpos.supplier_id | suppliers.id | fk_lpo_supplier |
+| lpos.job_card_id | job_cards.id | fk_lpo_job_card (ON DELETE SET NULL) |
+| lpos.raised_by | users.id | fk_lpo_raised_by |
+| lpo_items.lpo_id | lpos.id | fk_lpo_items_lpo (ON DELETE CASCADE) |
+| lpo_items.inventory_id | inventory.id | fk_lpo_items_inventory |
 | jobs.assigned_to | users.id | fk_jobs_assigned (legacy) |
+| petty_cash.recorded_by | users.id | fk_pc_recorded_by |
+| activity_log.user_id | users.id | fk_al_user |
+
+### activity_log
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | int(10) unsigned | PK, auto_increment |
+| user_id | int(10) unsigned | FK → users.id |
+| action | varchar(100) | NOT NULL |
+| entity_type | varchar(50) | NOT NULL (e.g. 'job_card', 'invoice', 'lpo', 'user', 'petty_cash') |
+| entity_id | int(10) unsigned | NULL |
+| description | text | NOT NULL |
+| ip_address | varchar(45) | NULL |
+| created_at | datetime | NOT NULL, DEFAULT current_timestamp() |
+
+**Indexes:** `idx_al_user` (user_id), `idx_al_entity` (entity_type, entity_id), `idx_al_created_at` (created_at)
 
 ### Generated Columns (never include in $allowedFields)
 
 - `users.name` — `GENERATED ALWAYS AS (first_name + last_name) STORED`
 - `job_card_labor_tasks.labor_cost` — `GENERATED ALWAYS AS (estimated_hours * rate_per_hour) STORED`
 - `invoices.balance_due` — `GENERATED ALWAYS AS (grand_total - amount_paid) STORED`
+- `lpo_items.line_total` — `GENERATED ALWAYS AS (quantity_ordered * unit_price) STORED`
 
 ## 4. MODELS
 
@@ -367,20 +436,24 @@ All models are in `app/Models/`. All extend `CodeIgniter\Model`.
 |-------|------|-------|--------------------|
 | UserModel | `app/Models/UserModel.php` | `users` | `getByCompanyId(string): ?array` — find user by company_id; `getByRole(string): array` — find all users by role; `getLastCompanyIdNumber(string): int` — get highest numeric suffix for a company_id prefix |
 | NextOfKinModel | `app/Models/NextOfKinModel.php` | `next_of_kin` | `getByUserId(int): ?array` — get next-of-kin for a user |
-| CustomerModel | `app/Models/CustomerModel.php` | `customers` | `searchByPhoneOrName(string): array` — search customers by phone or name; `getWithVehicleCount(): array` — list all customers with vehicle count |
+| PettyCashModel | `app/Models/PettyCashModel.php` | `petty_cash` | `getWithDetails(int\|null): array` — joined with users; `getSummary(): array` — total income/expense/balance; `getSummaryByPeriod(string, string): array` — filtered summary; `getByCategory(string\|null): array` — category totals; `getRunningBalance(): array` — running balance in PHP |
+| CustomerModel | `app/Models/CustomerModel.php` | `customers` | `searchByPhoneOrName(string): array` — search customers by phone or name; `getWithVehicleCount(): array` — list all customers with vehicle count. $useTimestamps=true (createdField only, no updatedField) |
 | VehicleModel | `app/Models/VehicleModel.php` | `vehicles` | `getByOwner(int): array` — get vehicles by owner_id; `getByRegistration(string): ?array` — find vehicle by registration_number; `searchByTerm(string): array` — search by reg, VIN, or chassis number |
 | JobCardModel | `app/Models/JobCardModel.php` | `job_cards` | `getWithDetails(int): ?array` — single job card with joins; `getByStatus(string): array` — filter by job_status; `getAssignedToMechanic(int): array` — jobs assigned to a mechanic; `getRecentJobs(int): array` — most recent jobs; `generateJobNo(): string` — generate next JOB-YYYYMMDD-NNN; `getStatusHistory(int): array` — delegate to JobStatusHistoryModel |
 | JobCardPhotoModel | `app/Models/JobCardPhotoModel.php` | `job_card_photos` | `getByJobCard(int): array` — get photos for a job card |
 | JobCardPartModel | `app/Models/JobCardPartModel.php` | `job_card_parts_required` | `getByJobCard(int): array` — get parts with inventory details; `deleteByJobCard(int): void` — delete all parts for a job card |
 | JobCardLaborModel | `app/Models/JobCardLaborModel.php` | `job_card_labor_tasks` | `getByJobCard(int): array` — get tasks with computed labor_cost; `deleteByJobCard(int): void` — delete all tasks for a job card |
-| InventoryModel | `app/Models/InventoryModel.php` | `inventory` | `search(string): array` — search by name or part_number |
+| InventoryModel | `app/Models/InventoryModel.php` | `inventory` | `search(string): array` — search by name or part_number (returns stock fields); `getLowStock(): array` — items where is_stocked=1 AND qty ≤ reorder; `incrementStock(int, float): void` — add quantity to stock; `decrementStock(int, float): void` — subtract quantity (min 0) |
 | SupplierModel | `app/Models/SupplierModel.php` | `suppliers` | `getAll(): array` — all suppliers ordered by name |
 | SubletModel | `app/Models/SubletModel.php` | `sublets` | `getWithDetails(int|null): array` — sublet with job_no, reg_number, provider_name joins |
 | CalendarEventModel | `app/Models/CalendarEventModel.php` | `calendar_events` | `getUpcoming(int): array` — upcoming events; `getByDateRange(string, string): array` — events within a date range |
 | JobStatusHistoryModel | `app/Models/JobStatusHistoryModel.php` | `job_status_history` | `getByJobCard(int): array` — status history for a job card with username |
 | OrgSettingsModel | `app/Models/OrgSettingsModel.php` | `org_settings` | `getSettings(): array` — fetch single row (id=1); `updateSettings(array): bool` — update row (id=1) |
-| InvoiceModel | `app/Models/InvoiceModel.php` | `invoices` | `generateInvoiceNo(): string` — next INV-YYYYMM-NNN; `generateFromJobCard(int, int): array` — create invoice from job card totals (idempotent); `getWithDetails(int|null): array` — invoice with customer/job/creator joins; `updateAmountPaid(int): void` — recalculate amount_paid and status from payments |
+| InvoiceModel | `app/Models/InvoiceModel.php` | `invoices` | `generateInvoiceNo(): string` — next INV-YYYYMM-NNN; `generateFromJobCard(int, int, float): array` — create invoice from job card totals, accepts optional $discount (default 0.00), idempotent; `getWithDetails(int|null): array` — invoice with customer/job/creator joins; `updateAmountPaid(int): void` — recalculate amount_paid and status from payments |
 | PaymentModel | `app/Models/PaymentModel.php` | `payments` | `getByInvoice(int): array` — payments for an invoice with received_by name |
+| LpoModel | `app/Models/LpoModel.php` | `lpos` | `generateLpoNo(): string` — next LPO-YYYYMM-NNN; `getWithDetails(int|null): array` — LPO with supplier, user, job joins; `recalculateTotal(int): void` — SUM line_total from lpo_items |
+| LpoItemModel | `app/Models/LpoItemModel.php` | `lpo_items` | `getByLpo(int): array` — items with inventory name/part_number/unit; `deleteByLpo(int): void` — delete all items for an LPO |
+| ActivityLogModel | `app/Models/ActivityLogModel.php` | `activity_log` | `log(int, string, string, int, string): int` — create activity log entry with IP; `getRecent(int): array` — recent activity with user name; `getByUser(int, int): array` — activity for a user; `getByEntity(string, int): array` — activity for a specific entity; `getByPeriod(string, string): array` — activity in date range |
 
 ## 5. MODULES
 
@@ -499,7 +572,7 @@ Transition map:
 - **Controller:** `InventoryController`
 - **Routes:** `/admin/inventory/*` (all under admin group); `/mechanic/inventory/search` (mechanic group)
 - **Views:** `admin/inventory/index.php`, `admin/inventory/form.php`
-- **Key functionality:** DataTable with server-side processing (`load()`), add/edit forms with validation, delete with referential integrity check (cannot delete if referenced in `job_card_parts_required`), `fetch($id)` JSON endpoint, `search()` endpoint used by mechanic diagnosis form. Mechanics access search via `/mechanic/inventory/search`.
+- **Key functionality:** DataTable with server-side processing (`load()`), add/edit forms with validation, delete with referential integrity check (cannot delete if referenced in `job_card_parts_required`), `fetch($id)` JSON endpoint, `search()` endpoint used by mechanic diagnosis form. Mechanics access search via `/mechanic/inventory/search`. Stock tracking fields (is_stocked, quantity_in_hand, reorder_level, unit) with stock status badges (In Stock, Low Stock, Out of Stock, Catalog Only). Low stock alert on dashboard and inventory page. `getLowStock()`, `incrementStock()`, `decrementStock()` model methods.
 
 ### Suppliers
 - **Status:** Complete
@@ -509,16 +582,26 @@ Transition map:
 - **Key functionality:** DataTable with server-side processing (`load()`), add/edit forms with validation, delete with referential integrity check (cannot delete if referenced in sublets), `getAll()` JSON endpoint used by sublets form dropdown.
 
 ### LPOs
-- **Status:** Not built — no DB table, no controller, no routes
-- **Sidebar link:** Leads to 404
+- **Status:** Complete
+- **Controller:** `LpoController`
+- **Routes:** `/admin/lpos/*` (all under admin group)
+- **Models:** `LpoModel`, `LpoItemModel`
+- **Views:** `admin/lpos/index.php`, `admin/lpos/form.php`, `admin/lpos/view.php`, `admin/lpos/receive.php`
+- **Key functionality:** Full LPO lifecycle — create/edit (Draft), send (Sent), receive items (Partially Received → Received can increment inventory stock), cancel. DataTable listing with server-side processing. Line items with inventory search + stock status display. LPO number auto-generation (LPO-YYYYMM-NNN). Status transitions: Draft→Sent, Draft→Cancelled, Sent→Partially Received, Sent→Received, Sent→Cancelled, Partially Received→Received, Partially Received→Cancelled. Linked to job cards and job detail modal. Receive flow auto-increments stocked inventory quantities. Dashboard pending LPO count from real data.
 
 ### Petty Cash
-- **Status:** Not built — no DB table, no controller, no routes
-- **Sidebar link:** Leads to 404
+- **Status:** Complete
+- **Controller:** `PettyCashController`
+- **Routes:** All under `admin` group — see Routes.php
+- **Views:** `admin/petty_cash/index.php`, `admin/petty_cash/form.php`, `admin/petty_cash/ledger.php`
+- **Key functionality:** Track day-to-day income/expense transactions. Summary cards (Total Income, Total Expenses, Current Balance). DataTable listing with server-side processing, add/edit forms, delete, date range filter with AJAX summary update, category breakdown table, running balance ledger with print support. Running balance calculated in PHP, not DB.
 
 ### Reports
-- **Status:** Not built — no controller, no routes
-- **Sidebar link:** Leads to 404
+- **Status:** Complete
+- **Controller:** `ReportsController`
+- **Routes:** `/admin/reports/*` (7 routes under admin group)
+- **Views:** `admin/reports/index.php`, `financial.php`, `operational.php`, `inventory.php`, `customers.php`, `staff.php`
+- **Key functionality:** Read-only aggregation and visualization. Financial reports (revenue trends, payment methods, outstanding invoices, aging, petty cash, LPO spend, discount tracking). Operational reports (jobs by status, completed per period, turnaround time, mechanic performance, overdue jobs, diagnosis categories, sublet spend). Inventory reports (stock levels, low stock alerts, most used parts, inventory value, parts spend per job). Customer reports (top customers by revenue, visit frequency, outstanding balances, new customers per month). Staff reports (advisor performance, activity log). CSV export for all 5 categories.
 
 ### Customer Portal
 - **Status:** Not built — customer role dashboard is a stub view
@@ -590,7 +673,7 @@ Completed
   - `sublet_total` = SUM(cost) from `sublets` where status != 'Cancelled'
   - `subtotal` = parts_total + labor_total + sublet_total
   - `vat_amount` = subtotal × (vat_rate / 100) — vat_rate from `org_setting('vat_rate', 16)`
-  - `grand_total` = subtotal + vat_amount
+  - `grand_total` = subtotal + vat_amount - discount
 - **Invoice statuses:** Draft → Sent → Partially Paid → Paid → Overdue — or Cancelled
 - **Balance due:** `invoices.balance_due` is a generated column — never set manually
 - **Payments:** Recorded against an invoice via `InvoicesController::recordPayment()`. Each payment triggers `InvoiceModel::updateAmountPaid()` which recalculates `amount_paid` and adjusts `status` (Partially Paid / Paid).
@@ -759,33 +842,38 @@ GET /customer/ -> DashboardController::customer
 - **Soft deletes** use `deleted_at` datetime column on `users` and `job_cards`. `customers` does not have soft-delete.
 - **CSRF** globally enabled — every POST form must include `<?= csrf_field() ?>`. AJAX POSTs use `getCsrfMeta()` JS function from main layout which reads meta tags and refreshes token from response header.
 - **No CSRF exemption** configured for any route.
-- **Generated columns** (`users.name`, `job_card_labor_tasks.labor_cost`, `invoices.balance_due`) — never include in `$allowedFields`.
+- **Generated columns** (`users.name`, `job_card_labor_tasks.labor_cost`, `invoices.balance_due`, `lpo_items.line_total`) — never include in `$allowedFields`.
 - **`org_setting($key, $default)`** available globally via `settings_helper.php` — calls `OrgSettingsModel::getSettings()` once per request (static cache).
+- **`log_activity($action, $entity_type, $entity_id, $description)`** available globally via `settings_helper.php` — logs to `activity_log` table with current user and IP. Skips silently if no user session.
+- **ReportsController is read-only** — all 7 methods (index, financial, operational, inventory, customers, staff, export) only run SELECT queries. No inserts or updates in ReportsController.
+- **CSV export** via `admin/reports/export/{report}/csv` — direct output, no view file. Available for all 5 report categories.
 
 ## 11. GOTCHAS
 
 1. **`job_cards` is the real transactional table** — the `jobs` table is legacy/unused. Never write to `jobs`.
 2. **Always `UsersController`** (with 's'), not `UserController`.
 3. **Always `App\Controllers\CustomersController`**, not `Admin\CustomersController` — there is no `Admin\` subdirectory in Controllers.
-4. **`registration_number`** is the correct `vehicles` column (not `vehicle_number`).
-5. **`baseURL`** (`app/Config/App.php`) must be `http://localhost/FlowDesk/` and **`.htaccess RewriteBase`** must be `/FlowDesk/`. Both must match. Change both when deploying.
-6. **Database name is `flowdesk`** (lowercase) — set in `.env` as `database.default.database = flowdesk`. Overrides value in `app/Config/Database.php`.
-7. **`users.name` is a STORED GENERATED column** — never write to it, never include in `$allowedFields` of `UserModel`.
-8. **`job_card_labor_tasks.labor_cost` is a STORED GENERATED column** — never set it manually.
-9. **`invoices.balance_due` is a STORED GENERATED column** — never set it manually.
-10. **`org_settings` always has exactly one row (id=1)** — use `OrgSettingsModel::getSettings()` and `updateSettings()` only.
-11. **`InvoiceModel::updateAmountPaid()`** must be called after every payment insert to keep `amount_paid` and `status` in sync.
-12. **`InvoiceModel::generateFromJobCard()` is idempotent** — safe to call multiple times, returns existing invoice if one exists.
-13. **CSRF meta tags are in `layouts/main.php` head** — `getCsrfMeta()` reads `csrf-name` and `csrf-token` for all AJAX POSTs. Token auto-refreshes from response header.
-14. **No auto-routing** — every route is explicitly defined in `Routes.php`. Adding a new controller method requires a corresponding route entry.
-15. **Route typo exists:** `vechicles/edit/(:num)` (missing 'h') is an active route alongside correct `vehicles/edit/(:num)`.
-16. **Sidebar conditional visibility** — admin-only links (`users`, `customers`, `inventory`, `suppliers`, `invoices`, `calendar`, `LPOs`, `petty cash`, `reports`, `settings`) render when `$role == 'admin'`. All roles see `Dashboard`, `Jobs`, `Vehicles`, and `Sublets`.
+4. **Running balance in PettyCashModel::getRunningBalance() is calculated in PHP** — never add a running_balance column to the DB.
+5. **`registration_number`** is the correct `vehicles` column (not `vehicle_number`).
+6. **`baseURL`** (`app/Config/App.php`) must be `http://localhost/FlowDesk/` and **`.htaccess RewriteBase`** must be `/FlowDesk/`. Both must match. Change both when deploying.
+7. **Database name is `flowdesk`** (lowercase) — set in `.env` as `database.default.database = flowdesk`. Overrides value in `app/Config/Database.php`.
+8. **`users.name` is a STORED GENERATED column** — never write to it, never include in `$allowedFields` of `UserModel`.
+9. **`job_card_labor_tasks.labor_cost` is a STORED GENERATED column** — never set it manually.
+10. **`invoices.balance_due` is a STORED GENERATED column** — never set it manually.
+11. **`org_settings` always has exactly one row (id=1)** — use `OrgSettingsModel::getSettings()` and `updateSettings()` only.
+12. **`InvoiceModel::updateAmountPaid()`** must be called after every payment insert to keep `amount_paid` and `status` in sync.
+13. **`InvoiceModel::generateFromJobCard()` is idempotent** — safe to call multiple times, returns existing invoice if one exists.
+14. **CSRF meta tags are in `layouts/main.php` head** — `getCsrfMeta()` reads `csrf-name` and `csrf-token` for all AJAX POSTs. Token auto-refreshes from response header.
+15. **No auto-routing** — every route is explicitly defined in `Routes.php`. Adding a new controller method requires a corresponding route entry.
+16. **Route typo exists:** `vechicles/edit/(:num)` (missing 'h') is an active route alongside correct `vehicles/edit/(:num)`.
+17. **Sidebar conditional visibility** — admin-only links (`users`, `customers`, `inventory`, `suppliers`, `invoices`, `calendar`, `LPOs`, `petty cash`, `reports`, `settings`) render when `$role == 'admin'`. All roles see `Dashboard`, `Jobs`, `Vehicles`, and `Sublets`.
+18. **`completed_at` on `job_cards`** is set ONCE on the first transition to `Completed`. If a job cycles Completed → Rework → Completed again, `completed_at` is NOT overwritten.
+19. **`diagnosis_category` on `job_cards`** is optional — used for structured job type reporting. Set via the mechanic diagnosis form dropdown.
+20. **`CustomerModel` now has `$useTimestamps = true`** with `createdField = 'created_at'` and `updatedField = ''` (no updated_at column). Allows `$customerModel->where('created_at >=', $start)->countAllResults()` without raw queries.
+21. **`InvoiceModel::generateFromJobCard()` now accepts optional `$discount`** (float, default 0.00). Discount is subtracted from `grand_total` after VAT. Existing callers (auto-generate on Ready for Invoice) pass 0.
+22. **`log_activity()`** is a global helper in `settings_helper.php`. Requires an active session with `user_id`. Logged actions include: `status_change`, `payment_recorded`, `lpo_created`, `lpo_received`, `job_created`, `diagnosis_saved`, `user_created`, `petty_cash_entry`.
 
 ## 12. PENDING / NOT BUILT
-
-- **LPOs module** — No DB table, no controller, no routes. Sidebar link and dashboard quick action card lead to 404.
-- **Petty Cash module** — No DB table, no controller, no routes. Sidebar link and dashboard quick action card lead to 404.
-- **Reports module** — No controller, no routes. Sidebar link leads to 404.
 - **Customer portal** — Customer role exists and can log in, but the dashboard is a stub view with no customer-facing functionality (no job tracking, no invoice viewing).
 - **Profile page** — Sidebar footer links to `/admin/profile` which has no route. Leads to 404.
 - **Forgot password flow** — Login page has a "Forgot Password?" link with no corresponding route or functionality.

@@ -11,7 +11,10 @@ class CustomerModel extends Model
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
-    protected $useTimestamps    = false;
+    protected $useTimestamps    = true;
+    protected $createdField     = 'created_at';
+    protected $updatedField     = '';
+    protected $dateFormat       = 'datetime';
 
     protected $allowedFields = [
         'name',

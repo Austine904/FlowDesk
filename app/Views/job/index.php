@@ -10,6 +10,9 @@
         <div class="table-header d-flex justify-content-between align-items-center mb-3">
             <h4>Job List</h4>
             <div class="d-flex gap-2">
+                <a href="<?= base_url('admin/job_intake') ?>" class="btn btn-primary d-flex align-items-center gap-2">
+                    <i class="bi bi-pencil-square"></i> Job Intake
+                </a>
                 <button class="btn btn-outline-secondary d-flex align-items-center gap-2" onclick="$('#addJobModal').modal('show')">
                     <i class="bi bi-wrench"></i> Add New Job
                 </button>

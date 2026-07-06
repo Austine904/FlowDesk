@@ -5,6 +5,9 @@ namespace App\Controllers;
 use App\Models\JobCardModel;
 use App\Models\UserModel;
 use App\Models\VehicleModel;
+use App\Models\InventoryModel;
+use App\Models\LpoModel;
+use App\Models\PettyCashModel;
 
 class DashboardController extends BaseController
 {
@@ -207,10 +210,18 @@ class DashboardController extends BaseController
             ->getRowArray();
         $outstandingBalance = (float) ($outstandingRow['total'] ?? 0);
 
-        $pendingLPOs = 0;
+        $inventoryModel = new InventoryModel();
+        $lowStockItems = $inventoryModel->getLowStock();
+
+        $lpoModel = new LpoModel();
+        $pendingLPOs = $lpoModel->where('status', 'Sent')->countAllResults();
+
+        $pettyCashModel = new PettyCashModel();
+        $pettyCashSummary = $pettyCashModel->getSummary();
 
         $data = [
             'pendingLPOs'        => $pendingLPOs,
+            'pettyCashBalance'   => $pettyCashSummary['current_balance'],
             'totalRevenue'       => $totalRevenue,
             'outstandingBalance' => $outstandingBalance,
             'revenueByMonth'     => json_encode($revenueByMonth),
@@ -239,6 +250,7 @@ class DashboardController extends BaseController
             'jobStatusData'   => json_encode($jobStatusData),
 
             'recentActivity'  => $recentActivity,
+            'lowStockItems'   => $lowStockItems,
         ];
 
         $mergedData = array_merge($data, ['recentActivity' => $recentActivity]);

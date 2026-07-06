@@ -7,6 +7,7 @@ use App\Models\JobCardModel;
 use App\Models\UserModel;
 use App\Models\JobStatusHistoryModel;
 use App\Models\InvoiceModel;
+use App\Models\LpoModel;
 use Config\JobStatus;
 
 class JobsController extends BaseController
@@ -153,6 +154,14 @@ class JobsController extends BaseController
         $role = session()->get('role');
         $validTransitions = $config->getValidTransitions($job['job_status'], $role);
 
+        $lpoModel = new LpoModel();
+        $lpos = $lpoModel->builder()
+            ->select('lpos.*, suppliers.name as supplier_name')
+            ->join('suppliers', 'suppliers.id = lpos.supplier_id', 'LEFT')
+            ->where('lpos.job_card_id', $id)
+            ->get()
+            ->getResultArray();
+
         return $this->respond([
             'id' => $job['id'],
             'job_no' => $job['job_no'],
@@ -185,6 +194,7 @@ class JobsController extends BaseController
             'tasks' => $tasks,
             'photos' => $photos,
             'mechanics' => $mechanics,
+            'lpos' => $lpos,
         ]);
     }
 
@@ -265,7 +275,14 @@ class JobsController extends BaseController
         $db->transBegin();
 
         try {
-            $jobCardModel->update($id, ['job_status' => $newStatus]);
+            $updateData = ['job_status' => $newStatus];
+
+            // Set completed_at only on FIRST transition to Completed
+            if ($newStatus === 'Completed' && $job['completed_at'] === null) {
+                $updateData['completed_at'] = date('Y-m-d H:i:s');
+            }
+
+            $jobCardModel->update($id, $updateData);
 
             $historyModel = new JobStatusHistoryModel();
             $historyModel->insert([
@@ -279,10 +296,12 @@ class JobsController extends BaseController
             // Auto-generate invoice when job reaches Ready for Invoice
             if ($newStatus === 'Ready for Invoice') {
                 $invoiceModel = new InvoiceModel();
-                $invoiceModel->generateFromJobCard($id, $userId);
+                $invoiceModel->generateFromJobCard($id, $userId, 0);
             }
 
             $db->transCommit();
+
+            log_activity('status_change', 'job_card', $id, "Status changed from {$currentStatus} to {$newStatus}");
 
             $config = new JobStatus();
             $nextTransitions = $config->getValidTransitions($newStatus, $role);

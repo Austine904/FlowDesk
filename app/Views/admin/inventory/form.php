@@ -31,6 +31,27 @@
                         <label for="unit_price" class="form-label">Unit Price (<?= org_setting('currency_symbol', 'KSh') ?>) <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" id="unit_price" name="unit_price" step="0.01" min="0" value="<?= esc($inventory['unit_price'] ?? '0') ?>" required>
                     </div>
+                    <div class="col-md-4">
+                        <label for="unit" class="form-label">Unit</label>
+                        <input type="text" class="form-control" id="unit" name="unit" value="<?= esc($inventory['unit'] ?? 'piece') ?>">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="is_stocked" name="is_stocked" value="1" <?= isset($inventory['is_stocked']) && $inventory['is_stocked'] ? 'checked' : '' ?>>
+                            <label class="form-check-label" for="is_stocked">Track stock for this item?</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-2" id="stockFields" style="<?= (isset($inventory['is_stocked']) && $inventory['is_stocked']) ? '' : 'display:none;' ?>">
+                    <div class="col-md-4">
+                        <label for="quantity_in_hand" class="form-label">Quantity In Hand</label>
+                        <input type="number" class="form-control" id="quantity_in_hand" name="quantity_in_hand" step="0.01" min="0" value="<?= esc($inventory['quantity_in_hand'] ?? '0') ?>">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="reorder_level" class="form-label">Reorder Level</label>
+                        <input type="number" class="form-control" id="reorder_level" name="reorder_level" step="0.01" min="0" value="<?= esc($inventory['reorder_level'] ?? '0') ?>">
+                    </div>
                 </div>
 
                 <div class="d-flex gap-2 mt-4">
@@ -41,4 +62,16 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var stockToggle = document.getElementById('is_stocked');
+    var stockFields = document.getElementById('stockFields');
+    if (stockToggle) {
+        stockToggle.addEventListener('change', function() {
+            stockFields.style.display = this.checked ? '' : 'none';
+        });
+    }
+});
+</script>
 <?= $this->endSection() ?>

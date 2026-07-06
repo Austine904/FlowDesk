@@ -71,6 +71,23 @@
             </div>
             <div class="card-body">
                 <div class="mb-3">
+                    <label for="diagnosis_category" class="form-label">Job Category</label>
+                    <select class="form-select" id="diagnosis_category" name="diagnosis_category">
+                        <option value="">-- Select Category --</option>
+                        <option value="Engine & Drivetrain" <?= ($job['diagnosis_category'] ?? '') === 'Engine & Drivetrain' ? 'selected' : '' ?>>Engine & Drivetrain</option>
+                        <option value="Brakes & Suspension" <?= ($job['diagnosis_category'] ?? '') === 'Brakes & Suspension' ? 'selected' : '' ?>>Brakes & Suspension</option>
+                        <option value="Electrical & Electronics" <?= ($job['diagnosis_category'] ?? '') === 'Electrical & Electronics' ? 'selected' : '' ?>>Electrical & Electronics</option>
+                        <option value="Transmission & Gearbox" <?= ($job['diagnosis_category'] ?? '') === 'Transmission & Gearbox' ? 'selected' : '' ?>>Transmission & Gearbox</option>
+                        <option value="Cooling System" <?= ($job['diagnosis_category'] ?? '') === 'Cooling System' ? 'selected' : '' ?>>Cooling System</option>
+                        <option value="Air Conditioning" <?= ($job['diagnosis_category'] ?? '') === 'Air Conditioning' ? 'selected' : '' ?>>Air Conditioning</option>
+                        <option value="Body & Paint" <?= ($job['diagnosis_category'] ?? '') === 'Body & Paint' ? 'selected' : '' ?>>Body & Paint</option>
+                        <option value="Tyres & Wheels" <?= ($job['diagnosis_category'] ?? '') === 'Tyres & Wheels' ? 'selected' : '' ?>>Tyres & Wheels</option>
+                        <option value="Routine Service" <?= ($job['diagnosis_category'] ?? '') === 'Routine Service' ? 'selected' : '' ?>>Routine Service</option>
+                        <option value="Diagnostics Only" <?= ($job['diagnosis_category'] ?? '') === 'Diagnostics Only' ? 'selected' : '' ?>>Diagnostics Only</option>
+                        <option value="Other" <?= ($job['diagnosis_category'] ?? '') === 'Other' ? 'selected' : '' ?>>Other</option>
+                    </select>
+                </div>
+                <div class="mb-3">
                     <label for="diagnosis" class="form-label">Diagnosis Notes</label>
                     <textarea class="form-control" id="diagnosis" name="diagnosis" rows="4"><?= esc($job['diagnosis'] ?? '') ?></textarea>
                 </div>
@@ -260,7 +277,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         data.forEach(function(part) {
                             const item = document.createElement('div');
                             item.className = 'part-item';
-                            item.textContent = part.name + ' (' + (part.part_number || 'N/A') + ') - ' + parseFloat(part.unit_price).toFixed(2);
+
+                            var stockBadge = '';
+                            if (part.is_stocked == 0) {
+                                stockBadge = '<span class="badge bg-secondary ms-1">Catalog Only</span>';
+                            } else {
+                                var qty = parseFloat(part.quantity_in_hand);
+                                var reorder = parseFloat(part.reorder_level);
+                                if (qty <= 0) {
+                                    stockBadge = '<span class="badge bg-danger ms-1">Out of Stock</span>';
+                                } else if (qty <= reorder) {
+                                    stockBadge = '<span class="badge bg-warning text-dark ms-1">Low Stock (' + qty + ')</span>';
+                                } else {
+                                    stockBadge = '<span class="badge bg-success ms-1">In Stock (' + qty + ')</span>';
+                                }
+                            }
+
+                            item.innerHTML = part.name + ' (' + (part.part_number || 'N/A') + ') - ' + parseFloat(part.unit_price).toFixed(2) + ' ' + stockBadge;
                             item.dataset.id = part.id;
                             item.dataset.name = part.name;
                             item.dataset.partNumber = part.part_number || '';
