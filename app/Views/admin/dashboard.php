@@ -358,14 +358,40 @@
             </div>
         </div>
         <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6>This Month Revenue</h6>
+                            <h3><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($totalRevenue ?? 0, 0) ?></h3>
+                        </div>
+                        <i class="bi bi-cash-stack" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
             <div class="card text-white bg-danger">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6>Pending LPOs</h6>
-                            <h3><?= $pendingLPOs ?? '0' ?></h3>
+                            <h6>Outstanding Balance</h6>
+                            <h3><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($outstandingBalance ?? 0, 0) ?></h3>
                         </div>
-                        <i class="bi bi-file-earmark-text" style="font-size: 2.5rem;"></i>
+                        <i class="bi bi-credit-card-2-front" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white <?= ($pettyCashBalance ?? 0) >= 0 ? 'bg-primary' : 'bg-danger' ?>">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6>Petty Cash Balance</h6>
+                            <h3><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($pettyCashBalance ?? 0, 0) ?></h3>
+                        </div>
+                        <i class="bi bi-wallet2" style="font-size: 2.5rem;"></i>
                     </div>
                 </div>
             </div>
@@ -386,7 +412,7 @@
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header">
-                    <strong>Revenue Trends (Last 7 Days)</strong>
+                    <strong>Revenue Trends (Last 6 Months)</strong>
                 </div>
                 <div class="card-body">
                     <canvas id="revenueTrendsChart"></canvas>
@@ -400,19 +426,21 @@
                 </div>
                 <div class="card-body">
                     <div id="criticalAlertsList">
-                        <div class="alert-item alert-low-stock">
-                            <i class="bi bi-exclamation-triangle-fill"></i>
-                            <span>Low Stock: Brake Pads (SKU: BP-123) are below minimum level. <a href="#" class="text-warning">Order Now</a></span>
-                        </div>
-                        <div class="alert-item alert-overdue">
-                            <i class="bi bi-clock-fill"></i>
-                            <span>Overdue Job: Job #456 for Customer X was due yesterday. <a href="#" class="text-danger">View Job</a></span>
-                        </div>
+                        <?php if (!empty($lowStockItems)): ?>
+                            <?php foreach ($lowStockItems as $item): ?>
+                            <div class="alert-item alert-low-stock">
+                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                <span>Low Stock: <?= esc($item['name']) ?> (<?= esc($item['part_number'] ?? 'N/A') ?>) — <?= esc($item['quantity_in_hand']) ?> left, reorder at <?= esc($item['reorder_level']) ?>. <a href="<?= base_url('admin/inventory') ?>" class="text-warning">View Inventory</a></span>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                        <?php if ($pendingLPOs > 0): ?>
                         <div class="alert-item alert-pending">
                             <i class="bi bi-file-earmark-text-fill"></i>
-                            <span>Pending LPO: LPO #789 for Supplier Y needs approval. <a href="#" class="text-info">Approve</a></span>
+                            <span>Pending LPOs: <?= $pendingLPOs ?> LPO(s) need attention. <a href="<?= base_url('admin/lpos') ?>" class="text-info">View LPOs</a></span>
                         </div>
-                        <?php if (empty($criticalAlerts ?? [])): ?>
+                        <?php endif; ?>
+                        <?php if (empty($lowStockItems) && $pendingLPOs == 0): ?>
                             <div class="text-muted text-center py-3">No critical alerts at the moment.</div>
                         <?php endif; ?>
                     </div>
@@ -473,12 +501,15 @@
                     <button onclick="openModal('<?= base_url('admin/sublets/add') ?>', 'Add New Sublet')" class="btn btn-outline-info d-flex align-items-center gap-2">
                         <i class="bi bi-arrow-repeat"></i> Add Sublet
                     </button>
-                    <button onclick="openModal('<?= base_url('admin/lpos/add') ?>', 'Create New LPO')" class="btn btn-outline-danger d-flex align-items-center gap-2">
+                    <a href="<?= base_url('admin/lpos/add') ?>" class="btn btn-outline-danger d-flex align-items-center gap-2">
                         <i class="bi bi-file-earmark-plus"></i> New LPO
-                    </button>
+                    </a>
                     <button onclick="openModal('<?= base_url('admin/pettycash/add') ?>', 'Add Petty Cash Entry')" class="btn btn-outline-dark d-flex align-items-center gap-2">
                         <i class="bi bi-cash"></i> Add Petty Cash
                     </button>
+                    <a href="<?= base_url('admin/reports') ?>" class="btn btn-outline-info d-flex align-items-center gap-2">
+                        <i class="bi bi-bar-chart"></i> View Reports
+                    </a>
                 </div>
             </div>
         </div>
@@ -556,22 +587,8 @@
             return;
         }
 
-        const mockRevenueTrendsData = {
-            labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
-            datasets: [{
-                label: 'Revenue ($)',
-                data: [500, 750, 600, 900, 800, 1200, 1000], // Example revenue
-                fill: true,
-                backgroundColor: 'rgba(0, 123, 255, 0.2)', // Light primary color
-                borderColor: 'var(--primary-color)',
-                tension: 0.4, // Smooth curve
-                pointBackgroundColor: 'var(--primary-color)',
-                pointBorderColor: 'white',
-                pointBorderWidth: 2,
-                pointRadius: 5,
-                pointHoverRadius: 7
-            }]
-        };
+        const revenueLabels = <?= $revenueLabels ?? '["Jan","Feb","Mar","Apr","May","Jun"]' ?>;
+        const revenueData = <?= $revenueByMonth ?? '[0,0,0,0,0,0]' ?>;
 
 
         // Job Status Breakdown Chart
@@ -656,7 +673,22 @@
         if (revenueTrendsCtx) {
             new Chart(revenueTrendsCtx, {
                 type: 'line',
-                data: mockRevenueTrendsData,
+                data: {
+                    labels: revenueLabels,
+                    datasets: [{
+                        label: 'Revenue (<?= org_setting('currency_symbol', 'KSh') ?>)',
+                        data: revenueData,
+                        fill: true,
+                        backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                        borderColor: 'var(--primary-color)',
+                        tension: 0.4,
+                        pointBackgroundColor: 'var(--primary-color)',
+                        pointBorderColor: 'white',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,

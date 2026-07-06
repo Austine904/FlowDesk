@@ -263,17 +263,30 @@
                                 <div class="error-message" id="error_job_card_photos"></div>
                             </div>
                             <div class="col-md-6">
-                                <label for="assigned_service_advisor_id" class="form-label">Assigned Service Advisor</label>
-
-
+                                <label for="assigned_service_advisor_id" class="form-label">Service Advisor</label>
                                 <select class="form-select" id="assigned_service_advisor_id" name="assigned_service_advisor_id" required>
                                     <option value="">Select Advisor</option>
-                                    <?php foreach ($service_advisors as $advisor): ?>
-                                        <option value="<?= esc($advisor['id'] ?? '') ?>">
-                                            <?= esc(($advisor['first_name'] ?? '') . ' ' . ($advisor['last_name'] ?? '') . ' (' . ($advisor['company_id'] ?? '') . ')') ?></option>
-                                    <?php endforeach; ?>
+                                    <?php if (isset($service_advisors)): ?>
+                                        <?php foreach ($service_advisors as $advisor): ?>
+                                            <option value="<?= esc($advisor['id'] ?? '') ?>">
+                                                <?= esc(($advisor['first_name'] ?? '') . ' ' . ($advisor['last_name'] ?? '') . ' (' . ($advisor['company_id'] ?? '') . ')') ?></option>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </select>
                                 <div class="error-message" id="error_assigned_service_advisor_id"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="assigned_mechanic_id" class="form-label">Assign Mechanic <small class="text-muted">(optional)</small></label>
+                                <select class="form-select" id="assigned_mechanic_id" name="assigned_mechanic_id">
+                                    <option value="">-- Select --</option>
+                                    <?php if (isset($mechanics)): ?>
+                                        <?php foreach ($mechanics as $mech): ?>
+                                            <option value="<?= esc($mech['id'] ?? '') ?>">
+                                                <?= esc(($mech['first_name'] ?? '') . ' ' . ($mech['last_name'] ?? '') . ' (' . ($mech['company_id'] ?? '') . ')') ?></option>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </select>
+                                <div class="error-message" id="error_assigned_mechanic_id"></div>
                             </div>
                         </div>
                     </div>
@@ -315,9 +328,33 @@
                             <div class="info-item"><span class="info-label">Quote Status:</span> <span class="info-value" id="detail_quote_status"></span></div>
                             <div class="info-item"><span class="info-label">Quote Amount:</span> <span class="info-value" id="detail_quote_amount"></span></div>
                             <div class="info-item"><span class="info-label">Assigned Service Advisor:</span> <span class="info-value" id="detail_assigned_service_advisor"></span></div>
+                            <div class="info-item">
+                                <span class="info-label">Assigned Mechanic:</span>
+                                <span class="info-value" id="detail_assigned_mechanic"></span>
+                                <div class="mt-2" id="dispatch_section">
+                                    <div class="input-group input-group-sm">
+                                        <select class="form-select" id="dispatch_mechanic_id">
+                                            <option value="">-- Select Mechanic --</option>
+                                        </select>
+                                        <button class="btn btn-primary btn-sm" type="button" id="btnAssignMechanic">Assign</button>
+                                    </div>
+                                    <div id="dispatch_message" class="mt-1"></div>
+                                </div>
+                            </div>
                             <div class="info-item"><span class="info-label">Diagnosis:</span> <span class="info-value" id="detail_diagnosis"></span></div>
                             <div class="info-item"><span class="info-label">Job Summary:</span> <span class="info-value" id="detail_job_summary"></span></div>
                         </div>
+                    </div>
+
+                    <!-- Status Actions -->
+                    <div class="card p-3 mb-3" id="statusActionsCard">
+                        <h6 class="mb-3 text-primary">Status</h6>
+                        <div class="info-item">
+                            <span class="info-label">Current Status:</span>
+                            <span class="info-value"><span class="badge fs-6" id="detail_status_badge"></span></span>
+                        </div>
+                        <div class="mt-2" id="transitionButtonsContainer"></div>
+                        <div class="mt-2" id="statusTransitionMessage"></div>
                     </div>
 
                     <div class="col-md-7">
@@ -330,6 +367,15 @@
                             </li>
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="photos-tab" data-bs-toggle="tab" data-bs-target="#photos" type="button" role="tab" aria-controls="photos" aria-selected="false">Photos</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="status-history-tab" data-bs-toggle="tab" data-bs-target="#status-history" type="button" role="tab" aria-controls="status-history" aria-selected="false">Status History</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="invoice-tab" data-bs-toggle="tab" data-bs-target="#invoice-tab-panel" type="button" role="tab" aria-controls="invoice-tab-panel" aria-selected="false">Invoice</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="lpos-tab" data-bs-toggle="tab" data-bs-target="#lpos-tab-panel" type="button" role="tab" aria-controls="lpos-tab-panel" aria-selected="false">LPOs</button>
                             </li>
                         </ul>
                         <div class="tab-content" id="jobDetailsTabContent">
@@ -393,6 +439,39 @@
                                 <h6 class="mb-3 text-secondary">Job Card Photos</h6>
                                 <div id="detail_photos_gallery" class="row g-2">
                                     <div class="col-12 text-center text-muted">No photos available.</div>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="status-history" role="tabpanel" aria-labelledby="status-history-tab">
+                                <h6 class="mb-3 text-secondary">Status Transition History</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered">
+                                        <thead>
+                                            <tr>
+                                                <th>From</th>
+                                                <th>To</th>
+                                                <th>Changed By</th>
+                                                <th>Date/Time</th>
+                                                <th>Notes</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="detail_status_history">
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted">Loading history...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="invoice-tab-panel" role="tabpanel" aria-labelledby="invoice-tab">
+                                <h6 class="mb-3 text-secondary">Invoice</h6>
+                                <div id="detail_invoice_content">
+                                    <p class="text-muted text-center">Loading invoice data...</p>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="lpos-tab-panel" role="tabpanel" aria-labelledby="lpos-tab">
+                                <h6 class="mb-3 text-secondary">Purchase Orders for this Job</h6>
+                                <div id="detail_lpos_content">
+                                    <p class="text-muted text-center">No LPOs linked to this job.</p>
                                 </div>
                             </div>
                         </div>
@@ -533,9 +612,21 @@
                 $('#detail_estimated_labor_hours').text(data.estimated_labor_hours ? `${data.estimated_labor_hours} hrs` : 'N/A');
                 $('#detail_quote_status').text(data.quote_status || 'N/A');
                 $('#detail_quote_amount').text(data.quote_amount ? `Ksh ${parseFloat(data.quote_amount).toLocaleString('en-US', {minimumFractionDigits: 2})}` : 'N/A');
-                $('#detail_assigned_service_advisor').text(data.assigned_service_advisor_name || 'N/A'); // Assuming backend provides name
+                $('#detail_assigned_service_advisor').text(data.assigned_service_advisor || 'N/A');
+                $('#detail_assigned_mechanic').text(data.mechanic_name || 'Unassigned');
                 $('#detail_diagnosis').text(data.diagnosis || 'N/A');
-                $('#detail_job_summary').text(data.job_summary || 'N/A'); // From merged `jobs` table
+                $('#detail_job_summary').text(data.job_summary || 'N/A');
+
+                // Populate dispatch mechanic dropdown
+                const dispatchSelect = $('#dispatch_mechanic_id');
+                dispatchSelect.empty().append('<option value="">-- Select Mechanic --</option>');
+                if (data.mechanics && data.mechanics.length > 0) {
+                    data.mechanics.forEach(function(mech) {
+                        const selected = (mech.id == data.assigned_mechanic_id) ? ' selected' : '';
+                        dispatchSelect.append(`<option value="${mech.id}"${selected}>${mech.first_name} ${mech.last_name}</option>`);
+                    });
+                }
+                window._currentJobId = data.id;
 
                 // Populate Customer & Vehicle Tab
                 $('#detail_customer_name').text(data.customer.name || 'N/A');
@@ -603,6 +694,68 @@
                     photosGallery.append('<div class="col-12 text-center text-muted">No photos available.</div>');
                 }
 
+
+                renderStatusSection(data.job_status, data.valid_transitions, data.id);
+
+                // Populate Invoice Tab
+                const invoiceContent = $('#detail_invoice_content');
+                invoiceContent.empty();
+                if (data.invoice) {
+                    const inv = data.invoice;
+                    const badgeMap = {
+                        'Draft': 'bg-secondary', 'Sent': 'bg-primary',
+                        'Partially Paid': 'bg-warning text-dark', 'Paid': 'bg-success',
+                        'Overdue': 'bg-danger', 'Cancelled': 'bg-dark'
+                    };
+                    const badgeClass = badgeMap[inv.status] || 'bg-secondary';
+                    invoiceContent.html(`
+                        <div class="info-item"><span class="info-label">Invoice No:</span> <span class="info-value">${inv.invoice_no}</span></div>
+                        <div class="info-item"><span class="info-label">Grand Total:</span> <span class="info-value">KSh ${parseFloat(inv.grand_total).toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
+                        <div class="info-item"><span class="info-label">Balance Due:</span> <span class="info-value">KSh ${parseFloat(inv.balance_due).toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
+                        <div class="info-item"><span class="info-label">Status:</span> <span class="info-value"><span class="badge ${badgeClass}">${inv.status}</span></span></div>
+                        <div class="mt-3">
+                            <a href="<?= base_url('admin/invoices/view/') ?>${inv.invoice_id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i> View Invoice</a>
+                        </div>
+                    `);
+                } else {
+                    const jobId = data.id;
+                    invoiceContent.html(`
+                        <p class="text-muted">No invoice generated yet for this job.</p>
+                        <a href="<?= base_url('admin/invoices/generate/') ?>${jobId}" class="btn btn-sm btn-primary" onclick="return confirm('Generate invoice from this job card?')">
+                            <i class="bi bi-receipt"></i> Generate Invoice
+                        </a>
+                    `);
+                }
+
+                // Populate LPOs Tab
+                var lposContent = $('#detail_lpos_content');
+                lposContent.empty();
+                if (data.lpos && data.lpos.length > 0) {
+                    var html = '<div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>LPO No.</th><th>Supplier</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>';
+                    data.lpos.forEach(function(lpo) {
+                        var badgeMap = {
+                            'Draft': 'bg-secondary', 'Sent': 'bg-primary',
+                            'Partially Received': 'bg-warning text-dark', 'Received': 'bg-success',
+                            'Cancelled': 'bg-dark'
+                        };
+                        var badgeClass = badgeMap[lpo.status] || 'bg-secondary';
+                        html += '<tr>' +
+                            '<td>' + lpo.lpo_no + '</td>' +
+                            '<td>' + (lpo.supplier_name || 'N/A') + '</td>' +
+                            '<td>KSh ' + parseFloat(lpo.total_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2}) + '</td>' +
+                            '<td><span class="badge ' + badgeClass + '">' + lpo.status + '</span></td>' +
+                            '<td><a href="<?= base_url('admin/lpos/view/') ?>' + lpo.id + '" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a></td>' +
+                            '</tr>';
+                    });
+                    html += '</tbody></table></div>';
+                    html += '<a href="<?= base_url('admin/lpos/add?job_card_id=') ?>' + data.id + '" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg"></i> Raise LPO</a>';
+                    lposContent.html(html);
+                } else {
+                    lposContent.html(`
+                        <p class="text-muted">No LPOs linked to this job.</p>
+                        <a href="<?= base_url('admin/lpos/add?job_card_id=') ?>${data.id}" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg"></i> Raise LPO</a>
+                    `);
+                }
 
             } catch (error) {
                 const modalBody = jobDetailsModalElement.querySelector('.modal-body');
@@ -951,6 +1104,170 @@
                 }
             });
         });
+
+        // Assign Mechanic button handler
+        $(document).on('click', '#btnAssignMechanic', function() {
+            const jobId = window._currentJobId;
+            const mechanicId = $('#dispatch_mechanic_id').val();
+            const $btn = $(this);
+            const $msg = $('#dispatch_message');
+
+            if (!mechanicId) {
+                $msg.html('<span class="text-danger">Please select a mechanic.</span>');
+                return;
+            }
+
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Assigning...');
+            $msg.html('');
+
+            $.ajax({
+                url: '<?= base_url('admin/jobs/assign_mechanic') ?>/' + jobId,
+                method: 'POST',
+                data: { mechanic_id: mechanicId },
+                dataType: 'json',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                success: function(response) {
+                    if (response.status === 'success') {
+                        $msg.html('<span class="text-success">' + response.message + '</span>');
+                        Swal.fire('Assigned!', response.message, 'success').then(function() {
+                            location.reload();
+                        });
+                    } else {
+                        $msg.html('<span class="text-danger">' + (response.message || 'Error assigning mechanic') + '</span>');
+                    }
+                },
+                error: function(xhr) {
+                    let msg = 'Error assigning mechanic.';
+                    try {
+                        const r = JSON.parse(xhr.responseText);
+                        msg = r.message || msg;
+                    } catch(e) {}
+                    $msg.html('<span class="text-danger">' + msg + '</span>');
+                },
+                complete: function() {
+                    $btn.prop('disabled', false).text('Assign');
+                }
+            });
+        });
+
+        // Status transition button click handler
+        $(document).on('click', '.btn-status-transition', function() {
+            const jobId = $(this).data('job-id');
+            const newStatus = $(this).data('new-status');
+            const $btn = $(this);
+            const $msg = $('#statusTransitionMessage');
+
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+            $msg.html('');
+
+            $.ajax({
+                url: BASE_URL + '/admin/jobs/update_status/' + jobId,
+                method: 'POST',
+                data: { new_status: newStatus },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 'success') {
+                        $msg.html('<span class="text-success">' + response.message + '</span>');
+                        renderStatusSection(response.new_status, response.valid_transitions, jobId);
+                        $('#detail_job_status').text(response.new_status);
+                    } else {
+                        $msg.html('<span class="text-danger">' + (response.message || 'Error updating status') + '</span>');
+                    }
+                },
+                error: function(xhr) {
+                    let msg = 'Error updating status.';
+                    try {
+                        const r = JSON.parse(xhr.responseText);
+                        msg = r.message || msg;
+                    } catch(e) {}
+                    $msg.html('<span class="text-danger">' + msg + '</span>');
+                },
+                complete: function() {
+                    $btn.prop('disabled', false).text($btn.data('original-text') || 'Update');
+                }
+            });
+        });
+
+        // Load status history when tab is shown
+        $(document).on('shown.bs.tab', '#status-history-tab', function() {
+            const jobId = window._currentJobId;
+            if (!jobId) return;
+            loadStatusHistory(jobId);
+        });
+
+        function renderStatusSection(status, transitions, jobId) {
+            const badge = $('#detail_status_badge');
+            badge.text(status);
+            badge.removeClass('bg-secondary bg-success bg-warning bg-danger bg-info bg-primary');
+            const colorMap = {
+                'Awaiting Assignment': 'bg-secondary',
+                'Awaiting Diagnosis': 'bg-info',
+                'Diagnosis Complete': 'bg-primary',
+                'Quote Sent': 'bg-primary',
+                'Approved': 'bg-success',
+                'In Progress': 'bg-primary',
+                'Awaiting Parts': 'bg-warning text-dark',
+                'Quality Check': 'bg-info',
+                'Ready for Invoice': 'bg-success',
+                'Paid': 'bg-success',
+                'Completed': 'bg-success',
+                'On Hold': 'bg-warning text-dark',
+                'Rework': 'bg-danger',
+                'Cancelled': 'bg-danger'
+            };
+            badge.addClass(colorMap[status] || 'bg-secondary');
+
+            const container = $('#transitionButtonsContainer');
+            container.empty();
+
+            if (transitions && transitions.length > 0) {
+                const label = $('<div class="info-label mb-1">Actions:</div>');
+                container.append(label);
+                transitions.forEach(function(nextStatus) {
+                    const btn = $('<button class="btn btn-sm btn-outline-primary me-1 mb-1 btn-status-transition"></button>');
+                    btn.data('job-id', jobId);
+                    btn.data('new-status', nextStatus);
+                    btn.data('original-text', nextStatus);
+                    btn.text(nextStatus);
+                    container.append(btn);
+                });
+            } else {
+                container.append('<span class="text-muted small">No status transitions available for your role.</span>');
+            }
+        }
+
+        function loadStatusHistory(jobId) {
+            const tbody = $('#detail_status_history');
+            tbody.html('<tr><td colspan="5" class="text-center text-muted">Loading history...</td></tr>');
+
+            $.ajax({
+                url: BASE_URL + '/admin/jobs/status_history/' + jobId,
+                method: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    tbody.empty();
+                    if (response.data && response.data.length > 0) {
+                        response.data.forEach(function(entry) {
+                            const date = new Date(entry.created_at).toLocaleString();
+                            tbody.append(`
+                                <tr>
+                                    <td>${entry.from_status}</td>
+                                    <td>${entry.to_status}</td>
+                                    <td>${entry.changed_by_name || 'N/A'}</td>
+                                    <td>${date}</td>
+                                    <td>${entry.notes || ''}</td>
+                                </tr>
+                            `);
+                        });
+                    } else {
+                        tbody.append('<tr><td colspan="5" class="text-center text-muted">No status history recorded.</td></tr>');
+                    }
+                },
+                error: function() {
+                    tbody.html('<tr><td colspan="5" class="text-center text-danger">Failed to load status history.</td></tr>');
+                }
+            });
+        }
     });
 </script>
 

@@ -84,9 +84,6 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->post('vehicles/store', 'VehicleController::store');
     $routes->post('vehicles/update/(:num)', 'VehicleController::update/$1');
     $routes->post('vehicles/delete/(:num)', 'VehicleController::delete/$1');
-    $routes->post('admin/vehicles/add', 'VehicleController::add');
-    $routes->get('admin/vehicles/edit/(:num)', 'VehicleController::edit/$1');
-    $routes->get('admin/vehicles/delete/(:num)', 'VehicleController::delete/$1');
     $routes->get('vehicles/details/(:num)', 'VehicleController::details/$1');
 
 
@@ -100,6 +97,9 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->post('jobs/update/(:num)', 'JobsController::update/$1');
     $routes->get('jobs/delete/(:num)', 'JobsController::delete/$1');
     $routes->post('jobs/bulk_action', 'JobsController::bulk_action');
+    $routes->post('jobs/assign_mechanic/(:num)', 'JobsController::assign_mechanic/$1');
+    $routes->post('jobs/update_status/(:num)', 'JobsController::update_status/$1');
+    $routes->get('jobs/status_history/(:num)', 'JobsController::status_history/$1');
     // $routes->get('job/job_intake_form', 'JobIntake::index');
 
     // Job Intake
@@ -126,6 +126,39 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->post('calendar/addEvent', 'CalendarController::addEvent');
     $routes->post('calendar/updateEventDate', 'CalendarController::updateEventDate');
 
+    // Settings
+    $routes->get('settings', 'SettingsController::index');
+    $routes->post('settings/update', 'SettingsController::update');
+
+    // Invoices
+    $routes->get('invoices', 'InvoicesController::index');
+    $routes->get('invoices/load', 'InvoicesController::load');
+    $routes->get('invoices/view/(:num)', 'InvoicesController::view/$1');
+    $routes->get('invoices/generate/(:num)', 'InvoicesController::generate/$1');
+    $routes->post('invoices/record_payment/(:num)', 'InvoicesController::recordPayment/$1');
+    $routes->get('invoices/mark_overdue', 'InvoicesController::markOverdue');
+
+    // Inventory
+    $routes->get('inventory', 'InventoryController::index');
+    $routes->get('inventory/load', 'InventoryController::load');
+    $routes->get('inventory/add', 'InventoryController::add');
+    $routes->post('inventory/create', 'InventoryController::create');
+    $routes->get('inventory/edit/(:num)', 'InventoryController::edit/$1');
+    $routes->post('inventory/update/(:num)', 'InventoryController::update/$1');
+    $routes->post('inventory/delete/(:num)', 'InventoryController::delete/$1');
+    $routes->get('inventory/fetch/(:num)', 'InventoryController::fetch/$1');
+    $routes->get('inventory/search', 'InventoryController::search');
+
+    // Suppliers
+    $routes->get('suppliers', 'SuppliersController::index');
+    $routes->get('suppliers/load', 'SuppliersController::load');
+    $routes->get('suppliers/add', 'SuppliersController::add');
+    $routes->post('suppliers/create', 'SuppliersController::create');
+    $routes->get('suppliers/edit/(:num)', 'SuppliersController::edit/$1');
+    $routes->post('suppliers/update/(:num)', 'SuppliersController::update/$1');
+    $routes->post('suppliers/delete/(:num)', 'SuppliersController::delete/$1');
+    $routes->get('suppliers/all', 'SuppliersController::getAll');
+
     // Sublets
     $routes->get('sublets', 'SubletsController::index');
     $routes->get('sublets/add', 'SubletsController::add');
@@ -140,12 +173,41 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->get('sublets/(:num)', 'SubletsController::details/$1');
     $routes->get('sublets/(:num)/edit', 'SubletsController::edit/$1');
     $routes->post('sublets/(:num)/update', 'SubletsController::update/$1');
+
+    // LPOs
+    $routes->get('lpos', 'LpoController::index');
+    $routes->get('lpos/load', 'LpoController::load');
+    $routes->get('lpos/add', 'LpoController::add');
+    $routes->post('lpos/create', 'LpoController::create');
+    $routes->get('lpos/view/(:num)', 'LpoController::view/$1');
+    $routes->get('lpos/edit/(:num)', 'LpoController::edit/$1');
+    $routes->post('lpos/update/(:num)', 'LpoController::update/$1');
+    $routes->post('lpos/update_status/(:num)', 'LpoController::updateStatus/$1');
+    $routes->get('lpos/receive/(:num)', 'LpoController::receive/$1');
+    $routes->post('lpos/process_receive/(:num)', 'LpoController::processReceive/$1');
+    $routes->post('lpos/delete/(:num)', 'LpoController::delete/$1');
+
+    // Reports
+    $routes->get('reports', 'ReportsController::index');
+    $routes->get('reports/financial', 'ReportsController::financial');
+    $routes->get('reports/operational', 'ReportsController::operational');
+    $routes->get('reports/inventory', 'ReportsController::inventory');
+    $routes->get('reports/customers', 'ReportsController::customers');
+    $routes->get('reports/staff', 'ReportsController::staff');
+    $routes->get('reports/export/(:segment)/(:segment)', 'ReportsController::export/$1/$2');
+
+    // Petty Cash
+    $routes->get('pettycash', 'PettyCashController::index');
+    $routes->get('pettycash/load', 'PettyCashController::load');
+    $routes->get('pettycash/add', 'PettyCashController::add');
+    $routes->post('pettycash/create', 'PettyCashController::create');
+    $routes->get('pettycash/edit/(:num)', 'PettyCashController::edit/$1');
+    $routes->post('pettycash/update/(:num)', 'PettyCashController::update/$1');
+    $routes->post('pettycash/delete/(:num)', 'PettyCashController::delete/$1');
+    $routes->get('pettycash/ledger', 'PettyCashController::ledger');
+    $routes->post('pettycash/filter', 'PettyCashController::filter');
     
 });
-
-$routes->get('vehicles/details/(:num)', 'VehicleController::details/$1');
-
-$routes->post('customers/load', 'CustomersController::load');
 
 // Receptionist-only
 $routes->group('receptionist', ['filter' => 'auth:receptionist'], function ($routes) {
@@ -155,6 +217,13 @@ $routes->group('receptionist', ['filter' => 'auth:receptionist'], function ($rou
 // Mechanic-only
 $routes->group('mechanic', ['filter' => 'auth:mechanic'], function ($routes) {
     $routes->get('/', 'DashboardController::mechanic');
+    $routes->get('dashboard', 'DashboardController::mechanic');
+    $routes->get('jobs', 'JobIntake::mechanic_jobs');
+    $routes->get('jobs/(:num)', 'JobIntake::mechanic_view/$1');
+    $routes->post('save_diagnosis', 'JobIntake::save_diagnosis');
+    $routes->get('search_parts', 'JobIntake::search_parts');
+    $routes->post('jobs/update_status/(:num)', 'JobsController::update_status/$1');
+    $routes->get('inventory/search', 'InventoryController::search');
 });
 
 // Customer-only

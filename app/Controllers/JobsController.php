@@ -5,6 +5,10 @@ namespace App\Controllers;
 use App\Controllers\BaseController;
 use App\Models\JobCardModel;
 use App\Models\UserModel;
+use App\Models\JobStatusHistoryModel;
+use App\Models\InvoiceModel;
+use App\Models\LpoModel;
+use Config\JobStatus;
 
 class JobsController extends BaseController
 {
@@ -27,7 +31,8 @@ class JobsController extends BaseController
                 ->orLike('vehicle_id', $search);
         }
 
-        $service_advisors = $userModel->getByRole('mechanic');
+        $service_advisors = $userModel->whereIn('role', ['admin', 'receptionist'])->findAll();
+        $mechanics = $userModel->getByRole('mechanic');
 
         $jobs = $jobCardModel->paginate(10);
         $pager = $jobCardModel->pager;
@@ -36,7 +41,7 @@ class JobsController extends BaseController
             return view('admin/jobs/jobs_list', ['jobs' => $jobs, 'pager' => $pager]);
         }
 
-        return view('job/index', ['jobs' => $jobs, 'pager' => $pager, 'service_advisors' => $service_advisors]);
+        return view('job/index', ['jobs' => $jobs, 'pager' => $pager, 'service_advisors' => $service_advisors, 'mechanics' => $mechanics]);
     }
 
     public function fetchJobs()
@@ -114,6 +119,115 @@ class JobsController extends BaseController
         }
     }
 
+    public function details($id)
+    {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
+            return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        $jobCardModel = new JobCardModel();
+        $job = $jobCardModel->getWithDetails($id);
+
+        if (!$job) {
+            return $this->respond(['status' => 'error', 'message' => 'Job not found'], 404);
+        }
+
+        $customerModel = new \App\Models\CustomerModel();
+        $vehicleModel = new \App\Models\VehicleModel();
+        $jobCardPartModel = new \App\Models\JobCardPartModel();
+        $jobCardLaborModel = new \App\Models\JobCardLaborModel();
+        $jobCardPhotoModel = new \App\Models\JobCardPhotoModel();
+
+        $customer = $customerModel->find($job['customer_id']);
+        $vehicle = $vehicleModel->find($job['vehicle_id']);
+        $parts = $jobCardPartModel->getByJobCard($id);
+        $tasks = $jobCardLaborModel->getByJobCard($id);
+        $photos = $jobCardPhotoModel->where('job_card_id', $id)->findAll();
+
+        $userModel = new UserModel();
+        $mechanics = $userModel->getByRole('mechanic');
+
+        $invoiceModel = new InvoiceModel();
+        $invoice = $invoiceModel->where('job_card_id', $id)->first();
+
+        $config = new JobStatus();
+        $role = session()->get('role');
+        $validTransitions = $config->getValidTransitions($job['job_status'], $role);
+
+        $lpoModel = new LpoModel();
+        $lpos = $lpoModel->builder()
+            ->select('lpos.*, suppliers.name as supplier_name')
+            ->join('suppliers', 'suppliers.id = lpos.supplier_id', 'LEFT')
+            ->where('lpos.job_card_id', $id)
+            ->get()
+            ->getResultArray();
+
+        return $this->respond([
+            'id' => $job['id'],
+            'job_no' => $job['job_no'],
+            'job_status' => $job['job_status'],
+            'invoice' => $invoice ? [
+                'invoice_id'    => $invoice['id'],
+                'invoice_no'    => $invoice['invoice_no'],
+                'grand_total'   => $invoice['grand_total'],
+                'balance_due'   => $invoice['balance_due'],
+                'status'        => $invoice['status'],
+            ] : null,
+            'valid_transitions' => $validTransitions,
+            'current_role' => $role,
+            'diagnosis' => $job['diagnosis'],
+            'initial_damage_notes' => $job['initial_damage_notes'],
+            'mileage_in' => $job['mileage_in'],
+            'fuel_level' => $job['fuel_level'],
+            'date_in' => $job['date_in'],
+            'time_in' => $job['time_in'],
+            'estimated_labor_hours' => $job['estimated_labor_hours'],
+            'quote_status' => $job['quote_status'],
+            'quote_amount' => $job['quote_amount'],
+            'assigned_service_advisor' => $job['advisor_name'] ?? 'N/A',
+            'assigned_mechanic_id' => $job['assigned_mechanic_id'],
+            'mechanic_name' => $job['mechanic_name'] ?? null,
+            'job_summary' => $job['job_summary'],
+            'customer' => $customer ?: [],
+            'vehicle' => $vehicle ?: [],
+            'parts' => $parts,
+            'tasks' => $tasks,
+            'photos' => $photos,
+            'mechanics' => $mechanics,
+            'lpos' => $lpos,
+        ]);
+    }
+
+    public function assign_mechanic($id)
+    {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
+            return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        $mechanic_id = $this->request->getPost('mechanic_id');
+        if (empty($mechanic_id)) {
+            return $this->respond(['status' => 'error', 'message' => 'Mechanic ID is required'], 400);
+        }
+
+        $jobCardModel = new JobCardModel();
+        $job = $jobCardModel->find($id);
+
+        if (!$job) {
+            return $this->respond(['status' => 'error', 'message' => 'Job not found'], 404);
+        }
+
+        $updateData = ['assigned_mechanic_id' => (int)$mechanic_id];
+
+        // If job is Awaiting Assignment, move to Awaiting Diagnosis
+        if ($job['job_status'] === 'Awaiting Assignment') {
+            $updateData['job_status'] = 'Awaiting Diagnosis';
+        }
+
+        $jobCardModel->update($id, $updateData);
+
+        return $this->respond(['status' => 'success', 'message' => 'Mechanic assigned successfully']);
+    }
+
     public function delete($id)
     {
         try {
@@ -124,5 +238,95 @@ class JobsController extends BaseController
         } catch (\Exception $e) {
             return redirect()->to('/admin/jobs')->with('error', 'Deletion failed: ' . $e->getMessage());
         }
+    }
+
+    public function update_status($id)
+    {
+        if (!session()->get('isLoggedIn')) {
+            return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        $role = session()->get('role');
+        $userId = session()->get('user_id');
+        $newStatus = $this->request->getPost('new_status');
+        $notes = $this->request->getPost('notes');
+
+        if (empty($newStatus)) {
+            return $this->respond(['status' => 'error', 'message' => 'New status is required'], 400);
+        }
+
+        $jobCardModel = new JobCardModel();
+        $job = $jobCardModel->find($id);
+
+        if (!$job) {
+            return $this->respond(['status' => 'error', 'message' => 'Job not found'], 404);
+        }
+
+        $currentStatus = $job['job_status'];
+
+        $config = new JobStatus();
+        $validTransitions = $config->getValidTransitions($currentStatus, $role);
+
+        if (!in_array($newStatus, $validTransitions)) {
+            return $this->respond(['status' => 'error', 'message' => 'This status transition is not allowed for your role'], 403);
+        }
+
+        $db = \Config\Database::connect();
+        $db->transBegin();
+
+        try {
+            $updateData = ['job_status' => $newStatus];
+
+            // Set completed_at only on FIRST transition to Completed
+            if ($newStatus === 'Completed' && $job['completed_at'] === null) {
+                $updateData['completed_at'] = date('Y-m-d H:i:s');
+            }
+
+            $jobCardModel->update($id, $updateData);
+
+            $historyModel = new JobStatusHistoryModel();
+            $historyModel->insert([
+                'job_card_id' => $id,
+                'from_status' => $currentStatus,
+                'to_status'   => $newStatus,
+                'changed_by'  => $userId,
+                'notes'       => $notes,
+            ]);
+
+            // Auto-generate invoice when job reaches Ready for Invoice
+            if ($newStatus === 'Ready for Invoice') {
+                $invoiceModel = new InvoiceModel();
+                $invoiceModel->generateFromJobCard($id, $userId, 0);
+            }
+
+            $db->transCommit();
+
+            log_activity('status_change', 'job_card', $id, "Status changed from {$currentStatus} to {$newStatus}");
+
+            $config = new JobStatus();
+            $nextTransitions = $config->getValidTransitions($newStatus, $role);
+
+            return $this->respond([
+                'status' => 'success',
+                'message' => 'Status updated successfully',
+                'new_status' => $newStatus,
+                'valid_transitions' => $nextTransitions,
+            ]);
+        } catch (\Exception $e) {
+            $db->transRollback();
+            return $this->respond(['status' => 'error', 'message' => 'Failed to update status: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function status_history($id)
+    {
+        if (!session()->get('isLoggedIn')) {
+            return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        $historyModel = new JobStatusHistoryModel();
+        $history = $historyModel->getByJobCard($id);
+
+        return $this->respond(['data' => $history]);
     }
 }

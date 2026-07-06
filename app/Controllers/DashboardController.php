@@ -5,6 +5,9 @@ namespace App\Controllers;
 use App\Models\JobCardModel;
 use App\Models\UserModel;
 use App\Models\VehicleModel;
+use App\Models\InventoryModel;
+use App\Models\LpoModel;
+use App\Models\PettyCashModel;
 
 class DashboardController extends BaseController
 {
@@ -111,6 +114,7 @@ class DashboardController extends BaseController
         $borderColors = [];
 
         $statusColors = [
+            'Awaiting Assignment' => '#6c757d',
             'Awaiting Diagnosis' => '#007bff',
             'Diagnosis Complete' => '#ffc107',
             'Approved' => '#17a2b8',
@@ -118,18 +122,19 @@ class DashboardController extends BaseController
             'Awaiting Parts' => '#fd7e14',
             'Quality Check' => '#20c997',
             'Ready for Invoice' => '#e83e8c',
+            'Quote Sent' => '#6610f2',
             'Paid' => '#28a745',
             'Completed' => '#28a745',
-            'Cancelled' => '#dc3545',
-            'Rework' => '#6c757d',
             'On Hold' => '#343a40',
-            'Quote Sent' => '#6610f2'
+            'Rework' => '#6c757d',
+            'Cancelled' => '#dc3545',
         ];
 
         $defaultColor = '#999999';
         $defaultBorderColor = '#ffffff';
 
         $jobStatusData = [
+            'Awaiting Assignment' => 0,
             'Awaiting Diagnosis' => 0,
             'Diagnosis Complete' => 0,
             'Approved' => 0,
@@ -137,10 +142,12 @@ class DashboardController extends BaseController
             'Awaiting Parts' => 0,
             'Quality Check' => 0,
             'Ready for Invoice' => 0,
+            'Quote Sent' => 0,
             'Paid' => 0,
             'Completed' => 0,
-            'Cancelled' => 0,
+            'On Hold' => 0,
             'Rework' => 0,
+            'Cancelled' => 0,
         ];
 
         foreach ($jobStatusQuery as $row) {
@@ -162,15 +169,69 @@ class DashboardController extends BaseController
 
         $totalJobsQuery = array_sum($jobStatusData);
 
-        $pendingLPOs = 0;
+        $db = \Config\Database::connect();
+
+        $revenueData = $db->table('payments')
+            ->select("MONTH(payment_date) as month, SUM(amount) as total")
+            ->where('payment_date >=', date('Y-m-d', strtotime('-6 months')))
+            ->groupBy('MONTH(payment_date)')
+            ->orderBy('MONTH(payment_date)', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        $revenueByMonth = [];
+        $revenueLabels = [];
+        $monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        for ($i = 5; $i >= 0; $i--) {
+            $m = (int) date('m', strtotime("-{$i} months"));
+            $revenueByMonth[] = 0;
+            $revenueLabels[] = $monthNames[$m];
+        }
+        foreach ($revenueData as $row) {
+            $monthIdx = (int) $row['month'];
+            $revIdx = 5 - ((int) date('m') - $monthIdx);
+            if ($revIdx >= 0 && $revIdx < 6) {
+                $revenueByMonth[$revIdx] = (float) $row['total'];
+            }
+        }
+
+        $thisMonthRevenue = $db->table('payments')
+            ->selectSum('amount', 'total')
+            ->where('payment_date >=', date('Y-m-01'))
+            ->where('payment_date <=', date('Y-m-t'))
+            ->get()
+            ->getRowArray();
+        $totalRevenue = (float) ($thisMonthRevenue['total'] ?? 0);
+
+        $outstandingRow = $db->table('invoices')
+            ->selectSum('balance_due', 'total')
+            ->whereNotIn('status', ['Paid', 'Cancelled'])
+            ->get()
+            ->getRowArray();
+        $outstandingBalance = (float) ($outstandingRow['total'] ?? 0);
+
+        $inventoryModel = new InventoryModel();
+        $lowStockItems = $inventoryModel->getLowStock();
+
+        $lpoModel = new LpoModel();
+        $pendingLPOs = $lpoModel->where('status', 'Sent')->countAllResults();
+
+        $pettyCashModel = new PettyCashModel();
+        $pettyCashSummary = $pettyCashModel->getSummary();
 
         $data = [
-            'pendingLPOs'     => $pendingLPOs,
-            'userCount'       => $userCount,
+            'pendingLPOs'        => $pendingLPOs,
+            'pettyCashBalance'   => $pettyCashSummary['current_balance'],
+            'totalRevenue'       => $totalRevenue,
+            'outstandingBalance' => $outstandingBalance,
+            'revenueByMonth'     => json_encode($revenueByMonth),
+            'revenueLabels'      => json_encode($revenueLabels),
+            'userCount'          => $userCount,
             'vehicleCount'    => $vehicleCount,
             'latestUsers'     => $latestUsers,
             'latestVehicles'  => $latestVehicles,
 
+            'awaitingAssignmentJobs' => $jobStatusData['Awaiting Assignment'],
             'awaitingDiagnosisJobs' => $jobStatusData['Awaiting Diagnosis'],
             'diagnosedJobs' => $jobStatusData['Diagnosis Complete'],
             'approvedJobs'    => $jobStatusData['Approved'],
@@ -178,15 +239,18 @@ class DashboardController extends BaseController
             'awaitingPartsJobs' => $jobStatusData['Awaiting Parts'],
             'qualityCheckJobs' => $jobStatusData['Quality Check'],
             'readyForInvoiceJobs' => $jobStatusData['Ready for Invoice'],
+            'quoteSentJobs'   => $jobStatusData['Quote Sent'],
             'paidJobs'        => $jobStatusData['Paid'],
             'completedJobs'   => $jobStatusData['Completed'],
-            'cancelledJobs'   => $jobStatusData['Cancelled'],
+            'onHoldJobs'      => $jobStatusData['On Hold'],
             'reworkJobs'      => $jobStatusData['Rework'],
+            'cancelledJobs'   => $jobStatusData['Cancelled'],
             'activeJobs'      => $jobStatusData['In Progress'] + $jobStatusData['Awaiting Parts'] + $jobStatusData['Quality Check'] + $jobStatusData['Ready for Invoice'],
             'totalJobs'       => $totalJobsQuery,
             'jobStatusData'   => json_encode($jobStatusData),
 
             'recentActivity'  => $recentActivity,
+            'lowStockItems'   => $lowStockItems,
         ];
 
         $mergedData = array_merge($data, ['recentActivity' => $recentActivity]);
@@ -196,7 +260,45 @@ class DashboardController extends BaseController
 
     public function mechanic()
     {
-        return $this->restrictTo('mechanic', 'mechanic_dashboard');
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'mechanic') {
+            return redirect()->to('/login');
+        }
+
+        $userId = session()->get('user_id');
+        $jobCardModel = new JobCardModel();
+
+        $allJobs = $jobCardModel->getAssignedToMechanic($userId);
+        $totalJobs = count($allJobs);
+
+        $awaitingDiagnosis = 0;
+        $inProgress = 0;
+        $completed = 0;
+        $recentJobs = [];
+
+        foreach ($allJobs as $job) {
+            switch ($job['job_status']) {
+                case 'Awaiting Diagnosis':
+                    $awaitingDiagnosis++;
+                    break;
+                case 'In Progress':
+                    $inProgress++;
+                    break;
+                case 'Completed':
+                    $completed++;
+                    break;
+            }
+        }
+
+        $recentJobs = array_slice($allJobs, 0, 5);
+
+        return view('mechanic_dashboard', [
+            'name' => session()->get('user_name'),
+            'totalJobs' => $totalJobs,
+            'awaitingDiagnosis' => $awaitingDiagnosis,
+            'inProgress' => $inProgress,
+            'completed' => $completed,
+            'recentJobs' => $recentJobs,
+        ]);
     }
 
     private function restrictTo($requiredRole, $view)
