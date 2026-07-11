@@ -73,8 +73,8 @@ class DashboardController extends BaseController
             ];
         }
 
-        $jobCards = $jobCardModel->getRecentJobs(5);
-        foreach ($jobCards as $jobCard) {
+        $recentJobs = $jobCardModel->getRecentJobs(5);
+        foreach ($recentJobs as $jobCard) {
             $vehicleregistration = esc($jobCard['registration_number'] ?? 'Unknown Vehicle');
             $diagnosis = esc($jobCard['diagnosis']);
             $recentActivity[] = [
@@ -220,6 +220,7 @@ class DashboardController extends BaseController
         $pettyCashSummary = $pettyCashModel->getSummary();
 
         $data = [
+            'pageTitle'          => 'Dashboard',
             'pendingLPOs'        => $pendingLPOs,
             'pettyCashBalance'   => $pettyCashSummary['current_balance'],
             'totalRevenue'       => $totalRevenue,
@@ -250,6 +251,7 @@ class DashboardController extends BaseController
             'jobStatusData'   => json_encode($jobStatusData),
 
             'recentActivity'  => $recentActivity,
+            'recentJobs'      => $recentJobs,
             'lowStockItems'   => $lowStockItems,
         ];
 

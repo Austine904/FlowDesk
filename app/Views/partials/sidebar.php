@@ -1,335 +1,107 @@
-<?php
-// Retrieve current URL segment and session data
-$currentSegment = service('uri')->getSegment(2);
-$session = session();
-$name = $session->get('user_name');
-$role = $session->get('role');
-$userPhoto = $session->get('profile_picture');
+<aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-slate-900 flex flex-col z-20">
 
-/**
- * Helper function to determine if a navigation link should be active.
- *
- * @param string $segment The segment name to check against.
- * @param string $currentSegment The current URL segment.
- * @return string Returns 'active' if segments match, otherwise an empty string.
- */
-function isActive($segment, $currentSegment)
-{
-    return ($currentSegment == $segment) ? 'active' : '';
-}
-?>
-
-<style>
-    /* Consistent theme variables (ensure these are defined in your main layout or a global CSS file) */
-    :root {
-        --primary-color: #007bff;
-        --primary-hover-color: #0056b3;
-        --text-dark: #343a40;
-        --bg-light: #f8f9fa;
-        --card-bg: #ffffff;
-        --shadow-light: rgba(0, 0, 0, 0.1);
-        --shadow-medium: rgba(0, 0, 0, 0.15);
-        --success-color: #28a745;
-        --danger-color: #dc3545;
-        --warning-color: #ffc107;
-        --info-color: #17a2b8;
-        --dark-color: #343a40;
-        --sidebar-bg: #f0f2f5;
-        /* Lighter background for sidebar */
-        --sidebar-active-bg: rgba(0, 123, 255, 0.1);
-        /* Light primary tint for active */
-        --sidebar-hover-bg: rgba(0, 123, 255, 0.05);
-        /* Very light primary tint for hover */
-    }
-
-    .sidebar {
-        width: 250px;
-        /* Fixed width for the sidebar */
-        background-color: var(--sidebar-bg);
-        /* Use a consistent background */
-        height: 100vh;
-        /* Full viewport height */
-        position: fixed;
-        /* Fixed position */
-        top: 0;
-        left: 0;
-        padding: 1.5rem 1rem;
-        display: flex;
-        flex-direction: column;
-        box-shadow: 5px 0 15px var(--shadow-light);
-        /* Soft shadow to the right */
-        border-right: 1px solid rgba(0, 0, 0, 0.05);
-        transition: width 0.3s ease;
-        /* For future collapsible feature */
-        font-family: 'Inter', sans-serif;
-    }
-
-    .sidebar .fs-4 {
-        color: var(--primary-color);
-        /* Primary color for brand name */
-        font-weight: 700;
-        /* Bolder brand name */
-    }
-
-    .sidebar nav {
-        flex-grow: 1;
-        min-height: 0;
-        overflow-x: hidden;
-        overflow-y: auto;
-        scrollbar-width: thin;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .sidebar nav ul {
-        margin-top: 2rem;
-        margin-bottom: 0;
-    }
-
-    .sidebar .nav-item {
-        margin-bottom: 0.5rem;
-    }
-
-    .sidebar .nav-link {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        /* Space between icon and text */
-        padding: 0.75rem 1rem;
-        color: var(--text-dark);
-        /* Default text color */
-        border-radius: 8px;
-        /* Rounded corners for nav links */
-        transition: all 0.2s ease, transform 0.1s ease;
-        position: relative;
-        /* For active indicator */
-        font-weight: 500;
-        text-decoration: none;
-        /* Remove underline */
-        
-
-    }
-
-    .sidebar .nav-link .bi {
-        font-size: 1.2rem;
-        /* Slightly larger icons */
-        flex-shrink: 0;
-        /* Prevent icon from shrinking */
-    }
-
-    /* Hover Effect */
-    .sidebar .nav-link.nav-hover:hover {
-        background-color: var(--sidebar-hover-bg);
-        color: var(--primary-color);
-        transform: translateX(3px);
-        /* Subtle slide effect */
-    }
-
-    /* Active Link Styling */
-    .sidebar .nav-link.active {
-        background-color: var(--sidebar-active-bg);
-        color: var(--primary-color);
-        font-weight: 600;
-        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
-        /* Subtle shadow for active link */
-    }
-
-    .sidebar .nav-link.active::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        height: 80%;
-        width: 4px;
-        /* Left border indicator */
-        background-color: var(--primary-color);
-        border-radius: 0 5px 5px 0;
-    }
-
-    /* Profile item at bottom of sidebar */
-    .sidebar-profile {
-        flex-shrink: 0;
-        border-top: 1px solid rgba(0, 0, 0, 0.05);
-        background-color: var(--sidebar-bg);
-    }
-
-    .sidebar-profile .nav-link {
-        padding: 0.75rem 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        color: var(--text-dark);
-        font-weight: 500;
-        text-decoration: none;
-        border-radius: 8px;
-        transition: all 0.2s ease;
-    }
-
-    .sidebar-profile .nav-link:hover {
-        background-color: var(--sidebar-hover-bg);
-        color: var(--primary-color);
-    }
-
-    .sidebar-profile .profile-picture {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 2px solid var(--primary-color);
-        flex-shrink: 0;
-    }
-
-    .sidebar-profile .profile-name {
-        flex-grow: 1;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .sidebar-profile .logout-icon {
-        font-size: 1.1rem;
-        flex-shrink: 0;
-        opacity: 0.6;
-        transition: opacity 0.2s;
-    }
-
-    .sidebar-profile .nav-link:hover .logout-icon {
-        opacity: 1;
-    }
-</style>
-
-<div class="sidebar">
-    <div class="d-flex align-items-center mb-4">
-        <span class="fs-4 fw-bold text-dark">FlowDesk</span>
+    <!-- Logo/Brand -->
+    <div class="flex items-center gap-3 px-6 py-5 border-b border-slate-700">
+        <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+            </svg>
+        </div>
+        <div>
+            <span class="text-white font-semibold text-sm">FlowDesk</span>
+            <p class="text-slate-400 text-xs">Management System</p>
+        </div>
     </div>
 
-    <nav>
-        <ul class="nav flex-column gap-3">
-            <li class="nav-item">
-                <a class="nav-link nav-hover <?= isActive('dashboard', $currentSegment) ?>"
-                    href="<?= base_url('admin/dashboard') ?>"
-                    <?= isActive('dashboard', $currentSegment) ? 'aria-current="page"' : '' ?>>
-                    <i class="bi bi-house-door fs-6"></i>
-                    <span>Dashboard</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link nav-hover <?= isActive('jobs', $currentSegment) ?>"
-                    href="<?= base_url('admin/jobs') ?>"
-                    <?= isActive('jobs', $currentSegment) ? 'aria-current="page"' : '' ?>>
-                    <i class="bi bi-briefcase fs-6"></i>
-                    <span>Jobs</span>
-                </a>
-            </li>
-            <?php if ($role == 'admin'): ?>
-                <li class="nav-item">
-                    <a class="nav-link nav-hover <?= isActive('users', $currentSegment) ?>"
-                        href="<?= base_url('admin/users') ?>"
-                        <?= isActive('users', $currentSegment) ? 'aria-current="page"' : '' ?>>
-                        <i class="bi bi-people fs-6"></i>
-                        <span>Users</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link nav-hover <?= isActive('customers', $currentSegment) ?>"
-                        href="<?= base_url('admin/customers') ?>"
-                        <?= isActive('customers', $currentSegment) ? 'aria-current="page"' : '' ?>>
-                        <i class="bi bi-person-bounding-box fs-6"></i>
-                        <span>Customers</span>
-                    </a>
-                </li>
-            <?php endif; ?>
-            <li class="nav-item">
-                <a class="nav-link nav-hover <?= isActive('vehicles', $currentSegment) ?>"
-                    href="<?= base_url('admin/vehicles') ?>"
-                    <?= isActive('vehicles', $currentSegment) ? 'aria-current="page"' : '' ?>>
-                    <i class="bi bi-car-front fs-6"></i>
-                    <span>Vehicles</span>
-                </a>
-            </li>
-            
-            <li class="nav-item">
-                <a class="nav-link nav-hover <?= isActive('sublets', $currentSegment) ?>"
-                    href="<?= base_url('admin/sublets') ?>"
-                    <?= isActive('sublets', $currentSegment) ? 'aria-current="page"' : '' ?>>
-                    <i class="bi bi-gear fs-6"></i>
-                    <span>Sublets</span>
-                </a>
-            </li>
-            <?php if ($role == 'admin'): ?>
-                <li class="nav-item">
-                    <a class="nav-link nav-hover <?= isActive('inventory', $currentSegment) ?>"
-                        href="<?= base_url('admin/inventory') ?>"
-                        <?= isActive('inventory', $currentSegment) ? 'aria-current="page"' : '' ?>>
-                        <i class="bi bi-boxes fs-6"></i>
-                        <span>Inventory</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link nav-hover <?= isActive('suppliers', $currentSegment) ?>"
-                        href="<?= base_url('admin/suppliers') ?>"
-                        <?= isActive('suppliers', $currentSegment) ? 'aria-current="page"' : '' ?>>
-                        <i class="bi bi-truck-flatbed fs-6"></i>
-                        <span>Suppliers</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link nav-hover <?= isActive('invoices', $currentSegment) ?>"
-                        href="<?= base_url('admin/invoices') ?>"
-                        <?= isActive('invoices', $currentSegment) ? 'aria-current="page"' : '' ?>>
-                        <i class="bi bi-receipt fs-6"></i>
-                        <span>Invoices</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link nav-hover <?= isActive('calendar', $currentSegment) ?>"
-                        href="<?= base_url('admin/calendar') ?>"
-                        <?= isActive('calendar', $currentSegment) ? 'aria-current="page"' : '' ?>>
-                        <i class="bi bi-calendar-event fs-6"></i>
-                        <span>Calendar</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link nav-hover <?= isActive('lpos', $currentSegment) ?>"
-                        href="<?= base_url('admin/lpos') ?>"
-                        <?= isActive('lpos', $currentSegment) ? 'aria-current="page"' : '' ?>>
-                        <i class="bi bi-file-earmark-text fs-6"></i>
-                        <span>LPOs</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link nav-hover <?= isActive('pettycash', $currentSegment) ?>"
-                        href="<?= base_url('admin/pettycash') ?>"
-                        <?= isActive('pettycash', $currentSegment) ? 'aria-current="page"' : '' ?>>
-                        <i class="bi bi-cash-stack fs-6"></i>
-                        <span>Petty Cash</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link nav-hover <?= isActive('reports', $currentSegment) ?>"
-                        href="<?= base_url('admin/reports') ?>" <?= isActive('reports', $currentSegment) ? 'aria-current="page"' : '' ?>>
-                        <i class="bi bi-bar-chart fs-6"></i>
-                        <span>Reports</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link nav-hover <?= isActive('settings', $currentSegment) ?>"
-                        href="<?= base_url('admin/settings') ?>"
-                        <?= isActive('settings', $currentSegment) ? 'aria-current="page"' : '' ?>>
-                        <i class="bi bi-gear-fill fs-6"></i>
-                        <span>Settings</span>
-                    </a>
-                </li>
-            <?php endif; ?>
-        </ul>
+    <!-- Navigation -->
+    <nav class="flex-1 px-3 py-4 overflow-y-auto space-y-1">
+        <?php
+        $currentUrl = current_url();
+        function isActive($path) {
+            global $currentUrl;
+            return str_contains($currentUrl, $path)
+                ? 'bg-indigo-600 text-white'
+                : 'text-slate-300 hover:bg-slate-800 hover:text-white';
+        }
+        function navItem($href, $label, $icon, $activePath = null) {
+            global $currentUrl;
+            $path = $activePath ?? $href;
+            $active = str_contains($currentUrl, $path);
+            $classes = $active
+                ? 'bg-indigo-600 text-white'
+                : 'text-slate-300 hover:bg-slate-800 hover:text-white';
+            return "<a href=\"{$href}\" class=\"flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors {$classes}\">
+                <span class=\"w-5 h-5 flex-shrink-0\">{$icon}</span>
+                {$label}
+            </a>";
+        }
+        ?>
+
+        <!-- Dashboard -->
+        <?= navItem(base_url('admin/dashboard'), 'Dashboard', '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>', 'admin/dashboard') ?>
+
+        <!-- Section: People -->
+        <div class="pt-4 pb-1">
+            <p class="px-3 text-xs font-medium text-slate-500 uppercase tracking-wider">People</p>
+        </div>
+        <?= navItem(base_url('admin/users'), 'Staff', '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>', 'admin/users') ?>
+        <?= navItem(base_url('admin/customers'), 'Customers', '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>', 'admin/customers') ?>
+
+        <!-- Section: Operations -->
+        <div class="pt-4 pb-1">
+            <p class="px-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Operations</p>
+        </div>
+        <?= navItem(base_url('job_intake'), 'Job Intake', '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>', 'job_intake') ?>
+        <?= navItem(base_url('admin/jobs'), 'Job Cards', '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>', 'admin/jobs') ?>
+        <?= navItem(base_url('admin/vehicles'), 'Vehicles', '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>', 'admin/vehicles') ?>
+        <?= navItem(base_url('admin/calendar'), 'Calendar', '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>', 'admin/calendar') ?>
+        <?= navItem(base_url('admin/sublets'), 'Sublets', '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>', 'admin/sublets') ?>
+
+        <!-- Section: Inventory -->
+        <div class="pt-4 pb-1">
+            <p class="px-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Inventory</p>
+        </div>
+        <?= navItem(base_url('admin/inventory'), 'Parts & Inventory', '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>', 'admin/inventory') ?>
+        <?= navItem(base_url('admin/suppliers'), 'Suppliers', '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>', 'admin/suppliers') ?>
+        <?= navItem(base_url('admin/lpos'), 'LPOs', '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>', 'admin/lpos') ?>
+
+        <!-- Section: Finance -->
+        <div class="pt-4 pb-1">
+            <p class="px-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Finance</p>
+        </div>
+        <?= navItem(base_url('admin/invoices'), 'Invoices', '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>', 'admin/invoices') ?>
+        <?= navItem(base_url('admin/pettycash'), 'Petty Cash', '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>', 'admin/pettycash') ?>
+
+        <!-- Section: Analytics -->
+        <div class="pt-4 pb-1">
+            <p class="px-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Analytics</p>
+        </div>
+        <?= navItem(base_url('admin/reports'), 'Reports', '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>', 'admin/reports') ?>
+
+        <!-- Section: System -->
+        <div class="pt-4 pb-1">
+            <p class="px-3 text-xs font-medium text-slate-500 uppercase tracking-wider">System</p>
+        </div>
+        <?= navItem(base_url('admin/settings'), 'Settings', '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>', 'admin/settings') ?>
     </nav>
 
-    <div class="sidebar-profile">
-        <a class="nav-link" href="<?= base_url('logout') ?>">
-            <img src="<?= $userPhoto ? base_url($userPhoto) : 'https://placehold.co/32x32/cccccc/333333?text=JP' ?>" class="profile-picture" alt="">
-            <span class="profile-name"><strong><?= esc($name) ?></strong> (<?= esc(ucfirst($role)) ?>)</span>
-            <i class="bi bi-box-arrow-right logout-icon"></i>
-        </a>
+    <!-- Sidebar footer: logged in user -->
+    <div class="px-4 py-4 border-t border-slate-700">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0">
+                <span class="text-white font-medium text-xs">
+                    <?= strtoupper(substr(session()->get('user_name') ?? 'U', 0, 1)) ?>
+                </span>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-white truncate"><?= session()->get('user_name') ?></p>
+                <p class="text-xs text-slate-400 capitalize"><?= session()->get('role') ?></p>
+            </div>
+            <a href="<?= base_url('logout') ?>" class="text-slate-400 hover:text-red-400 transition-colors" title="Logout">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                </svg>
+            </a>
+        </div>
     </div>
-</div>
+</aside>

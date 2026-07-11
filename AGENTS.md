@@ -4,11 +4,24 @@
 
 - **System name:** FlowDesk — Organizational Management System
 - **Purpose:** Modular, single-org deployment management system for small businesses (garages, clinics, shops)
-- **Stack:** CodeIgniter 4 (v4.x, PHP 8.2+), MySQL 5.7+ / MariaDB (`flowdesk`), Bootstrap 5.3, jQuery 3.6, DataTables 1.13, FullCalendar 6.1, Chart.js, SweetAlert2, Select2, Font Awesome / Bootstrap Icons
+- **Stack:** CodeIgniter 4 (v4.x, PHP 8.2+), MySQL 5.7+ / MariaDB (`flowdesk`), Tailwind CSS (CDN), jQuery 3.7, DataTables 1.13.7, FullCalendar 6.1, Chart.js, SweetAlert2, Select2, Font Awesome / Bootstrap Icons
 - **Web server:** Apache with mod_rewrite (XAMPP)
 - **Local URL:** `http://localhost/FlowDesk/`
 - **Local path:** `C:\xampp\htdocs\FlowDesk`
 - **GitHub:** `https://github.com/Austine904/FlowDesk`
+- **UI Framework:** Tailwind CSS (CDN, no build step) — migrated from Bootstrap 5.3
+- **Font:** Inter (Google Fonts, weights 300-700)
+- **Design System:**
+  - Page background: `bg-gray-50`
+  - Sidebar background: `bg-slate-900` with `bg-indigo-600` active state
+  - Cards: `bg-white rounded-xl shadow-sm border border-gray-200`
+  - Primary button: `bg-indigo-600 hover:bg-indigo-700 text-white`
+  - Secondary button: `bg-white border border-gray-300 hover:bg-gray-50 text-gray-700`
+  - Danger button: `bg-red-600 hover:bg-red-700 text-white`
+  - Table header: `bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider`
+  - Success badge: `text-emerald-600 bg-emerald-50`
+  - Warning badge: `text-amber-600 bg-amber-50`
+  - Danger badge: `text-red-600 bg-red-50`
 
 ## 2. ARCHITECTURE
 
@@ -866,7 +879,7 @@ GET /customer/ -> DashboardController::customer
 14. **CSRF meta tags are in `layouts/main.php` head** — `getCsrfMeta()` reads `csrf-name` and `csrf-token` for all AJAX POSTs. Token auto-refreshes from response header.
 15. **No auto-routing** — every route is explicitly defined in `Routes.php`. Adding a new controller method requires a corresponding route entry.
 16. **Route typo exists:** `vechicles/edit/(:num)` (missing 'h') is an active route alongside correct `vehicles/edit/(:num)`.
-17. **Sidebar conditional visibility** — admin-only links (`users`, `customers`, `inventory`, `suppliers`, `invoices`, `calendar`, `LPOs`, `petty cash`, `reports`, `settings`) render when `$role == 'admin'`. All roles see `Dashboard`, `Jobs`, `Vehicles`, and `Sublets`.
+17. **Sidebar conditional visibility** — The Tailwind-redesigned sidebar shows all nav links regardless of role (no `$role` checks). The old Bootstrap sidebar had admin-only gating. Role-based filtering in the new sidebar is TBD.
 18. **`completed_at` on `job_cards`** is set ONCE on the first transition to `Completed`. If a job cycles Completed → Rework → Completed again, `completed_at` is NOT overwritten.
 19. **`diagnosis_category` on `job_cards`** is optional — used for structured job type reporting. Set via the mechanic diagnosis form dropdown.
 20. **`CustomerModel` now has `$useTimestamps = true`** with `createdField = 'created_at'` and `updatedField = ''` (no updated_at column). Allows `$customerModel->where('created_at >=', $start)->countAllResults()` without raw queries.
@@ -878,3 +891,21 @@ GET /customer/ -> DashboardController::customer
 - **Profile page** — Sidebar footer links to `/admin/profile` which has no route. Leads to 404.
 - **Forgot password flow** — Login page has a "Forgot Password?" link with no corresponding route or functionality.
 - **Calendar event update by drag-drop** — Route exists (`POST /admin/calendar/updateEventDate`) but the method `CalendarController::updateEventDate()` is not implemented.
+
+## 13. UI MIGRATION: BOOTSTRAP → TAILWIND CSS
+
+### Completed (Phase 1 — Foundation)
+1. **UI stack changed** from Bootstrap 5.3 to Tailwind CSS (CDN, no build step)
+2. **Font:** Inter (Google Fonts, weights 300-700)
+3. **Design system documented:** colors, typography, spacing, component patterns (see Section 1)
+4. **`layouts/main.php`** completely rewritten — Bootstrap removed; Tailwind layout, CSRF, flash messages, topbar, user dropdown
+5. **`partials/sidebar.php`** completely rewritten — dark theme (`bg-slate-900`), sectioned nav with section headers (People, Operations, Inventory, Finance, Analytics, System), SVG icons, user footer with avatar/logout
+6. **`admin/dashboard.php`** completely rewritten — Tailwind grid layout, stat cards, revenue line chart, job status doughnut, recent jobs list, quick actions sidebar, alerts section
+7. **`login.php`** completely rewritten — standalone centered Tailwind card, clean form with password toggle, no Bootstrap dependency
+
+### Pending (Phase 2 — Module-by-module migration)
+- All remaining views still use Bootstrap classes
+- Must be migrated module by module: Users, Customers, Vehicles, Jobs/Job Cards, Job Intake, Calendar, Sublets, Inventory, Suppliers, LPOs, Invoices, Petty Cash, Reports, Settings
+- Bootstrap JS (`bootstrap.bundle.min.js`) and CSS imports removed from main layout
+- Per-module CSS files (e.g., `sidebar.css`, `dashboard.css`, `login.css`) still exist but are no longer loaded — review and remove as each module is migrated
+- `SweetAlert2`, `Select2`, and `FullCalendar` are still in the stack but not currently loaded in the new main layout — re-add when migrating dependent modules

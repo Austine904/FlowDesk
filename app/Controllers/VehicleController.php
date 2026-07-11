@@ -11,8 +11,10 @@ class VehicleController extends BaseController
     public function index()
     {
         $vehicleModel = new VehicleModel();
+        $customerModel = new CustomerModel();
         $vehicles = $vehicleModel->findAll();
-        return view('vehicles/index', ['vehicles' => $vehicles]);
+        $customers = $customerModel->findAll();
+        return view('vehicles/index', ['vehicles' => $vehicles, 'customers' => $customers]);
     }
 
     public function fetchVehicles()

@@ -1,766 +1,243 @@
-<?= $this->extend('layouts/main'); ?>
+<?= $this->extend('layouts/main') ?>
+<?= $this->section('content') ?>
+<?php $pageTitle = 'Dashboard'; ?>
 
-<?= $this->section('content'); ?>
+<!-- Stats Grid (4 cards) -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
 
-<style>
-    /* Consistent theme variables */
-    :root {
-        --primary-color: #007bff;
-        --primary-hover-color: #0056b3;
-        --text-dark: #343a40;
-        --bg-light: #f8f9fa;
-        --card-bg: #ffffff;
-        --shadow-light: rgba(0, 0, 0, 0.1);
-        --shadow-medium: rgba(0, 0, 0, 0.15);
-        /* Used for main cards */
-        --success-color: #28a745;
-        --success-hover-color: #218838;
-        --warning-color: #ffc107;
-        --warning-hover-color: #e0a800;
-        --danger-color: #dc3545;
-        --danger-hover-color: #c82333;
-        --info-color: #17a2b8;
-        --info-hover-color: #138496;
-        --dark-color: #343a40;
-        /* For petty cash button */
-        --dark-hover-color: #23272b;
-    }
-
-    body {
-        font-family: 'Inter', sans-serif;
-        /* Ensure Inter font is applied */
-        color: var(--text-dark);
-        /* Consistent text color */
-    }
-
-    .container.mt-5 {
-        margin-top: 3rem !important;
-        /* Bootstrap's mt-5 value */
-    }
-
-    h3 {
-        font-weight: 600;
-        color: var(--text-dark);
-        margin-bottom: 2rem !important;
-        /* Consistent spacing */
-    }
-
-    /* Modern Card Styling */
-    .card {
-        border-radius: 15px;
-        /* More rounded corners */
-        border: none;
-        /* Remove default card border */
-        box-shadow: 0 10px 30px var(--shadow-medium);
-        /* Softer, larger shadow */
-        overflow: hidden;
-        /* Ensure content respects border-radius */
-    }
-
-    /* Summary Card Specifics with subtle gradients */
-    .card.bg-primary {
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-hover-color)) !important;
-        /* Primary gradient */
-        color: white !important;
-    }
-
-    .card.bg-success {
-        background: linear-gradient(135deg, var(--success-color), var(--success-hover-color)) !important;
-        /* Success gradient */
-        color: white !important;
-    }
-
-    .card.bg-warning {
-        background: linear-gradient(135deg, var(--warning-color), var(--warning-hover-color)) !important;
-        /* Warning gradient */
-        color: var(--text-dark) !important;
-        /* Ensure text is readable on yellow */
-    }
-
-    .card.bg-danger {
-        background: linear-gradient(135deg, var(--danger-color), var(--danger-hover-color)) !important;
-        /* Danger gradient */
-        color: white !important;
-    }
-
-    /* Ensure icons in summary cards have correct color */
-    .card.bg-primary .bi,
-    .card.bg-success .bi,
-    .card.bg-danger .bi {
-        color: white !important;
-    }
-
-    .card.bg-warning .bi {
-        color: var(--text-dark) !important;
-    }
-
-    /* Card Header Styling (Recent Activity, Quick Actions, Charts, Alerts) */
-    .card-header {
-        background-color: var(--bg-light) !important;
-        /* Use theme's light background */
-        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-        /* Subtle border */
-        font-weight: 600;
-        /* Semi-bold for headings */
-        color: var(--text-dark);
-        /* Consistent text color */
-        padding: 1.25rem 1.5rem;
-        /* More generous padding */
-        font-size: 1.1rem;
-    }
-
-    /* List Group Item Styling */
-    .list-group-item {
-        border-color: rgba(0, 0, 0, 0.05);
-        /* Lighter borders */
-        padding: 1rem 1.5rem;
-        /* Consistent padding */
-    }
-
-    /* Quick Action Button Styling */
-    .btn {
-        border-radius: 8px;
-        /* Consistent rounded corners */
-        font-weight: 500;
-        transition: all 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .btn:hover {
-        transform: translateY(-2px);
-        /* Subtle lift on hover */
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        /* More prominent shadow on hover */
-    }
-
-    /* Specific hover colors for outline buttons */
-    .btn-outline-primary:hover {
-        background-color: var(--primary-color);
-        color: white;
-    }
-
-    .btn-outline-success:hover {
-        background-color: var(--success-color);
-        color: white;
-    }
-
-    .btn-outline-warning:hover {
-        background-color: var(--warning-color);
-        color: var(--text-dark);
-        /* Keep text dark on warning hover */
-    }
-
-    .btn-outline-info:hover {
-        background-color: var(--info-color);
-        color: white;
-    }
-
-    .btn-outline-danger:hover {
-        background-color: var(--danger-color);
-        color: white;
-    }
-
-    .btn-outline-dark:hover {
-        background-color: var(--dark-color);
-        color: white;
-    }
-
-    /* === MODAL STYLING (Modernized) === */
-    .modal-backdrop.fade {
-        opacity: 0.7;
-        /* Darker overlay */
-    }
-
-    .modal.fade .modal-dialog {
-        transform: translate(0, -50px);
-        /* Start slightly above center */
-        opacity: 0;
-        transition: transform 0.3s ease-out, opacity 0.3s ease-out;
-    }
-
-    .modal.show .modal-dialog {
-        transform: translate(0, 0);
-        /* Slide to center */
-        opacity: 1;
-    }
-
-    .modal-content {
-        border-radius: 15px;
-        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
-        /* Softer, larger shadow */
-        border: none;
-        overflow: hidden;
-        /* Ensure content respects border-radius */
-    }
-
-    .modal-header {
-        border-bottom: none;
-        padding: 1.5rem;
-        background-color: var(--card-bg);
-        /* Default light background for header */
-        border-top-left-radius: 15px;
-        border-top-right-radius: 15px;
-    }
-
-    .modal-title {
-        font-weight: 700;
-        /* Bolder title */
-        color: var(--primary-color);
-        font-size: 1.6rem;
-        /* Slightly larger title */
-    }
-
-    .modal-body {
-        padding: 1.5rem;
-        color: var(--text-dark);
-    }
-
-    .modal-footer {
-        border-top: none;
-        /* Remove default footer border */
-        padding: 1rem 1.5rem;
-        background-color: var(--card-bg);
-    }
-
-    .modal-footer .btn {
-        padding: 0.6rem 1.2rem;
-        /* Adjust button padding in footer */
-        font-size: 0.95rem;
-    }
-
-    /* Critical Alerts specific styling */
-    .alert-item {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.75rem 1rem;
-        border-left: 4px solid;
-        border-radius: 8px;
-        margin-bottom: 0.5rem;
-        background-color: var(--bg-light);
-    }
-
-    .alert-item.alert-low-stock {
-        border-color: var(--warning-color);
-    }
-
-    .alert-item.alert-overdue {
-        border-color: var(--danger-color);
-    }
-
-    .alert-item.alert-pending {
-        border-color: var(--info-color);
-    }
-
-    .alert-item .bi {
-        font-size: 1.2rem;
-    }
-
-    .alert-item .bi-exclamation-triangle-fill {
-        color: var(--warning-color);
-    }
-
-    .alert-item .bi-clock-fill {
-        color: var(--danger-color);
-    }
-
-    .alert-item .bi-file-earmark-text-fill {
-        color: var(--info-color);
-    }
-
-    /* Recent Activity Item Styling */
-    .activity-item {
-        display: flex;
-        align-items: flex-start;
-        /* Align icon to top of text */
-        gap: 0.75rem;
-        padding: 0.75rem 1rem;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    }
-
-    .activity-item:last-child {
-        border-bottom: none;
-    }
-
-    .activity-item .activity-icon {
-        font-size: 1.1rem;
-        color: var(--primary-color);
-        flex-shrink: 0;
-        /* Prevent icon from shrinking */
-    }
-
-    .activity-item .activity-details {
-        flex-grow: 1;
-    }
-
-    .activity-item .activity-details .activity-text {
-        font-size: 0.95rem;
-        line-height: 1.4;
-    }
-
-    .activity-item .activity-details .activity-meta {
-        font-size: 0.8rem;
-        color: #6c757d;
-        margin-top: 0.2rem;
-    }
-
-    .activity-item .activity-details .activity-link {
-        color: var(--primary-color);
-        text-decoration: none;
-        font-weight: 500;
-    }
-
-    .activity-item .activity-details .activity-link:hover {
-        text-decoration: underline;
-    }
-</style>
-
-<div class="container mt-5">
-    <h3 class="mb-4">Dashboard</h3>
-
-    <div class="row g-4">
-        <div class="col-md-3">
-            <div class="card text-white bg-primary">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6>Total Users</h6>
-                            <h3><?= $userCount ?? '0' ?></h3>
-                        </div>
-                        <i class="bi bi-people" style="font-size: 2.5rem;"></i>
-                    </div>
-                </div>
+    <!-- Card: Total Jobs -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+            <div class="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                </svg>
             </div>
+            <span class="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">Active</span>
         </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-success">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6>Vehicles</h6>
-                            <h3><?= $vehicleCount ?? '0' ?></h3>
-                        </div>
-                        <i class="bi bi-truck" style="font-size: 2.5rem;"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-warning">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6>Jobs in Progress</h6>
-                            <h3><?= $activeJobs ?? '0' ?></h3>
-                        </div>
-                        <i class="bi bi-gear" style="font-size: 2.5rem;"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-info">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6>This Month Revenue</h6>
-                            <h3><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($totalRevenue ?? 0, 0) ?></h3>
-                        </div>
-                        <i class="bi bi-cash-stack" style="font-size: 2.5rem;"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-white bg-danger">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6>Outstanding Balance</h6>
-                            <h3><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($outstandingBalance ?? 0, 0) ?></h3>
-                        </div>
-                        <i class="bi bi-credit-card-2-front" style="font-size: 2.5rem;"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-white <?= ($pettyCashBalance ?? 0) >= 0 ? 'bg-primary' : 'bg-danger' ?>">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6>Petty Cash Balance</h6>
-                            <h3><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($pettyCashBalance ?? 0, 0) ?></h3>
-                        </div>
-                        <i class="bi bi-wallet2" style="font-size: 2.5rem;"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <p class="text-2xl font-bold text-gray-900"><?= $totalJobs ?? 0 ?></p>
+        <p class="text-sm text-gray-500 mt-1">Total Job Cards</p>
     </div>
 
-    <div class="row mt-5 g-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <strong>Job Status Breakdown</strong>
-                </div>
-                <div class="card-body">
-                    <canvas id="jobStatusChart"></canvas>
-                </div>
+    <!-- Card: This Month Revenue -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+            <div class="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <strong>Revenue Trends (Last 6 Months)</strong>
-                </div>
-                <div class="card-body">
-                    <canvas id="revenueTrendsChart"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <strong>Critical Alerts</strong>
-                </div>
-                <div class="card-body">
-                    <div id="criticalAlertsList">
-                        <?php if (!empty($lowStockItems)): ?>
-                            <?php foreach ($lowStockItems as $item): ?>
-                            <div class="alert-item alert-low-stock">
-                                <i class="bi bi-exclamation-triangle-fill"></i>
-                                <span>Low Stock: <?= esc($item['name']) ?> (<?= esc($item['part_number'] ?? 'N/A') ?>) — <?= esc($item['quantity_in_hand']) ?> left, reorder at <?= esc($item['reorder_level']) ?>. <a href="<?= base_url('admin/inventory') ?>" class="text-warning">View Inventory</a></span>
-                            </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                        <?php if ($pendingLPOs > 0): ?>
-                        <div class="alert-item alert-pending">
-                            <i class="bi bi-file-earmark-text-fill"></i>
-                            <span>Pending LPOs: <?= $pendingLPOs ?> LPO(s) need attention. <a href="<?= base_url('admin/lpos') ?>" class="text-info">View LPOs</a></span>
-                        </div>
-                        <?php endif; ?>
-                        <?php if (empty($lowStockItems) && $pendingLPOs == 0): ?>
-                            <div class="text-muted text-center py-3">No critical alerts at the moment.</div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <p class="text-2xl font-bold text-gray-900"><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($totalRevenue ?? 0, 2) ?></p>
+        <p class="text-sm text-gray-500 mt-1">This Month Revenue</p>
     </div>
 
-    <div class="row mt-5 g-4">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <strong>Recent Activity</strong>
-                    <select class="form-select w-auto" id="activityFilter">
-                        <option value="all">All Activity</option>
-                        <option value="jobs">Job Updates</option>
-                        <option value="users">New Users</option>
-                        <option value="vehicles">Vehicle Registrations</option>
-                    </select>
-                </div>
-                <ul class="list-group list-group-flush" id="recentActivityList">
-                    <li class="list-group-item activity-item" data-type="jobs">
-                        <?php if (!empty($recentActivity)): ?>
-                            <?php foreach ($recentActivity as $activity): ?>
-                    <li class=" list-group-item activity-item" data-type="<?= esc($activity['type']) ?>">
-                        <i class="bi <?= esc($activity['icon']) ?> activity-icon"></i>
-                        <div class="activity-details">
-                            <div class="activity-text"><?= $activity['text'] ?></div>
-                            <div class="activity-meta"><?= $activity['time'] ?></div>
-                        </div>
+    <!-- Card: Outstanding Balance -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+            <div class="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                </svg>
+            </div>
+        </div>
+        <p class="text-2xl font-bold text-gray-900"><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($outstandingBalance ?? 0, 2) ?></p>
+        <p class="text-sm text-gray-500 mt-1">Outstanding Balance</p>
+    </div>
 
-                    </li>
-                <?php endforeach; ?>
+    <!-- Card: Petty Cash Balance -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+            <div class="w-10 h-10 <?= ($pettyCashBalance ?? 0) >= 0 ? 'bg-emerald-50' : 'bg-red-50' ?> rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 <?= ($pettyCashBalance ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600' ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+            </div>
+        </div>
+        <p class="text-2xl font-bold <?= ($pettyCashBalance ?? 0) >= 0 ? 'text-gray-900' : 'text-red-600' ?>">
+            <?= org_setting('currency_symbol', 'KSh') ?> <?= number_format(abs($pettyCashBalance ?? 0), 2) ?>
+        </p>
+        <p class="text-sm text-gray-500 mt-1">Petty Cash Balance</p>
+    </div>
+</div>
+
+<!-- Second row: Revenue chart + Job Status chart -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+
+    <!-- Revenue Trend (spans 2 cols) -->
+    <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <h3 class="text-sm font-semibold text-gray-900 mb-4">Revenue Trend (Last 6 Months)</h3>
+        <canvas id="revenueChart" height="100"></canvas>
+    </div>
+
+    <!-- Job Status Doughnut -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <h3 class="text-sm font-semibold text-gray-900 mb-4">Jobs by Status</h3>
+        <canvas id="jobStatusChart"></canvas>
+    </div>
+</div>
+
+<!-- Third row: Recent Jobs + Quick Actions + Alerts -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- Recent Jobs (spans 2 cols) -->
+    <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-gray-900">Recent Job Cards</h3>
+            <a href="<?= base_url('admin/jobs') ?>" class="text-xs text-indigo-600 hover:text-indigo-700 font-medium">View all →</a>
+        </div>
+        <div class="divide-y divide-gray-50">
+            <?php if (!empty($recentJobs)): ?>
+            <?php foreach ($recentJobs as $job): ?>
+            <div class="px-6 py-3 flex items-center justify-between hover:bg-gray-50">
+                <div>
+                    <p class="text-sm font-medium text-gray-900"><?= esc($job['job_no']) ?></p>
+                    <p class="text-xs text-gray-500"><?= esc($job['customer_name'] ?? '') ?> • <?= esc($job['registration_number'] ?? '') ?></p>
+                </div>
+                <span class="text-xs px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 font-medium">
+                    <?= esc($job['job_status']) ?>
+                </span>
+            </div>
+            <?php endforeach; ?>
             <?php else: ?>
-                <li class="list-group-item text-muted">No recent activity yet.</li>
+            <div class="px-6 py-8 text-center text-sm text-gray-400">No recent job cards</div>
             <?php endif; ?>
-                </ul>
-            </div>
-        </div>
-
-
-
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-header">
-                    <strong>Quick Actions</strong>
-                </div>
-                <div class="card-body d-grid gap-3">
-                    <button onclick="openModal('<?= base_url('admin/users/add') ?>', 'Add New User')" class="btn btn-outline-primary d-flex align-items-center gap-2">
-                        <i class="bi bi-person-plus"></i> Add User
-                    </button>
-                    <button onclick="openModal('<?= base_url('admin/vehicles/add') ?>', 'Register New Vehicle')" class="btn btn-outline-success d-flex align-items-center gap-2">
-                        <i class="bi bi-car-front"></i> Register Vehicle
-                    </button>
-                    <button onclick="openModal('<?= base_url('admin/jobs/create') ?>', 'Create New Job')" class="btn btn-outline-warning d-flex align-items-center gap-2">
-                        <i class="bi bi-briefcase"></i> Create Job
-                    </button>
-                    <button onclick="openModal('<?= base_url('admin/sublets/add') ?>', 'Add New Sublet')" class="btn btn-outline-info d-flex align-items-center gap-2">
-                        <i class="bi bi-arrow-repeat"></i> Add Sublet
-                    </button>
-                    <a href="<?= base_url('admin/lpos/add') ?>" class="btn btn-outline-danger d-flex align-items-center gap-2">
-                        <i class="bi bi-file-earmark-plus"></i> New LPO
-                    </a>
-                    <button onclick="openModal('<?= base_url('admin/pettycash/add') ?>', 'Add Petty Cash Entry')" class="btn btn-outline-dark d-flex align-items-center gap-2">
-                        <i class="bi bi-cash"></i> Add Petty Cash
-                    </button>
-                    <a href="<?= base_url('admin/reports') ?>" class="btn btn-outline-info d-flex align-items-center gap-2">
-                        <i class="bi bi-bar-chart"></i> View Reports
-                    </a>
-                </div>
-            </div>
         </div>
     </div>
-</div>
 
-<div id="actionModal" class="modal fade" tabindex="-1" aria-labelledby="actionModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="actionModalLabel"></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <!-- Right column: Quick actions + Alerts -->
+    <div class="space-y-6">
+
+        <!-- Quick Actions -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <h3 class="text-sm font-semibold text-gray-900 mb-4">Quick Actions</h3>
+            <div class="space-y-2">
+                <a href="<?= base_url('job_intake') ?>" class="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    New Job Intake
+                </a>
+                <a href="<?= base_url('admin/invoices') ?>" class="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/>
+                    </svg>
+                    View Invoices
+                </a>
+                <a href="<?= base_url('admin/lpos/add') ?>" class="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                    </svg>
+                    New LPO
+                </a>
+                <a href="<?= base_url('admin/pettycash/add') ?>" class="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                    Add Petty Cash Entry
+                </a>
+                <a href="<?= base_url('admin/reports') ?>" class="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    View Reports
+                </a>
             </div>
-            <div class="modal-body">
-                <div id="modalContent" class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
+        </div>
+
+        <!-- Alerts: Low Stock + Pending LPOs -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <h3 class="text-sm font-semibold text-gray-900 mb-4">Alerts</h3>
+            <div class="space-y-3">
+                <?php if (!empty($lowStockItems)): ?>
+                <div class="flex items-start gap-3 p-3 bg-amber-50 rounded-lg">
+                    <svg class="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                    <div>
+                        <p class="text-xs font-medium text-amber-800"><?= count($lowStockItems) ?> items low on stock</p>
+                        <a href="<?= base_url('admin/inventory') ?>" class="text-xs text-amber-600 hover:underline">View inventory →</a>
                     </div>
                 </div>
+                <?php endif; ?>
+                <?php if (($pendingLPOs ?? 0) > 0): ?>
+                <div class="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
+                    <svg class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    <div>
+                        <p class="text-xs font-medium text-blue-800"><?= $pendingLPOs ?> LPOs pending delivery</p>
+                        <a href="<?= base_url('admin/lpos') ?>" class="text-xs text-blue-600 hover:underline">View LPOs →</a>
+                    </div>
+                </div>
+                <?php endif; ?>
+                <?php if (empty($lowStockItems) && ($pendingLPOs ?? 0) === 0): ?>
+                <p class="text-xs text-gray-400 text-center py-2">No alerts at this time</p>
+                <?php endif; ?>
             </div>
         </div>
     </div>
 </div>
 
+<?= $this->endSection() ?>
+
+<?= $this->section('scripts') ?>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-
-
-        // --- openModal Function ---
-        function openModal(url, title = 'Form') {
-            const modalElement = document.getElementById('actionModal');
-            const modal = new bootstrap.Modal(modalElement);
-            const modalTitle = modalElement.querySelector('.modal-title');
-            const modalContent = document.getElementById('modalContent');
-
-            modalContent.innerHTML = `
-                <div class="d-flex justify-content-center align-items-center" style="min-height: 100px;">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                </div>
-            `;
-            modalTitle.textContent = title;
-
-            modal.show();
-
-            fetch(url, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok ' + response.statusText);
-                    }
-                    return response.text();
-                })
-                .then(data => {
-                    modalContent.innerHTML = data;
-                })
-                .catch(error => {
-                    modalTitle.textContent = 'Error';
-                    modalContent.innerHTML = `<div class="alert alert-danger" role="alert">Error loading content: ${error.message}. Please try again.</div>`;
-                    console.error('Error loading modal content:', error);
-                });
+const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+new Chart(revenueCtx, {
+    type: 'line',
+    data: {
+        labels: <?= $revenueLabels ?? '["Jan","Feb","Mar","Apr","May","Jun"]' ?>,
+        datasets: [{
+            label: 'Revenue (<?= org_setting('currency_symbol', 'KSh') ?>)',
+            data: <?= $revenueByMonth ?? '[0,0,0,0,0,0]' ?>,
+            borderColor: '#4f46e5',
+            backgroundColor: 'rgba(79,70,229,0.08)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#4f46e5',
+            pointRadius: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: { color: '#f3f4f6' },
+                ticks: { callback: function(v) { return '<?= org_setting('currency_symbol', 'KSh') ?> ' + v.toLocaleString(); } }
+            },
+            x: { grid: { display: false } }
         }
-        window.openModal = openModal;
+    }
+});
 
-
-        // --- Chart.js Initialization ---
-
-        const ctx = document.getElementById('jobStatusChart');
-        if (!ctx) {
-            console.error('Job Status Chart canvas not found');
-            return;
-        }
-
-        const revenueLabels = <?= $revenueLabels ?? '["Jan","Feb","Mar","Apr","May","Jun"]' ?>;
-        const revenueData = <?= $revenueByMonth ?? '[0,0,0,0,0,0]' ?>;
-
-
-        // Job Status Breakdown Chart
-        const jobstatusData = <?= $jobStatusData ?? '{}' ?>;
-        if (Object.keys(jobstatusData).length === 0) {
-            console.warn('No job status data available');
-            return;
-        }
-        // Ensure jobstatusData is an object with expected keys
-        if (typeof jobstatusData !== 'object' || Array.isArray(jobstatusData)) {
-            console.error('Invalid job status data format');
-            return;
-        }
-        //log if jobstatusData is not empty
-        console.log('Job Status Data:', jobstatusData);
-
-
-        const jobStatusCtx = document.getElementById('jobStatusChart');
-        if (jobStatusCtx) {
-            new Chart(jobStatusCtx, {
-                type: 'doughnut', // Doughnut chart for job status
-                data: {
-                    labels: Object.keys(jobstatusData),
-                    datasets: [{
-                        data: Object.values(jobstatusData),
-                        backgroundColor: [
-                            'rgba(255, 193, 7, 0.8)', // Warning (yellow)
-                            'rgba(220, 53, 69, 0.8)', // Danger (red)
-                            'rgba(255, 255, 255, 0.8)', // White for empty or unknown status
-                            'rgba(52, 58, 64, 0.8)', // Dark (grey)
-                            'rgb(186, 85, 255)',
-                            'rgb(255, 99, 255)',
-                            'rgba(255, 159, 64, 0.8)', // Orange
-                            'rgba(0, 123, 255, 0.8)', // Primary (blue)
-                            'rgba(23, 162, 184, 0.8)', // Info (teal)
-                            'rgba(40, 167, 69, 0.8)', // Success (green)
-                            'rgba(108, 117, 125, 0.8)' // Secondary (grey)
-                        ],
-                        borderColor: 'white',
-                        borderWidth: 2
-                    }]
-                },
-
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                font: {
-                                    family: 'Inter',
-                                    size: 12
-                                }
-                            }
-                        },
-                        title: {
-                            display: false,
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed !== null) {
-                                        label += context.parsed;
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    }
-                }
-
-            });
-        }
-
-        // Revenue Trends Chart
-        const revenueTrendsCtx = document.getElementById('revenueTrendsChart');
-        if (revenueTrendsCtx) {
-            new Chart(revenueTrendsCtx, {
-                type: 'line',
-                data: {
-                    labels: revenueLabels,
-                    datasets: [{
-                        label: 'Revenue (<?= org_setting('currency_symbol', 'KSh') ?>)',
-                        data: revenueData,
-                        fill: true,
-                        backgroundColor: 'rgba(0, 123, 255, 0.2)',
-                        borderColor: 'var(--primary-color)',
-                        tension: 0.4,
-                        pointBackgroundColor: 'var(--primary-color)',
-                        pointBorderColor: 'white',
-                        pointBorderWidth: 2,
-                        pointRadius: 5,
-                        pointHoverRadius: 7
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false // Hide legend for single dataset
-                        },
-                        title: {
-                            display: false,
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(0,0,0,0.05)' // Lighter grid lines
-                            },
-                            ticks: {
-                                font: {
-                                    family: 'Inter'
-                                }
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false // Hide x-axis grid lines
-                            },
-                            ticks: {
-                                font: {
-                                    family: 'Inter'
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        // --- Recent Activity Filtering ---
-        const activityFilter = document.getElementById('activityFilter');
-        const recentActivityList = document.getElementById('recentActivityList');
-        const allActivityItems = recentActivityList.querySelectorAll('.activity-item');
-
-        activityFilter.addEventListener('change', function() {
-            const selectedType = this.value;
-
-            allActivityItems.forEach(item => {
-                const itemType = item.getAttribute('data-type');
-                if (selectedType === 'all' || itemType === selectedType) {
-                    item.style.display = 'flex'; // Show item
-                } else {
-                    item.style.display = 'none'; // Hide item
-                }
-            });
-
-            // If no items are visible, display a "No activity" message (optional, but good UX)
-            const visibleItems = Array.from(allActivityItems).filter(item => item.style.display !== 'none');
-            if (visibleItems.length === 0) {
-                // You might want to add a temporary message here or handle it in PHP if data is empty
-                // For now, assuming some items are always present or handled by PHP's empty check
+const statusCtx = document.getElementById('jobStatusChart').getContext('2d');
+const jobStatusData = <?= $jobStatusData ?? '{}' ?>;
+const statusLabels = Object.keys(jobStatusData).filter(function(k) { return jobStatusData[k] > 0; });
+const statusCounts = statusLabels.map(function(k) { return jobStatusData[k]; });
+new Chart(statusCtx, {
+    type: 'doughnut',
+    data: {
+        labels: statusLabels,
+        datasets: [{
+            data: statusCounts,
+            backgroundColor: ['#4f46e5','#10b981','#f59e0b','#ef4444','#6b7280','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#e11d48','#64748b','#84cc16','#06b6d4'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        cutout: '70%',
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { font: { size: 11 }, padding: 12 }
             }
-        });
-    });
-
-    document.getElementById('activityFilter').addEventListener('change', function() {
-        const selectedType = this.value;
-        const items = document.querySelectorAll('.activity-item');
-
-        items.forEach(item => {
-            const match = selectedType === 'all' || item.dataset.type === selectedType;
-            item.style.display = match ? 'flex' : 'none';
-        });
-    });
+        }
+    }
+});
 </script>
-<?= $this->endSection(); ?>
+<?= $this->endSection() ?>

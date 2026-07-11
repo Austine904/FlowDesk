@@ -1,7 +1,5 @@
-
 $(document).ready(function () {
-    // Initialize DataTable
-    const table = $('#vehicleTable').DataTable({
+    var table = $('#vehicleTable').DataTable({
         "ajax": BASE_URL + 'admin/vehicles/fetch',
         "columns": [{
             "data": "id"
@@ -21,72 +19,34 @@ $(document).ready(function () {
         {
             "data": "status"
         },
-
         {
             "data": null,
-            "render": function (data, type, row) {
-                return `
-            <div style="display: flex; justify-content: space-around;">
-                <button class="icon-btn text-info" title="Edit" onclick="editVehicle(${data.id})">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="icon-btn text-primary" title="View" onclick="viewVehicleDetails(${data.id})">
-                    <i class="fas fa-eye"></i>
-                </button>
-                <button class="icon-btn text-danger" title="Delete" onclick="deleteVehicle(${data.id})">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
-            </div>
-        `;
+            "render": function (data) {
+                return '<div class="flex justify-around">' +
+                    '<button class="icon-btn text-info" title="Edit" onclick="editVehicle(' + data.id + ')"><i class="fas fa-edit"></i></button>' +
+                    '<button class="icon-btn text-primary" title="View" onclick="viewVehicleDetails(' + data.id + ')"><i class="fas fa-eye"></i></button>' +
+                    '<button class="icon-btn text-danger" title="Delete" onclick="deleteVehicle(' + data.id + ')"><i class="fas fa-trash-alt"></i></button>' +
+                    '</div>';
             }
         }
         ]
     });
 
-
-
-    // Add Vehicle AJAX
-    $('#addVehicleForm').on('click', function () {
-        const formData = $('#addVehicleForm').serialize();
-        $.post(`${BASE_URL}admin/vehicles/add`, formData, function (response) {
-            $('#vehicleModal').modal('hide');
-            table.ajax.reload();
-        });
-    });
-
-    // Edit Vehicle AJAX
-    window.editVehicle = function (id) {
-        $.get(`${BASE_URL}admin/vehicles/fetch/${id}`, function (data) {
-            $('#vehicle_id').val(data.id);
-            $('#vehicle_number').val(data.vehicle_number);
-            $('#make').val(data.make);
-            $('#model').val(data.model);
-            $('#year').val(data.year);
-            $('#color').val(data.color);
-            $('#vehicleModal').modal('show');
-        });
-    };
-
-    // Delete Vehicle AJAX
-    window.deleteVehicle = function (id) {
-        if (confirm("Are you sure you want to delete this vehicle?")) {
-            $.post(`<?= base_url('admin/vehicles/delete') ?>/${id}`, function (response) {
-                table.ajax.reload();
-            });
-        }
-    };
-
-    // Clear form when modal closes
-    $('#vehicleModal').on('hidden.bs.modal', function () {
-        $('#vehicleForm')[0].reset();
-    });
-
-
-    function openAddModal() {
-        const modal = new bootstrap.Modal(document.getElementById('vehicleModal'));
-        modal.show();
+    function closeModal(id) {
+        document.getElementById(id).classList.add('hidden');
+        var backdrop = document.getElementById(id + '-backdrop');
+        if (backdrop) backdrop.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
     }
 
+    function openModal(id) {
+        document.getElementById(id).classList.remove('hidden');
+        var backdrop = document.getElementById(id + '-backdrop');
+        if (backdrop) backdrop.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    // Add Vehicle form submission
     $('#addVehicleForm').submit(function (e) {
         e.preventDefault();
         $.ajax({
@@ -95,8 +55,8 @@ $(document).ready(function () {
             data: $(this).serialize(),
             success: function (response) {
                 alert('Vehicle added successfully!');
-                $('#addVehicleModal').modal('hide');
-                $('#vehiclesTable').DataTable().ajax.reload();
+                closeModal('addVehicleModal');
+                table.ajax.reload();
             },
             error: function (xhr) {
                 console.error(xhr.responseText);
@@ -105,91 +65,96 @@ $(document).ready(function () {
         });
     });
 
-
-    function viewVehicleDetails(id) {
+    // View Vehicle Details
+    window.viewVehicleDetails = function (id) {
         $.ajax({
-            url: BASE_URL + 'vehicles/details/' + id,
+            url: BASE_URL + 'admin/vehicles/details/' + id,
             method: 'GET',
             success: function (data) {
-                $('#viewVehicleModal .modal-body').html(`
-                    
-                    <p><strong>Make:</strong> ${data.make}</p>
-                    <p><strong>Year of Manufacture:</strong> ${data.year_of_manufacture}</p>
-                    <p><strong>Registration Number:</strong> ${data.registration_number}</p>
-                    <p><strong>Model:</strong> ${data.model}</p>
-                    <p><strong>Color:</strong> ${data.color}</p>
-                    <p><strong>Engine Number:</strong> ${data.engine_number}</p>
-                    <p><strong>Chassis Number:</strong> ${data.chassis_number}</p>
-                    <p><strong>Fuel Type:</strong> ${data.fuel_type}</p>
-                  
-                `);
-                $('#viewVehicleModal').modal('show');
+                var body = '';
+                body += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+                body += '<div><p class="mb-2"><span class="text-xs font-medium text-gray-500">Make:</span> <span class="text-sm text-gray-900">' + (data.make || 'N/A') + '</span></p></div>';
+                body += '<div><p class="mb-2"><span class="text-xs font-medium text-gray-500">Year of Manufacture:</span> <span class="text-sm text-gray-900">' + (data.year_of_manufacture || 'N/A') + '</span></p></div>';
+                body += '<div><p class="mb-2"><span class="text-xs font-medium text-gray-500">Registration Number:</span> <span class="text-sm text-gray-900">' + (data.registration_number || 'N/A') + '</span></p></div>';
+                body += '<div><p class="mb-2"><span class="text-xs font-medium text-gray-500">Model:</span> <span class="text-sm text-gray-900">' + (data.model || 'N/A') + '</span></p></div>';
+                body += '<div><p class="mb-2"><span class="text-xs font-medium text-gray-500">Color:</span> <span class="text-sm text-gray-900">' + (data.color || 'N/A') + '</span></p></div>';
+                body += '<div><p class="mb-2"><span class="text-xs font-medium text-gray-500">Engine Number:</span> <span class="text-sm text-gray-900">' + (data.engine_number || 'N/A') + '</span></p></div>';
+                body += '<div><p class="mb-2"><span class="text-xs font-medium text-gray-500">Chassis Number:</span> <span class="text-sm text-gray-900">' + (data.chassis_number || 'N/A') + '</span></p></div>';
+                body += '<div><p class="mb-2"><span class="text-xs font-medium text-gray-500">Fuel Type:</span> <span class="text-sm text-gray-900">' + (data.fuel_type || 'N/A') + '</span></p></div>';
+                body += '</div>';
+
+                var modalBody = document.querySelector('#viewVehicleModal .p-6');
+                if (modalBody) {
+                    modalBody.innerHTML = body;
+                }
+                openModal('viewVehicleModal');
             },
-            error: function (error) {
+            error: function () {
                 alert('Failed to fetch vehicle details.');
-                console.error(error);
             }
         });
-    }
+    };
 
-    function deleteVehicle(id) {
-        if (confirm('Are you sure you want to delete this vehicle?')) {
-            $.ajax({
-                url: BASE_URL + 'vehicles/delete' + id,
-                method: 'DELETE',
-                success: function (response) {
-                    alert('Vehicle deleted successfully!');
-                    // Reload DataTable
-                    $('#vehiclesTable').DataTable().ajax.reload();
-                },
-                error: function (error) {
-                    alert('Failed to delete vehicle.');
-                    console.error(error);
-                }
-            });
-        }
-    }
-
-    function editVehicle(id) {
+    // Edit Vehicle
+    window.editVehicle = function (id) {
         $.ajax({
-            url: BASE_URL + 'admin/vehicles/get' + id,
+            url: BASE_URL + 'admin/vehicles/fetch/' + id,
             method: 'GET',
             dataType: 'json',
             success: function (data) {
                 $('#edit_registration_number').val(data.registration_number);
                 $('#edit_make').val(data.make);
                 $('#edit_model').val(data.model);
-                $('#edit_year_of_manufature').val(data.year_of_manufature);
+                $('#edit_year_of_manufacture').val(data.year_of_manufacture);
                 $('#edit_chassis_number').val(data.chassis_number);
                 $('#edit_engine_number').val(data.engine_number);
                 $('#edit_color').val(data.color);
                 $('#edit_fuel_type').val(data.fuel_type);
                 $('#edit_transmission').val(data.transmission);
                 $('#edit_status').val(data.status);
+                $('#edit_vin').val(data.vin);
+                $('#edit_mileage').val(data.mileage);
 
-                $('#editVehicleModal').modal('show');
+                document.getElementById('editVehicleForm').action = BASE_URL + 'admin/vehicles/update/' + id;
+                openModal('editVehicleModal');
             }
         });
+    };
 
-        $('#editVehicleForm').submit(function (e) {
-            e.preventDefault();
+    // Edit Vehicle form submission
+    $(document).on('submit', '#editVehicleForm', function (e) {
+        e.preventDefault();
+        var id = $('#edit_vehicle_id').val();
+        var formData = $(this).serialize();
 
-            const formData = $(this).serialize();
+        $.ajax({
+            url: BASE_URL + 'admin/vehicles/update/' + id,
+            method: 'POST',
+            data: formData,
+            success: function () {
+                closeModal('editVehicleModal');
+                table.ajax.reload();
+                alert('Vehicle updated successfully!');
+            },
+            error: function () {
+                alert('Failed to update vehicle');
+            }
+        });
+    });
 
+    // Delete Vehicle
+    window.deleteVehicle = function (id) {
+        if (confirm('Are you sure you want to delete this vehicle?')) {
             $.ajax({
-                url: BASE_URL + 'vehicles/update' + id,
+                url: BASE_URL + 'admin/vehicles/delete/' + id,
                 method: 'POST',
-                data: formData,
-                success: function (res) {
-                    $('#editVehicleModal').modal('hide');
-                    $('#vehicleTable').DataTable().ajax.reload();
-                    alert('Vehicle updated successfully!');
+                success: function () {
+                    table.ajax.reload();
                 },
                 error: function () {
-                    alert('Failed to update vehicle');
+                    alert('Failed to delete vehicle.');
                 }
             });
-        });
-
-    }
+        }
+    };
 });
