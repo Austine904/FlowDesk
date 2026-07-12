@@ -50,8 +50,6 @@ $routes->group('job_intake', ['filter' => 'auth:admin,receptionist'], function (
     $routes->get('search', 'JobIntake::search');
     $routes->post('create_job_card', 'JobIntake::create_job_card');
     $routes->get('create_job_card', 'JobIntake::create_job_card');
-    $routes->post('fetch_vehicle_details', 'JobIntake::fetch_vehicle_details');
-    $routes->post('fetch_customer_details', 'JobIntake::fetch_customer_details');
 });
 
 
@@ -110,6 +108,8 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->get('customers/details/(:num)', 'CustomersController::details/$1');
     $routes->get('customers/add', 'CustomersController::add');
     $routes->get('customers/edit/(:num)', 'CustomersController::edit/$1');
+    $routes->post('customers/store', 'CustomersController::store');
+    $routes->post('customers/update/(:num)', 'CustomersController::update/$1');
     $routes->post('customers/bulk_action', 'CustomersController::bulk_action');
 
     // Calendar
