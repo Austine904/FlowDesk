@@ -159,7 +159,7 @@ $(document).ready(function () {
         subletDetailsModal.show();
 
         try {
-            const response = await fetch(`<?= base_url('admin/sublets/details/') ?>${subletId}`, {
+            const response = await fetch(BASE_URL + 'admin/sublets/details/' + subletId, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
 
@@ -187,7 +187,7 @@ $(document).ready(function () {
     // --- Edit Sublet Button ---
     $('#subletTable tbody').on('click', '.edit-sublet', function () {
         const subletId = $(this).data('id');
-        openModal(`<?= base_url('admin/sublets/edit/') ?>${subletId}`, 'Edit Sublet');
+        openModal(BASE_URL + 'admin/sublets/edit/' + subletId, 'Edit Sublet');
     });
 
     // --- Bulk Delete Confirmation ---

@@ -13,7 +13,7 @@ class CalendarEventModel extends Model
     protected $useSoftDeletes   = false;
     protected $useTimestamps    = true;
     protected $createdField     = 'created_at';
-    protected $updatedField     = 'created_at';
+    protected $updatedField     = '';
 
     protected $allowedFields = [
         'title',

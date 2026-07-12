@@ -22,11 +22,17 @@ $(document).ready(function () {
         {
             "data": null,
             "render": function (data) {
-                return '<div class="flex justify-around">' +
-                    '<button class="icon-btn text-info" title="Edit" onclick="editVehicle(' + data.id + ')"><i class="fas fa-edit"></i></button>' +
-                    '<button class="icon-btn text-primary" title="View" onclick="viewVehicleDetails(' + data.id + ')"><i class="fas fa-eye"></i></button>' +
-                    '<button class="icon-btn text-danger" title="Delete" onclick="deleteVehicle(' + data.id + ')"><i class="fas fa-trash-alt"></i></button>' +
-                    '</div>';
+                return '<div class="flex items-center gap-2">' +
+                    '<button onclick="editVehicle(' + data.id + ')" title="Edit" class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">' +
+                        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>' +
+                    '</button>' +
+                    '<button onclick="viewVehicleDetails(' + data.id + ')" title="View" class="p-1.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">' +
+                        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>' +
+                    '</button>' +
+                    '<button onclick="deleteVehicle(' + data.id + ')" title="Delete" class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors">' +
+                        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>' +
+                    '</button>' +
+                '</div>';
             }
         }
         ]
@@ -71,22 +77,19 @@ $(document).ready(function () {
             url: BASE_URL + 'admin/vehicles/details/' + id,
             method: 'GET',
             success: function (data) {
-                var body = '';
-                body += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
-                body += '<div><p class="mb-2"><span class="text-xs font-medium text-gray-500">Make:</span> <span class="text-sm text-gray-900">' + (data.make || 'N/A') + '</span></p></div>';
-                body += '<div><p class="mb-2"><span class="text-xs font-medium text-gray-500">Year of Manufacture:</span> <span class="text-sm text-gray-900">' + (data.year_of_manufacture || 'N/A') + '</span></p></div>';
-                body += '<div><p class="mb-2"><span class="text-xs font-medium text-gray-500">Registration Number:</span> <span class="text-sm text-gray-900">' + (data.registration_number || 'N/A') + '</span></p></div>';
-                body += '<div><p class="mb-2"><span class="text-xs font-medium text-gray-500">Model:</span> <span class="text-sm text-gray-900">' + (data.model || 'N/A') + '</span></p></div>';
-                body += '<div><p class="mb-2"><span class="text-xs font-medium text-gray-500">Color:</span> <span class="text-sm text-gray-900">' + (data.color || 'N/A') + '</span></p></div>';
-                body += '<div><p class="mb-2"><span class="text-xs font-medium text-gray-500">Engine Number:</span> <span class="text-sm text-gray-900">' + (data.engine_number || 'N/A') + '</span></p></div>';
-                body += '<div><p class="mb-2"><span class="text-xs font-medium text-gray-500">Chassis Number:</span> <span class="text-sm text-gray-900">' + (data.chassis_number || 'N/A') + '</span></p></div>';
-                body += '<div><p class="mb-2"><span class="text-xs font-medium text-gray-500">Fuel Type:</span> <span class="text-sm text-gray-900">' + (data.fuel_type || 'N/A') + '</span></p></div>';
-                body += '</div>';
+                document.getElementById('v_registration_no').textContent = data.registration_number ?? 'N/A';
+                document.getElementById('v_make').textContent = data.make ?? 'N/A';
+                document.getElementById('v_model').textContent = data.model ?? 'N/A';
+                document.getElementById('v_year').textContent = data.year_of_manufacture ?? 'N/A';
+                document.getElementById('v_color').textContent = data.color ?? 'N/A';
+                document.getElementById('v_engine_no').textContent = data.engine_number ?? 'N/A';
+                document.getElementById('v_chassis_no').textContent = data.chassis_number ?? 'N/A';
+                document.getElementById('v_vin').textContent = data.vin ?? 'N/A';
+                document.getElementById('v_fuel_type').textContent = data.fuel_type ?? 'N/A';
+                document.getElementById('v_transmission').textContent = data.transmission ?? 'N/A';
+                document.getElementById('v_mileage').textContent = data.mileage ? data.mileage + ' km' : 'N/A';
+                document.getElementById('v_status').textContent = data.status ?? 'N/A';
 
-                var modalBody = document.querySelector('#viewVehicleModal .p-6');
-                if (modalBody) {
-                    modalBody.innerHTML = body;
-                }
                 openModal('viewVehicleModal');
             },
             error: function () {

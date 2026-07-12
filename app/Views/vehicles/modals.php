@@ -112,11 +112,16 @@
                     <p class="mb-2"><span class="text-xs font-medium text-gray-500">Make:</span> <span class="text-sm text-gray-900" id="v_make"></span></p>
                     <p class="mb-2"><span class="text-xs font-medium text-gray-500">Model:</span> <span class="text-sm text-gray-900" id="v_model"></span></p>
                     <p class="mb-2"><span class="text-xs font-medium text-gray-500">Year:</span> <span class="text-sm text-gray-900" id="v_year"></span></p>
+                    <p class="mb-2"><span class="text-xs font-medium text-gray-500">VIN:</span> <span class="text-sm text-gray-900" id="v_vin"></span></p>
                 </div>
                 <div>
                     <p class="mb-2"><span class="text-xs font-medium text-gray-500">Color:</span> <span class="text-sm text-gray-900" id="v_color"></span></p>
                     <p class="mb-2"><span class="text-xs font-medium text-gray-500">Engine No:</span> <span class="text-sm text-gray-900" id="v_engine_no"></span></p>
                     <p class="mb-2"><span class="text-xs font-medium text-gray-500">Chassis No:</span> <span class="text-sm text-gray-900" id="v_chassis_no"></span></p>
+                    <p class="mb-2"><span class="text-xs font-medium text-gray-500">Fuel Type:</span> <span class="text-sm text-gray-900" id="v_fuel_type"></span></p>
+                    <p class="mb-2"><span class="text-xs font-medium text-gray-500">Transmission:</span> <span class="text-sm text-gray-900" id="v_transmission"></span></p>
+                    <p class="mb-2"><span class="text-xs font-medium text-gray-500">Mileage:</span> <span class="text-sm text-gray-900" id="v_mileage"></span></p>
+                    <p class="mb-2"><span class="text-xs font-medium text-gray-500">Status:</span> <span class="text-sm text-gray-900" id="v_status"></span></p>
                 </div>
             </div>
         </div>

@@ -337,6 +337,7 @@ document.addEventListener('DOMContentLoaded', function() {
             msgDiv.innerHTML = '';
 
             var csrfName = document.querySelector('meta[name="csrf-name"]')?.getAttribute('content');
+            var BASE_URL = '<?= base_url() ?>';
             var csrfHash = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
             var formData = new URLSearchParams();

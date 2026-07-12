@@ -208,6 +208,7 @@
 
 
 <script>
+  var BASE_URL = '<?= base_url() ?>';
   // ✅ Add Event Modal JS - Step 3 Dynamic Logic (A + C route)
 
   document.addEventListener('DOMContentLoaded', function() {

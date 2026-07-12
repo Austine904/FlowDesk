@@ -11,10 +11,9 @@ class VehicleController extends BaseController
     public function index()
     {
         $vehicleModel = new VehicleModel();
-        $customerModel = new CustomerModel();
-        $vehicles = $vehicleModel->findAll();
-        $customers = $customerModel->findAll();
-        return view('vehicles/index', ['vehicles' => $vehicles, 'customers' => $customers]);
+        $vehicles = $vehicleModel->paginate(20);
+        $pager = $vehicleModel->pager;
+        return view('vehicles/index', ['vehicles' => $vehicles, 'pager' => $pager]);
     }
 
     public function fetchVehicles()
@@ -52,6 +51,15 @@ class VehicleController extends BaseController
 
     public function store()
     {
+        if (!$this->validate([
+            'registration_number' => 'required|min_length[3]|max_length[20]|is_unique[vehicles.registration_number]',
+            'make'               => 'required',
+            'model'              => 'required',
+            'owner_id'           => 'required|integer',
+        ])) {
+            return $this->response->setJSON(['status' => 'error', 'errors' => $this->validator->getErrors()]);
+        }
+
         $data = $this->request->getPost();
         $vehicleModel = new VehicleModel();
         $vehicleModel->insert($data);

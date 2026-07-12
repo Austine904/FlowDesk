@@ -225,6 +225,18 @@ class JobsController extends BaseController
 
         $jobCardModel->update($id, $updateData);
 
+        // Log status transition in history
+        if (isset($updateData['job_status'])) {
+            $historyModel = new JobStatusHistoryModel();
+            $historyModel->insert([
+                'job_card_id' => $id,
+                'from_status' => 'Awaiting Assignment',
+                'to_status'   => 'Awaiting Diagnosis',
+                'changed_by'  => session()->get('user_id'),
+                'notes'       => 'Mechanic assigned: ' . $mechanic_id,
+            ]);
+        }
+
         return $this->respond(['status' => 'success', 'message' => 'Mechanic assigned successfully']);
     }
 

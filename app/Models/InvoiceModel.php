@@ -170,5 +170,28 @@ class InvoiceModel extends Model
             'amount_paid' => $amountPaid,
             'status'      => $status,
         ]);
+
+        // Auto-update job status when invoice becomes Paid
+        if ($status === 'Paid' && !empty($invoice['job_card_id'])) {
+            $job = $db->table('job_cards')
+                ->where('id', $invoice['job_card_id'])
+                ->get()
+                ->getRowArray();
+
+            if ($job && $job['job_status'] !== 'Paid') {
+                $currentStatus = $job['job_status'];
+                $db->table('job_cards')
+                    ->where('id', $invoice['job_card_id'])
+                    ->update(['job_status' => 'Paid']);
+
+                $db->table('job_status_history')->insert([
+                    'job_card_id' => $invoice['job_card_id'],
+                    'from_status' => $currentStatus,
+                    'to_status'   => 'Paid',
+                    'changed_by'  => session()->get('user_id') ?? 0,
+                    'notes'       => 'Invoice paid',
+                ]);
+            }
+        }
     }
 }

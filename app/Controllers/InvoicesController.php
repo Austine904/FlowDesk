@@ -105,6 +105,9 @@ class InvoicesController extends BaseController
             return redirect()->to('/admin/invoices')->with('error', 'Invoice not found.');
         }
 
+        $db = \Config\Database::connect();
+        $db->transStart();
+
         $paymentModel->insert([
             'invoice_id'    => (int) $invoice_id,
             'amount'        => (float) $this->request->getPost('amount'),
@@ -117,30 +120,9 @@ class InvoicesController extends BaseController
 
         $invoiceModel->updateAmountPaid((int) $invoice_id);
 
-        $invoice = $invoiceModel->find((int) $invoice_id);
-
-        if ($invoice && $invoice['status'] === 'Paid') {
-            $db = \Config\Database::connect();
-            $db->transStart();
-
-            $jobCardModel = new JobCardModel();
-            $job = $jobCardModel->find($invoice['job_card_id']);
-
-            if ($job && $job['job_status'] !== 'Paid') {
-                $currentStatus = $job['job_status'];
-                $jobCardModel->update($invoice['job_card_id'], ['job_status' => 'Paid']);
-
-                $historyModel = new JobStatusHistoryModel();
-                $historyModel->insert([
-                    'job_card_id' => $invoice['job_card_id'],
-                    'from_status' => $currentStatus,
-                    'to_status'   => 'Paid',
-                    'changed_by'  => session()->get('user_id'),
-                    'notes'       => 'Invoice paid',
-                ]);
-            }
-
-            $db->transComplete();
+        $db->transComplete();
+        if ($db->transStatus() === false) {
+            return redirect()->to('/admin/invoices/view/' . $invoice_id)->with('error', 'Transaction failed.');
         }
 
         $amount = $this->request->getPost('amount');

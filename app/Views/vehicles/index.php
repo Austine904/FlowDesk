@@ -48,7 +48,7 @@ function openAddVehicleModal() {
 
 <?= $this->section('scripts') ?>
 <script>var BASE_URL = '<?= base_url() ?>';</script>
-<script src="<?= base_url('public/assets/js/vehicles.js') ?>"></script>
+<script src="<?= base_url('assets/js/vehicles.js') ?>"></script>
 <?= $this->endSection() ?>
 
 <?= $this->endSection() ?>

@@ -75,6 +75,17 @@ C:\xampp\htdocs\FlowDesk\
 
 **File uploads:** `uploads/users/` (profile pictures), `uploads/job_card_photos/` (job card photos), `uploads/org/` (org logo). Directory is gitignored (contains `.gitkeep`).
 
+**Upload Security:** All upload handlers now validate file types by extension AND MIME type (via `finfo`). Rejected files are logged and skipped. .htaccess files in all upload directories block PHP/script execution.
+
+**Security:**
+- File uploads validated by MIME type + extension (see `JobIntake.php:280-299`)
+- `.htaccess` files in `public/uploads/`, `public/uploads/job_card_photos/`, `public/uploads/users/`, `uploads/users/`, `uploads/job_card_photos/` block script execution
+- Login validation uses `$this->validate()` directly with rules (see `LoginController.php`)
+- `CI_ENVIRONMENT = production` — Debug Toolbar disabled
+- Encryption key configured in `.env`
+- User deletes use model soft delete (see `UsersController.php`)
+- Generated column `name` no longer written to (see `UsersController.php`)
+
 **Helper:** `app/Helpers/settings_helper.php` provides `org_setting(string $key, $default = null)` — available globally in all controllers and views. Caches results statically (one DB query per request).
 
 **Helper:** `app/Helpers/activity_helper.php` provides `timeAgo($datetime)` — returns human-readable relative time.
@@ -139,7 +150,7 @@ C:\xampp\htdocs\FlowDesk\
 | address | text | NULL |
 | created_at | datetime | NOT NULL, DEFAULT current_timestamp() |
 
-**Note:** `customers` has no `deleted_at` column — no soft-delete.
+**Note:** `customers` has no `deleted_at` column — no soft-delete. Now has functional `store()` and `update()` routes/methods.
 
 #### vehicles
 | Column | Type | Notes |
@@ -456,10 +467,10 @@ All models are in `app/Models/`. All extend `CodeIgniter\Model`.
 | JobCardPhotoModel | `app/Models/JobCardPhotoModel.php` | `job_card_photos` | `getByJobCard(int): array` — get photos for a job card |
 | JobCardPartModel | `app/Models/JobCardPartModel.php` | `job_card_parts_required` | `getByJobCard(int): array` — get parts with inventory details; `deleteByJobCard(int): void` — delete all parts for a job card |
 | JobCardLaborModel | `app/Models/JobCardLaborModel.php` | `job_card_labor_tasks` | `getByJobCard(int): array` — get tasks with computed labor_cost; `deleteByJobCard(int): void` — delete all tasks for a job card |
-| InventoryModel | `app/Models/InventoryModel.php` | `inventory` | `search(string): array` — search by name or part_number (returns stock fields); `getLowStock(): array` — items where is_stocked=1 AND qty ≤ reorder; `incrementStock(int, float): void` — add quantity to stock; `decrementStock(int, float): void` — subtract quantity (min 0) |
+| InventoryModel | `app/Models/InventoryModel.php` | `inventory` | `search(string): array` — search by name or part_number (returns stock fields); `getLowStock(): array` — items where is_stocked=1 AND qty ≤ reorder; `incrementStock(int, float): void` — add quantity to stock (called from LpoController receive); `decrementStock(int, float): void` — subtract quantity (min 0), called from JobIntake::save_diagnosis() |
 | SupplierModel | `app/Models/SupplierModel.php` | `suppliers` | `getAll(): array` — all suppliers ordered by name |
 | SubletModel | `app/Models/SubletModel.php` | `sublets` | `getWithDetails(int|null): array` — sublet with job_no, reg_number, provider_name joins |
-| CalendarEventModel | `app/Models/CalendarEventModel.php` | `calendar_events` | `getUpcoming(int): array` — upcoming events; `getByDateRange(string, string): array` — events within a date range |
+| CalendarEventModel | `app/Models/CalendarEventModel.php` | `calendar_events` | `getUpcoming(int): array` — upcoming events; `getByDateRange(string, string): array` — events within a date range. `$updatedField = ''` (fixed, was incorrectly `'created_at'`). |
 | JobStatusHistoryModel | `app/Models/JobStatusHistoryModel.php` | `job_status_history` | `getByJobCard(int): array` — status history for a job card with username |
 | OrgSettingsModel | `app/Models/OrgSettingsModel.php` | `org_settings` | `getSettings(): array` — fetch single row (id=1); `updateSettings(array): bool` — update row (id=1) |
 | InvoiceModel | `app/Models/InvoiceModel.php` | `invoices` | `generateInvoiceNo(): string` — next INV-YYYYMM-NNN; `generateFromJobCard(int, int, float): array` — create invoice from job card totals, accepts optional $discount (default 0.00), idempotent; `getWithDetails(int|null): array` — invoice with customer/job/creator joins; `updateAmountPaid(int): void` — recalculate amount_paid and status from payments |
@@ -617,8 +628,8 @@ Transition map:
 - **Key functionality:** Read-only aggregation and visualization. Financial reports (revenue trends, payment methods, outstanding invoices, aging, petty cash, LPO spend, discount tracking). Operational reports (jobs by status, completed per period, turnaround time, mechanic performance, overdue jobs, diagnosis categories, sublet spend). Inventory reports (stock levels, low stock alerts, most used parts, inventory value, parts spend per job). Customer reports (top customers by revenue, visit frequency, outstanding balances, new customers per month). Staff reports (advisor performance, activity log). CSV export for all 5 categories.
 
 ### Customer Portal
-- **Status:** Not built — customer role dashboard is a stub view
-- **Routes:** `/customer/` loads `customer_dashboard.php` — no customer-facing functionality
+- **Status:** Stubbed — customer role dashboard is a stub view
+- **Routes:** `/customer/`, `/customer/dashboard` — no customer-facing functionality
 
 ### Profile Page
 - **Status:** Not built — sidebar link `/admin/profile` has no controller or route
@@ -690,7 +701,7 @@ Completed
 - **Invoice statuses:** Draft → Sent → Partially Paid → Paid → Overdue — or Cancelled
 - **Balance due:** `invoices.balance_due` is a generated column — never set manually
 - **Payments:** Recorded against an invoice via `InvoicesController::recordPayment()`. Each payment triggers `InvoiceModel::updateAmountPaid()` which recalculates `amount_paid` and adjusts `status` (Partially Paid / Paid).
-- **Auto job status update:** When `updateAmountPaid()` sets invoice status to `Paid`, the associated job card status is updated to `Paid` with a status history entry.
+- **Auto job status update:** `InvoiceModel::updateAmountPaid()` now sets the associated job card status to `Paid` with a `job_status_history` entry when invoice becomes fully paid.
 - **Revenue reporting:** Dashboard computes revenue from `payments.payment_date` (last 6 months) and outstanding balance from `invoices.balance_due` (non-Paid, non-Cancelled).
 
 ## 8. ROLES AND PERMISSIONS
@@ -726,10 +737,7 @@ POST /user/add_step3            -> UsersController::addUserStep3
 POST /user/addUserStep3         -> UsersController::addUserStep3
 GET  /user/preview              -> UsersController::preview
 GET  /user/saveUser             -> UsersController::saveUser
-POST /save-step-data/(:num)     -> UsersController::saveStepData/$1
-POST /final-submit              -> UsersController::finalSubmit
 GET  /user/getLastId            -> UsersController::getLastId
-POST /user/submit               -> UsersController::submit
 GET  /user/success              -> UsersController::success
 GET  /user/failure              -> UsersController::failure
 ```
@@ -740,8 +748,8 @@ GET  /job_intake/                      -> JobIntake::index
 GET  /job_intake/search                -> JobIntake::search
 POST /job_intake/create_job_card       -> JobIntake::create_job_card
 GET  /job_intake/create_job_card       -> JobIntake::create_job_card
-POST /job_intake/fetch_vehicle_details -> JobIntake::fetch_vehicle_details
-POST /job_intake/fetch_customer_details-> JobIntake::fetch_customer_details
+POST /job_intake/fetch_vehicle_details -> JobIntake::fetch_vehicle_details (method missing — route removed)
+POST /job_intake/fetch_customer_details-> JobIntake::fetch_customer_details (method missing — route removed)
 ```
 
 ### Admin (filter: auth:admin)
@@ -764,28 +772,23 @@ GET    /admin/vechicles/edit/(:num)         -> VehicleController::edit/$1
 POST   /admin/vehicles/store                -> VehicleController::store
 POST   /admin/vehicles/update/(:num)        -> VehicleController::update/$1
 POST   /admin/vehicles/delete/(:num)        -> VehicleController::delete/$1
+POST   /admin/customers/store               -> CustomersController::store
+POST   /admin/customers/update/(:num)       -> CustomersController::update/$1
 POST   /admin/vehicles/add                  -> VehicleController::add
 GET    /admin/vehicles/edit/(:num)          -> VehicleController::edit/$1
-GET    /admin/vehicles/delete/(:num)        -> VehicleController::delete/$1
 GET    /admin/vehicles/details/(:num)       -> VehicleController::details/$1
 GET    /admin/jobs                          -> JobsController::index
 GET    /admin/jobs/fetch                    -> JobsController::fetchJobs
 GET    /admin/jobs/add                      -> JobsController::add
-POST   /admin/jobs/create                   -> JobsController::create
 GET    /admin/jobs/(:num)                   -> JobsController::details/$1
 GET    /admin/jobs/edit/(:num)              -> JobsController::edit/$1
 POST   /admin/jobs/update/(:num)            -> JobsController::update/$1
 GET    /admin/jobs/delete/(:num)            -> JobsController::delete/$1
-POST   /admin/jobs/bulk_action              -> JobsController::bulk_action
 POST   /admin/jobs/assign_mechanic/(:num)   -> JobsController::assign_mechanic/$1
 POST   /admin/jobs/update_status/(:num)     -> JobsController::update_status/$1
 GET    /admin/jobs/status_history/(:num)    -> JobsController::status_history/$1
-GET    /admin/job_intake                    -> JobIntake::index
-GET    /admin/job_intake/search             -> JobIntake::search
-POST   /admin/job_intake/create_job_card    -> JobIntake::create_job_card
-GET    /admin/job_intake/create_job_card    -> JobIntake::create_job_card
-POST   /admin/job_intake/fetch_vehicle_details  -> JobIntake::fetch_vehicle_details
-POST   /admin/job_intake/fetch_customer_details -> JobIntake::fetch_customer_details
+POST   /admin/customers/store               -> CustomersController::store
+POST   /admin/customers/update/(:num)       -> CustomersController::update/$1
 GET    /admin/customers                     -> CustomersController::index
 POST   /admin/customers/load                -> CustomersController::load
 GET    /admin/customers/load                -> CustomersController::load
@@ -814,11 +817,7 @@ POST   /admin/sublets/save                  -> SubletsController::save
 GET    /admin/sublets/details/(:num)        -> SubletsController::details/$1
 POST   /admin/sublets/delete/(:num)         -> SubletsController::delete/$1
 POST   /admin/sublets/bulkAction            -> SubletsController::bulkAction
-GET    /admin/sublets/fetch                 -> SubletsController::fetchSublets
-GET    /admin/sublets/fetch/(:num)          -> SubletsController::fetchSublets/$1
 GET    /admin/sublets/(:num)                -> SubletsController::details/$1
-GET    /admin/sublets/(:num)/edit           -> SubletsController::edit/$1
-POST   /admin/sublets/(:num)/update         -> SubletsController::update/$1
 ```
 
 ### Mechanic (filter: auth:mechanic)
@@ -834,12 +833,14 @@ POST /mechanic/jobs/update_status/(:num) -> JobsController::update_status/$1
 
 ### Receptionist (filter: auth:receptionist)
 ```
-GET /receptionist/ -> DashboardController::receptionist
+GET /receptionist/              -> DashboardController::receptionist
+GET /receptionist/dashboard     -> DashboardController::receptionist
 ```
 
 ### Customer (filter: auth:customer)
 ```
-GET /customer/ -> DashboardController::customer
+GET /customer/          -> DashboardController::customer
+GET /customer/dashboard -> DashboardController::customer
 ```
 
 ## 10. CODING CONVENTIONS
@@ -851,7 +852,7 @@ GET /customer/ -> DashboardController::customer
 - **DataTables server-side processing** uses the `load()` pattern with `draw`, `start`, `length`, `search`, `order` parameters and responds with `recordsTotal`, `recordsFiltered`, `data`.
 - **Pagination** uses CI4's `$model->paginate(10)` and passes `$model->pager` to view.
 - **Views with sidebar** use `$this->extend('layouts/main')` + `$this->section('content')`.
-- **File uploads** use `$file->getRandomName()` + `$file->move()` to `uploads/{subfolder}/`.
+- **File uploads** use `$file->getRandomName()` + `$file->move()` to `uploads/{subfolder}/`. Validated by MIME type + extension. Upload directories have `.htaccess` blocking script execution.
 - **Soft deletes** use `deleted_at` datetime column on `users` and `job_cards`. `customers` does not have soft-delete.
 - **CSRF** globally enabled — every POST form must include `<?= csrf_field() ?>`. AJAX POSTs use `getCsrfMeta()` JS function from main layout which reads meta tags and refreshes token from response header.
 - **No CSRF exemption** configured for any route.
@@ -878,13 +879,15 @@ GET /customer/ -> DashboardController::customer
 13. **`InvoiceModel::generateFromJobCard()` is idempotent** — safe to call multiple times, returns existing invoice if one exists.
 14. **CSRF meta tags are in `layouts/main.php` head** — `getCsrfMeta()` reads `csrf-name` and `csrf-token` for all AJAX POSTs. Token auto-refreshes from response header.
 15. **No auto-routing** — every route is explicitly defined in `Routes.php`. Adding a new controller method requires a corresponding route entry.
-16. **Route typo exists:** `vechicles/edit/(:num)` (missing 'h') is an active route alongside correct `vehicles/edit/(:num)`.
+16. **Route typo fixed:** `vechicles/edit/(:num)` was corrected to `vehicles/edit/(:num)`.
 17. **Sidebar conditional visibility** — The Tailwind-redesigned sidebar shows all nav links regardless of role (no `$role` checks). The old Bootstrap sidebar had admin-only gating. Role-based filtering in the new sidebar is TBD.
 18. **`completed_at` on `job_cards`** is set ONCE on the first transition to `Completed`. If a job cycles Completed → Rework → Completed again, `completed_at` is NOT overwritten.
 19. **`diagnosis_category` on `job_cards`** is optional — used for structured job type reporting. Set via the mechanic diagnosis form dropdown.
 20. **`CustomerModel` now has `$useTimestamps = true`** with `createdField = 'created_at'` and `updatedField = ''` (no updated_at column). Allows `$customerModel->where('created_at >=', $start)->countAllResults()` without raw queries.
 21. **`InvoiceModel::generateFromJobCard()` now accepts optional `$discount`** (float, default 0.00). Discount is subtracted from `grand_total` after VAT. Existing callers (auto-generate on Ready for Invoice) pass 0.
 22. **`log_activity()`** is a global helper in `settings_helper.php`. Requires an active session with `user_id`. Logged actions include: `status_change`, `payment_recorded`, `lpo_created`, `lpo_received`, `job_created`, `diagnosis_saved`, `user_created`, `petty_cash_entry`.
+23. **Stock is decremented on diagnosis save** — `InventoryModel::decrementStock()` is called in `JobIntake::save_diagnosis()` for each part where `is_stocked = 1`. This ensures inventory quantity_in_hand reflects actual parts consumption.
+24. **`CustomersController::index()` no longer has an AJAX branch** — the dead `isAJAX()` path loading `customers/customers_list.php` was removed. DataTables server-side processing uses the `load()` method exclusively, which returns JSON directly. No partial view is needed.
 
 ## 12. PENDING / NOT BUILT
 - **Customer portal** — Customer role exists and can log in, but the dashboard is a stub view with no customer-facing functionality (no job tracking, no invoice viewing).
@@ -908,4 +911,4 @@ GET /customer/ -> DashboardController::customer
 - Must be migrated module by module: Users, Customers, Vehicles, Jobs/Job Cards, Job Intake, Calendar, Sublets, Inventory, Suppliers, LPOs, Invoices, Petty Cash, Reports, Settings
 - Bootstrap JS (`bootstrap.bundle.min.js`) and CSS imports removed from main layout
 - Per-module CSS files (e.g., `sidebar.css`, `dashboard.css`, `login.css`) still exist but are no longer loaded — review and remove as each module is migrated
-- `SweetAlert2`, `Select2`, and `FullCalendar` are still in the stack but not currently loaded in the new main layout — re-add when migrating dependent modules
+- `SweetAlert2`, `Select2`, `FullCalendar`, and Font Awesome are now loaded in `layouts/main.php` for compatibility with existing views

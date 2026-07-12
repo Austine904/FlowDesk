@@ -489,6 +489,7 @@
 
 
 <script>
+    var BASE_URL = '<?= base_url() ?>';
     // Function to open a modal with dynamic content
     function openModal(url, title = 'Form') {
         const modalElement = document.getElementById('actionModal');

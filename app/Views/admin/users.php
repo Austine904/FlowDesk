@@ -350,7 +350,7 @@
                 const data = await response.json();
 
                 //echo all data
-                console.log(data);
+                    // console.log(data);
 
                 // Populate Basic Details
                 document.getElementById('profile_picture').src = data.profile_picture ? `<?= base_url() ?>/${data.profile_picture}` : 'https://placehold.co/150x150/cccccc/333333?text=No+Photo';

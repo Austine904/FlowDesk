@@ -82,7 +82,6 @@ class UsersController extends BaseController
         $role = $this->request->getPost('role');
 
         $data = [
-            'name' => $name,
             'phone' => $phone,
             'role' => $role
         ];
@@ -92,9 +91,8 @@ class UsersController extends BaseController
             $data['password'] = $password;
         }
 
-        $db = \Config\Database::connect();
-        $builder = $db->table('users');
-        $builder->where('id', $id)->update($data);
+        $userModel = new \App\Models\UserModel();
+        $userModel->update($id, $data);
 
         return redirect()->to('/admin/users')->with('success', 'User updated successfully.');
     }
@@ -106,9 +104,8 @@ class UsersController extends BaseController
             return redirect()->to('/login');
         }
 
-        $db = \Config\Database::connect();
-        $builder = $db->table('users');
-        $builder->where('id', $id)->delete();
+        $userModel = new \App\Models\UserModel();
+        $userModel->delete($id);
 
         return redirect()->to('/admin/users')->with('success', 'User deleted successfully.');
     }

@@ -62,7 +62,7 @@
 
 <?= $this->section('scripts') ?>
 <script>var BASE_URL = '<?= base_url() ?>';</script>
-<script src="<?= base_url('public/assets/js/customers.js') ?>"></script>
+<script src="<?= base_url('assets/js/customers.js') ?>"></script>
 <?= $this->endSection() ?>
 
 <?= $this->endSection() ?>
