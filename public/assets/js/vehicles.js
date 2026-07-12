@@ -38,19 +38,19 @@ $(document).ready(function () {
         ]
     });
 
-    function closeModal(id) {
+    window.closeModal = function(id) {
         document.getElementById(id).classList.add('hidden');
         var backdrop = document.getElementById(id + '-backdrop');
         if (backdrop) backdrop.classList.add('hidden');
         document.body.classList.remove('overflow-hidden');
-    }
+    };
 
-    function openModal(id) {
+    window.openModal = function(id) {
         document.getElementById(id).classList.remove('hidden');
         var backdrop = document.getElementById(id + '-backdrop');
         if (backdrop) backdrop.classList.remove('hidden');
         document.body.classList.add('overflow-hidden');
-    }
+    };
 
     // Add Vehicle form submission
     $('#addVehicleForm').submit(function (e) {

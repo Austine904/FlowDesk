@@ -66,7 +66,7 @@ class InventoryController extends BaseController
     public function create()
     {
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
-            return redirect()->to('/login');
+            return $this->failUnauthorized('Unauthorized.');
         }
 
         $rules = [
@@ -80,6 +80,9 @@ class InventoryController extends BaseController
         ];
 
         if (!$this->validate($rules)) {
+            if ($this->request->isAJAX()) {
+                return $this->failValidationErrors($this->validator->getErrors());
+            }
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
@@ -93,6 +96,10 @@ class InventoryController extends BaseController
             'reorder_level'    => (float) ($this->request->getPost('reorder_level') ?? 0),
             'unit'             => $this->request->getPost('unit') ?? 'piece',
         ]);
+
+        if ($this->request->isAJAX()) {
+            return $this->respond(['status' => 'success', 'message' => 'Part added successfully.']);
+        }
 
         return redirect()->to('/admin/inventory')->with('success', 'Part added successfully.');
     }
@@ -116,7 +123,7 @@ class InventoryController extends BaseController
     public function update($id)
     {
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
-            return redirect()->to('/login');
+            return $this->failUnauthorized('Unauthorized.');
         }
 
         $rules = [
@@ -130,6 +137,9 @@ class InventoryController extends BaseController
         ];
 
         if (!$this->validate($rules)) {
+            if ($this->request->isAJAX()) {
+                return $this->failValidationErrors($this->validator->getErrors());
+            }
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
@@ -143,6 +153,10 @@ class InventoryController extends BaseController
             'reorder_level'    => (float) ($this->request->getPost('reorder_level') ?? 0),
             'unit'             => $this->request->getPost('unit') ?? 'piece',
         ]);
+
+        if ($this->request->isAJAX()) {
+            return $this->respond(['status' => 'success', 'message' => 'Part updated successfully.']);
+        }
 
         return redirect()->to('/admin/inventory')->with('success', 'Part updated successfully.');
     }

@@ -11,9 +11,11 @@ class VehicleController extends BaseController
     public function index()
     {
         $vehicleModel = new VehicleModel();
+        $customerModel = new \App\Models\CustomerModel();
         $vehicles = $vehicleModel->paginate(20);
         $pager = $vehicleModel->pager;
-        return view('vehicles/index', ['vehicles' => $vehicles, 'pager' => $pager]);
+        $customers = $customerModel->select('id, name, phone')->findAll();
+        return view('vehicles/index', ['vehicles' => $vehicles, 'pager' => $pager, 'customers' => $customers]);
     }
 
     public function fetchVehicles()
@@ -37,16 +39,20 @@ class VehicleController extends BaseController
     }
     public function add()
     {
-        $vehicleData = [
-            'registration_number' => $this->request->getPost('registration_number'),
-            'make' => $this->request->getPost('make'),
-            'model' => $this->request->getPost('model'),
-            'year' => $this->request->getPost('year'),
-            'color' => $this->request->getPost('color'),
-        ];
+        if (!$this->validate([
+            'registration_number' => 'required|min_length[3]|max_length[20]|is_unique[vehicles.registration_number]',
+            'make'               => 'required',
+            'model'              => 'required',
+            'owner_id'           => 'required|integer',
+        ])) {
+            return $this->response->setJSON(['status' => 'error', 'errors' => $this->validator->getErrors()]);
+        }
+
+        $data = $this->request->getPost();
         $vehicleModel = new VehicleModel();
-        $vehicleModel->insert($vehicleData);
-        return view('vehicles/add');
+        $vehicleModel->insert($data);
+
+        return $this->response->setJSON(['status' => 'success']);
     }
 
     public function store()

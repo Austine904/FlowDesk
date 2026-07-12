@@ -63,7 +63,7 @@ class SuppliersController extends BaseController
     public function create()
     {
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
-            return redirect()->to('/login');
+            return $this->failUnauthorized('Unauthorized.');
         }
 
         $rules = [
@@ -71,6 +71,9 @@ class SuppliersController extends BaseController
         ];
 
         if (!$this->validate($rules)) {
+            if ($this->request->isAJAX()) {
+                return $this->failValidationErrors($this->validator->getErrors());
+            }
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
@@ -79,20 +82,28 @@ class SuppliersController extends BaseController
             'name' => $this->request->getPost('name'),
         ]);
 
+        if ($this->request->isAJAX()) {
+            return $this->respond(['status' => 'success', 'message' => 'Supplier added successfully.']);
+        }
+
         return redirect()->to('/admin/suppliers')->with('success', 'Supplier added successfully.');
     }
 
     public function edit($id)
     {
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
-            return redirect()->to('/login');
+            return $this->failUnauthorized('Unauthorized.');
         }
 
         $supplierModel = new SupplierModel();
         $item = $supplierModel->find($id);
 
         if (!$item) {
-            return redirect()->to('/admin/suppliers')->with('error', 'Supplier not found.');
+            return $this->failNotFound('Supplier not found.');
+        }
+
+        if ($this->request->isAJAX()) {
+            return $this->respond($item);
         }
 
         return view('admin/suppliers/form', ['supplier' => $item, 'action' => 'edit']);
@@ -101,7 +112,7 @@ class SuppliersController extends BaseController
     public function update($id)
     {
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
-            return redirect()->to('/login');
+            return $this->failUnauthorized('Unauthorized.');
         }
 
         $rules = [
@@ -109,6 +120,9 @@ class SuppliersController extends BaseController
         ];
 
         if (!$this->validate($rules)) {
+            if ($this->request->isAJAX()) {
+                return $this->failValidationErrors($this->validator->getErrors());
+            }
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
@@ -116,6 +130,10 @@ class SuppliersController extends BaseController
         $supplierModel->update($id, [
             'name' => $this->request->getPost('name'),
         ]);
+
+        if ($this->request->isAJAX()) {
+            return $this->respond(['status' => 'success', 'message' => 'Supplier updated successfully.']);
+        }
 
         return redirect()->to('/admin/suppliers')->with('success', 'Supplier updated successfully.');
     }

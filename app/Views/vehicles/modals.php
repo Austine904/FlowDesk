@@ -10,7 +10,7 @@
                 </svg>
             </button>
         </div>
-        <form id="addVehicleForm" action="<?= base_url('admin/vehicles/add') ?>" method="post">
+        <form id="addVehicleForm" action="<?= base_url('admin/vehicles/store') ?>" method="post">
             <?= csrf_field() ?>
             <div class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

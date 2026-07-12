@@ -80,6 +80,7 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->get('vehicles/fetch', 'VehicleController::fetchVehicles');
     $routes->get('vehicles/fetch/(:num)', 'VehicleController::fetchVehicles');
 
+    $routes->post('vehicles/add', 'VehicleController::add');
     $routes->get('vehicles/edit/(:num)', 'VehicleController::edit/$1');
     $routes->post('vehicles/store', 'VehicleController::store');
     $routes->post('vehicles/update/(:num)', 'VehicleController::update/$1');
