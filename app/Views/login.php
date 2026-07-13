@@ -3,235 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - FlowDesk</title>
+    <title>Login — FlowDesk</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-    <style>
-        :root {
-            --primary-color: #007bff; /* Bootstrap primary blue */
-            --primary-hover-color: #0056b3;
-            --text-dark: #343a40;
-            --bg-light: #f8f9fa;
-            --card-bg: #ffffff;
-            --shadow-light: rgba(0, 0, 0, 0.1);
-            --shadow-medium: rgba(0, 0, 0, 0.15);
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
         }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #e0eafc, #cfdef3); /* Subtle gradient background */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh; /* Ensure it takes full viewport height */
-            margin: 0;
-            color: var(--text-dark);
-        }
-
-        .login-container {
-            background: var(--card-bg);
-            padding: 2.5rem; /* Increased padding */
-            border-radius: 15px; /* More rounded corners */
-            box-shadow: 0 10px 30px var(--shadow-medium); /* Softer, larger shadow */
-            max-width: 450px; /* Slightly wider */
-            width: 90%; /* Responsive width */
-            text-align: center;
-            animation: fadeIn 0.8s ease-out; /* Simple fade-in animation */
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .login-container h2 {
-            margin-bottom: 2rem; /* More space below heading */
-            font-weight: 600; /* Semi-bold */
-            color: var(--primary-color); /* Use primary color for heading */
-            font-size: 2rem; /* Larger heading */
-        }
-
-        .form-label {
-            font-weight: 500; /* Medium weight for labels */
-            color: var(--text-dark);
-            text-align: left; /* Align labels to the left */
-            display: block; /* Make label a block element */
-            margin-bottom: 0.5rem;
-        }
-
-        .input-group-modern {
-            position: relative;
-            margin-bottom: 1.5rem; /* Consistent spacing */
-        }
-
-        .input-group-modern .form-control {
-            padding-left: 3rem; /* Space for icon */
-            border-radius: 8px; /* Rounded input fields */
-            border: 1px solid #ced4da;
-            height: 50px; /* Taller input fields */
-            font-size: 1rem;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .input-group-modern .form-control:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.25);
-        }
-
-        .input-group-modern .input-icon {
-            position: absolute;
-            left: 1rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #6c757d; /* Icon color */
-            font-size: 1.2rem;
-            z-index: 2; /* Ensure icon is above input */
-        }
-
-        /* Show/Hide Password Toggle */
-        .input-group-modern .password-toggle {
-            position: absolute;
-            right: 1rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #6c757d;
-            cursor: pointer;
-            font-size: 1.2rem;
-            z-index: 2;
-            transition: color 0.2s ease;
-        }
-
-        .input-group-modern .password-toggle:hover {
-            color: var(--primary-color);
-        }
-
-        .btn-primary {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-            padding: 0.75rem 1.5rem; /* Larger button */
-            font-size: 1.1rem;
-            font-weight: 600;
-            border-radius: 8px;
-            transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2); /* Button shadow */
-            position: relative; /* For spinner */
-            overflow: hidden; /* Hide spinner overflow */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .btn-primary:hover {
-            background-color: var(--primary-hover-color);
-            border-color: var(--primary-hover-color);
-            transform: translateY(-2px); /* Subtle lift on hover */
-            box-shadow: 0 6px 15px rgba(0, 123, 255, 0.3);
-        }
-
-        /* Loading Indicator */
-        .btn-primary .spinner-border {
-            width: 1.2rem;
-            height: 1.2rem;
-            margin-right: 0.5rem;
-            color: white;
-            display: none; /* Hidden by default */
-        }
-
-        .btn-primary.loading .spinner-border {
-            display: inline-block;
-        }
-
-        .btn-primary.loading .button-text {
-            visibility: hidden; /* Hide text when loading */
-        }
-
-
-        .alert-danger {
-            margin-bottom: 1.5rem;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            text-align: left;
-            padding: 1rem 1.25rem; /* Better padding for alerts */
-        }
-
-        .forgot-password-link {
-            display: block;
-            margin-top: 1rem;
-            color: var(--primary-color);
-            text-decoration: none;
-            font-size: 0.9rem;
-            transition: color 0.2s ease;
-            cursor: pointer;
-        }
-
-        .forgot-password-link:hover {
-            color: var(--primary-hover-color);
-            text-decoration: underline;
-        }
-    </style>
+    </script>
 </head>
-<body>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center font-sans p-4">
 
-<div class="login-container">
-    <h2>FlowDesk Login</h2>
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 w-full max-w-md p-8">
 
-    <?php if (session()->getFlashdata('error')): ?>
-        <div class="alert alert-danger" role="alert">
-            <?= session()->getFlashdata('error') ?>
-        </div>
-    <?php endif; ?>
-
-    <form method="post" action="<?= base_url('login/auth') ?>" id="loginForm">
-        <?= csrf_field() ?>
-        <div class="input-group-modern">
-            <label for="company_id" class="form-label visually-hidden">Company ID</label>
-            <i class="bi bi-building input-icon"></i>
-            <input type="text" name="company_id" id="company_id" class="form-control" placeholder="Company ID" required autofocus>
+        <!-- Logo -->
+        <div class="flex justify-center mb-6">
+            <div class="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center">
+                <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                </svg>
+            </div>
         </div>
 
-        <div class="input-group-modern">
-            <label for="password" class="form-label visually-hidden">Password</label>
-            <i class="bi bi-lock input-icon"></i>
-            <input type="password" name="password" id="password" class="form-control" placeholder="Password" required>
-            <i class="bi bi-eye-slash password-toggle" id="passwordToggle"></i> </div>
+        <h1 class="text-2xl font-bold text-center text-gray-900 mb-1">Welcome back</h1>
+        <p class="text-sm text-center text-gray-500 mb-8">Sign in to your FlowDesk account</p>
 
-        <button type="submit" class="btn btn-primary w-100" id="loginButton">
-            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-            <span class="button-text">Login</span>
-        </button>
+        <?php if (session()->getFlashdata('error')): ?>
+        <div class="flex items-center gap-3 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6 text-sm">
+            <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span><?= session()->getFlashdata('error') ?></span>
+        </div>
+        <?php endif; ?>
 
-        <a href="<?= base_url('forgot-password') ?>" class="forgot-password-link">Forgot Password?</a>
-    </form>
+        <form method="post" action="<?= base_url('login/auth') ?>">
+            <?= csrf_field() ?>
 
-</div>
+            <div class="space-y-4">
+                <div>
+                    <label for="company_id" class="block text-sm font-medium text-gray-700 mb-1">Company ID</label>
+                    <input type="text" name="company_id" id="company_id" placeholder="Enter your company ID"
+                           class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                           required autofocus>
+                </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const passwordInput = document.getElementById('password');
-        const passwordToggle = document.getElementById('passwordToggle');
-        const loginForm = document.getElementById('loginForm');
-        const loginButton = document.getElementById('loginButton');
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <div class="relative">
+                        <input type="password" name="password" id="password" placeholder="Enter your password"
+                               class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent pr-10"
+                               required>
+                        <button type="button" id="passwordToggle" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-        // Show/Hide Password Toggle
-        passwordToggle.addEventListener('click', function() {
-            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-            passwordInput.setAttribute('type', type);
-            // Toggle the eye icon
-            this.classList.toggle('bi-eye');
-            this.classList.toggle('bi-eye-slash');
+            <button type="submit" id="loginButton"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg py-2.5 text-sm font-medium transition-colors mt-6">
+                Sign in
+            </button>
+
+            <p class="text-center mt-4">
+                <a href="<?= base_url('forgot-password') ?>" class="text-sm text-indigo-600 hover:text-indigo-700">Forgot password?</a>
+            </p>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const passwordInput = document.getElementById('password');
+            const passwordToggle = document.getElementById('passwordToggle');
+            const loginButton = document.getElementById('loginButton');
+            const loginForm = document.querySelector('form');
+
+            passwordToggle.addEventListener('click', function() {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                passwordToggle.innerHTML = type === 'password'
+                    ? '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>'
+                    : '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>';
+            });
+
+            loginForm.addEventListener('submit', function() {
+                loginButton.disabled = true;
+                loginButton.innerHTML = 'Signing in...';
+            });
         });
-
-        // Loading Indicator on Submit
-        loginForm.addEventListener('submit', function() {
-            loginButton.classList.add('loading'); // Add loading class to button
-            loginButton.disabled = true; // Disable button to prevent multiple submits
-            // The spinner will show and text will hide via CSS
-        });
-
-        // Optional: If you handle form submission via AJAX, you'd remove the loading state
-        // and re-enable the button in your AJAX success/error callbacks.
-        // For a standard form submit, the page will reload, resetting the state automatically.
-    });
-</script>
+    </script>
+</body>
+</html>

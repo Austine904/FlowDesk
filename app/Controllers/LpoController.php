@@ -107,6 +107,9 @@ class LpoController extends BaseController
             return redirect()->back()->withInput()->with('errors', ['items' => 'At least one line item is required.']);
         }
 
+        $db = \Config\Database::connect();
+        $db->transStart();
+
         $lpoModel = new LpoModel();
         $lpoItemModel = new LpoItemModel();
 
@@ -123,20 +126,32 @@ class LpoController extends BaseController
         ]);
 
         if (!$lpoId) {
+            $db->transRollback();
             return redirect()->back()->withInput()->with('error', 'Failed to create LPO.');
         }
 
+        $itemsToInsert = [];
         foreach ($items as $item) {
             if (empty($item['inventory_id']) || empty($item['quantity_ordered'])) continue;
-            $lpoItemModel->insert([
+            $itemsToInsert[] = [
                 'lpo_id'           => $lpoId,
                 'inventory_id'     => $item['inventory_id'],
                 'quantity_ordered' => (float) ($item['quantity_ordered'] ?? 1),
                 'unit_price'       => (float) ($item['unit_price'] ?? 0),
-            ]);
+            ];
+        }
+
+        if (!empty($itemsToInsert)) {
+            $lpoItemModel->insertBatch($itemsToInsert);
         }
 
         $lpoModel->recalculateTotal($lpoId);
+
+        $db->transComplete();
+        if ($db->transStatus() === false) {
+            $db->transRollback();
+            return redirect()->back()->withInput()->with('error', 'Transaction failed. Please try again.');
+        }
 
         $lpo = $lpoModel->find($lpoId);
         $supplierModel = new SupplierModel();
@@ -210,10 +225,14 @@ class LpoController extends BaseController
             return redirect()->to('/login');
         }
 
+        $db = \Config\Database::connect();
+        $db->transStart();
+
         $lpoModel = new LpoModel();
         $lpo = $lpoModel->find($id);
 
         if (!$lpo || $lpo['status'] !== 'Draft') {
+            $db->transRollback();
             return redirect()->to('/admin/lpos')->with('error', 'Only Draft LPOs can be edited.');
         }
 
@@ -224,11 +243,13 @@ class LpoController extends BaseController
         ];
 
         if (!$this->validate($rules)) {
+            $db->transRollback();
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
         $items = $this->request->getPost('items');
         if (empty($items) || !is_array($items) || count($items) < 1) {
+            $db->transRollback();
             return redirect()->back()->withInput()->with('errors', ['items' => 'At least one line item is required.']);
         }
 
@@ -244,17 +265,28 @@ class LpoController extends BaseController
 
         $lpoItemModel->deleteByLpo($id);
 
+        $itemsToInsert = [];
         foreach ($items as $item) {
             if (empty($item['inventory_id']) || empty($item['quantity_ordered'])) continue;
-            $lpoItemModel->insert([
+            $itemsToInsert[] = [
                 'lpo_id'           => $id,
                 'inventory_id'     => $item['inventory_id'],
                 'quantity_ordered' => (float) ($item['quantity_ordered'] ?? 1),
                 'unit_price'       => (float) ($item['unit_price'] ?? 0),
-            ]);
+            ];
+        }
+
+        if (!empty($itemsToInsert)) {
+            $lpoItemModel->insertBatch($itemsToInsert);
         }
 
         $lpoModel->recalculateTotal($id);
+
+        $db->transComplete();
+        if ($db->transStatus() === false) {
+            $db->transRollback();
+            return redirect()->back()->withInput()->with('error', 'Transaction failed. Please try again.');
+        }
 
         return redirect()->to('/admin/lpos')->with('success', 'LPO updated successfully.');
     }
@@ -318,16 +350,21 @@ class LpoController extends BaseController
             return redirect()->to('/login');
         }
 
+        $db = \Config\Database::connect();
+        $db->transStart();
+
         $lpoModel = new LpoModel();
         $lpoItemModel = new LpoItemModel();
         $inventoryModel = new InventoryModel();
 
         $lpo = $lpoModel->find($id);
         if (!$lpo) {
+            $db->transRollback();
             return redirect()->to('/admin/lpos')->with('error', 'LPO not found.');
         }
 
         if (!in_array($lpo['status'], ['Sent', 'Partially Received'])) {
+            $db->transRollback();
             return redirect()->to('/admin/lpos')->with('error', 'Only Sent or Partially Received LPOs can receive items.');
         }
 
@@ -368,11 +405,18 @@ class LpoController extends BaseController
         }
 
         if (!$anyReceived) {
+            $db->transRollback();
             return redirect()->back()->with('error', 'No quantities entered for receiving.');
         }
 
         $newStatus = $allFullyReceived ? 'Received' : 'Partially Received';
         $lpoModel->update($id, ['status' => $newStatus]);
+
+        $db->transComplete();
+        if ($db->transStatus() === false) {
+            $db->transRollback();
+            return redirect()->back()->with('error', 'Transaction failed. Please try again.');
+        }
 
         $lpoRecord = $lpoModel->find($id);
         $lpoNo = $lpoRecord['lpo_no'] ?? '';

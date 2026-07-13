@@ -1,3 +1,4 @@
+<form action="<?= base_url('admin/customers/update/' . $customer['id']) ?>" method="POST">
 <?= csrf_field() ?>
 <div class="row">
     <div class="col-md-6 mb-3">
@@ -19,3 +20,7 @@
     <label for="address" class="form-label">Address</label>
     <textarea class="form-control" id="address" name="address" rows="3"><?= esc($customer['address'] ?? '') ?></textarea>
 </div>
+<div class="d-flex justify-content-end mt-4">
+    <button type="submit" class="btn btn-primary">Update Customer</button>
+</div>
+</form>

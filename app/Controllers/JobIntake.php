@@ -83,7 +83,6 @@ class JobIntake extends BaseController
             $vehicleModel = new VehicleModel();
             $vehicles = $vehicleModel->searchByTerm($sanitizedQuery);
 
-            $customerModel = new CustomerModel();
             foreach ($vehicles as &$vehicle) {
                 $owner = $customerModel->find($vehicle['owner_id']);
 
@@ -276,11 +275,23 @@ class JobIntake extends BaseController
             }
 
             $files = $this->request->getFiles();
+            $allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+            $allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
 
             if (isset($files['job_card_photos'])) {
                 foreach ($files['job_card_photos'] as $file) {
                     if ($file->isValid() && !$file->hasMoved()) {
-                        $newName = $file->getRandomName();
+                        $ext = strtolower($file->getExtension());
+                        $mime = $file->getMimeType();
+                        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+                        $actualMime = $finfo->file($file->getTempName());
+
+                        if (!in_array($ext, $allowedExts) || !in_array($mime, $allowedMimes) || !in_array($actualMime, $allowedMimes)) {
+                            log_message('warning', 'Photo upload rejected for job ID ' . $job_card_id . ': invalid file type (ext=' . $ext . ', mime=' . $mime . ', actual=' . $actualMime . ')');
+                            continue;
+                        }
+
+                        $newName = bin2hex(random_bytes(16)) . '.' . $ext;
                         $uploadPath = ROOTPATH . 'public/uploads/job_card_photos/';
                         if (!is_dir($uploadPath)) {
                             mkdir($uploadPath, 0777, true);
@@ -304,7 +315,8 @@ class JobIntake extends BaseController
             if ($this->db->transStatus() === false) {
                 throw new Exception('Transaction failed, job card not fully created.');
             } else {
-                log_activity('job_created', 'job_card', $job_card_id, "Job card {$job_no} created for vehicle registration {$registration_number}");
+                $reg_number = ($vehicle_id !== 'new' && isset($vehicleExists)) ? ($vehicleExists['registration_number'] ?? '') : ($registration_number ?? '');
+                log_activity('job_created', 'job_card', $job_card_id, "Job card {$job_no} created for vehicle registration {$reg_number}");
                 return $this->respond(['status' => 'success', 'message' => 'Job Card created successfully!', 'job_id' => $job_card_id, 'job_no' => $job_no]);
             }
         } catch (Exception $e) {
@@ -438,6 +450,14 @@ class JobIntake extends BaseController
                 }
                 if (!empty($batchInsertParts)) {
                     $jobCardPartModel->insertBatch($batchInsertParts);
+                }
+
+                $inventoryModel = new InventoryModel();
+                foreach ($parts as $part) {
+                    $invItem = $inventoryModel->find((int)($part['inventory_id'] ?? 0));
+                    if ($invItem && !empty($invItem['is_stocked'])) {
+                        $inventoryModel->decrementStock($invItem['id'], (int)($part['quantity_required'] ?? 0));
+                    }
                 }
             }
 

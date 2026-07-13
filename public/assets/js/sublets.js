@@ -3,41 +3,44 @@ $(document).ready(function () {
     const deleteSelectedBtn = $('#deleteSelectedBtn');
     const bulkActionForm = $('#bulkActionForm');
     const statusFilter = $('#status-filter');
-
-    // Modals
-    const actionModalElement = document.getElementById('actionModal');
-    const actionModal = new bootstrap.Modal(actionModalElement);
-    const actionModalTitle = document.getElementById('actionModalLabel');
-    const modalContentDiv = document.getElementById('modalContent');
-
-    const subletDetailsModalElement = document.getElementById('subletDetailsModal');
-    const subletDetailsModal = new bootstrap.Modal(subletDetailsModalElement);
-    const confirmDeleteModalElement = document.getElementById('confirmDeleteModal');
-    const confirmDeleteModal = new bootstrap.Modal(confirmDeleteModalElement);
     const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
 
-    // --- Helper function for status badge colors ---
+    function openModalFn(name) {
+        document.getElementById(name).classList.remove('hidden');
+        var backdrop = document.getElementById(name + '-backdrop');
+        if (backdrop) backdrop.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    function closeModalFn(name) {
+        document.getElementById(name).classList.add('hidden');
+        var backdrop = document.getElementById(name + '-backdrop');
+        if (backdrop) backdrop.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+
     function getStatusBadgeClass(status) {
         switch (status) {
-            case 'Pending': return 'status-badge-pending';
-            case 'In Progress': return 'status-badge-in-progress';
-            case 'Completed': return 'status-badge-completed';
-            case 'Invoiced': return 'status-badge-invoiced';
-            case 'Paid': return 'status-badge-paid';
-            case 'Cancelled': return 'status-badge-cancelled';
-            default: return 'bg-secondary text-white'; // Default Bootstrap grey
+            case 'Pending': return 'bg-amber-100 text-amber-700';
+            case 'In Progress': return 'bg-blue-100 text-blue-700';
+            case 'Completed': return 'bg-emerald-100 text-emerald-700';
+            case 'Invoiced': return 'bg-blue-100 text-blue-700';
+            case 'Paid': return 'bg-emerald-100 text-emerald-700';
+            case 'Cancelled': return 'bg-red-100 text-red-700';
+            default: return 'bg-gray-100 text-gray-700';
         }
     }
 
-    // --- DataTables Initialization ---
     const subletTable = $('#subletTable').DataTable({
         processing: true,
         serverSide: true,
         ajax: {
-            url: `${BASE_URL}admin/sublets/load`,
+            url: BASE_URL + 'admin/sublets/load',
             type: 'POST',
             data: function (d) {
-                d.status_filter = statusFilter.val(); // Add status filter
+                d.status_filter = statusFilter.val();
+                var csrf = getCsrfMeta();
+                d[csrf.name] = csrf.hash;
             }
         },
         columns: [
@@ -45,7 +48,7 @@ $(document).ready(function () {
                 data: 'id',
                 orderable: false,
                 render: function (data, type, row) {
-                    return `<input type="checkbox" name="sublets[]" value="${data}">`;
+                    return '<input type="checkbox" name="sublets[]" value="' + data + '">';
                 }
             },
             { data: 'id' },
@@ -59,8 +62,8 @@ $(document).ready(function () {
             {
                 data: 'status',
                 render: function (data, type, row) {
-                    const badgeClass = getStatusBadgeClass(data);
-                    return `<span class="status-badge ${badgeClass}">${data}</span>`;
+                    var badgeClass = getStatusBadgeClass(data);
+                    return '<span class="text-xs font-medium px-2.5 py-0.5 rounded-full ' + badgeClass + '">' + data + '</span>';
                 }
             },
             { data: 'date_sent' },
@@ -70,15 +73,7 @@ $(document).ready(function () {
                 orderable: false,
                 searchable: false,
                 render: function (data, type, row) {
-                    // Pass the Job ID for the View Details button, which will fetch full details
-                    return `
-                        <button type="button" class="btn btn-primary btn-sm view-sublet" data-id="${data}">
-                            <i class="bi bi-eye"></i> View
-                        </button>
-                        <button type="button" class="btn btn-info btn-sm edit-sublet ms-1" data-id="${data}">
-                            <i class="bi bi-pencil"></i> Edit
-                        </button>
-                    `;
+                    return '<button type="button" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors view-sublet" data-id="' + data + '"><i class="bi bi-eye"></i> View</button> <button type="button" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors edit-sublet ms-1" data-id="' + data + '"><i class="bi bi-pencil"></i> Edit</button>';
                 }
             }
         ],
@@ -88,138 +83,120 @@ $(document).ready(function () {
             searchPlaceholder: "Search sublets...",
         },
         initComplete: function () {
-            // Move the custom status filter into the DataTables filter area
             $('#subletTable_filter').prepend(statusFilter.detach());
-            statusFilter.addClass('ms-2'); // Add some margin
-
-            // Apply filter on change
+            statusFilter.addClass('ms-2');
             statusFilter.on('change', function () {
                 subletTable.ajax.reload();
             });
         }
     });
 
-    // --- Checkbox Select All for DataTables ---
     selectAllCheckbox.on('change', function () {
-        const checkboxes = subletTable.rows({ page: 'current' }).nodes().to$().find('input[type="checkbox"]');
+        var checkboxes = subletTable.rows({ page: 'current' }).nodes().to$().find('input[type="checkbox"]');
         checkboxes.prop('checked', this.checked);
     });
 
-    // --- Custom openModal Function for Add/Edit Forms ---
-    window.openModal = function (url, title = 'Form') {
-        actionModalTitle.textContent = title;
-        modalContentDiv.innerHTML = `
-            <div class="d-flex justify-content-center align-items-center" style="min-height: 150px;">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-            </div>
-        `;
-        actionModal.show();
-
-        fetch(url, {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok ' + response.statusText);
-                }
-                return response.text();
-            })
-            .then(data => {
-                modalContentDiv.innerHTML = data;
-            })
-            .catch(error => {
-                actionModalTitle.textContent = 'Error';
-                modalContentDiv.innerHTML = `<div class="alert alert-danger" role="alert">Error loading content: ${error.message}. Please try again.</div>`;
-                console.error('Error loading modal content:', error);
-            });
-    }
-
-    // --- View Sublet Details Modal ---
     $('#subletTable tbody').on('click', '.view-sublet', async function () {
-        const subletId = $(this).data('id');
-
-        // Clear previous data and show loading spinner or placeholder text
-        $('#detail_id').text('Loading...');
-        $('#detail_job_no').text('');
-        $('#detail_vehicle_reg').text('');
-        $('#detail_provider_name').text('');
-        $('#detail_cost').text('');
-        $('#detail_status').text('').removeClass().addClass('info-value'); // Reset status badge
-        $('#detail_date_sent').text('');
-        $('#detail_date_returned').text('');
-        $('#detail_description').text('');
-        $('#detail_notes').text('');
-        $('#detail_created_at').text('');
-        $('#detail_updated_at').text('');
-
-        subletDetailsModal.show();
+        var subletId = $(this).data('id');
+        var body = document.getElementById('subletDetailsBody');
+        if (body) {
+            body.innerHTML = '<div class="flex justify-center items-center py-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>';
+        }
+        openModalFn('subletDetailsModal');
 
         try {
-            const response = await fetch(`<?= base_url('admin/sublets/details/') ?>${subletId}`, {
+            var response = await fetch(BASE_URL + 'admin/sublets/details/' + subletId, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch sublet details (Status: ${response.status})`);
-            }
-
-            const data = await response.text(); // Get raw HTML response
-            // Directly inject the HTML into the modal body (assuming _details.php renders complete content)
-            subletDetailsModalElement.querySelector('.modal-body').innerHTML = data;
-
-            // Re-fetch elements and update data as necessary if _details.php doesn't fully populate
-            // If _details.php already renders everything with PHP, then no further JS updates needed here.
-            // However, if you need to apply JS logic to the newly loaded content, do it here.
-
+            if (!response.ok) throw new Error('Failed to fetch sublet details (Status: ' + response.status + ')');
+            var data = await response.text();
+            if (body) body.innerHTML = data;
         } catch (error) {
-            const modalBody = subletDetailsModalElement.querySelector('.modal-body');
-            modalBody.innerHTML = `<div class="alert alert-danger" role="alert">
-                                        <i class="bi bi-exclamation-circle me-2"></i> Failed to load sublet details: ${error.message}
-                                   </div>`;
+            if (body) body.innerHTML = '<div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg"><i class="bi bi-exclamation-circle me-2"></i> Failed to load sublet details: ' + error.message + '</div>';
             console.error('Error fetching sublet details:', error);
         }
     });
 
-    // --- Edit Sublet Button ---
     $('#subletTable tbody').on('click', '.edit-sublet', function () {
-        const subletId = $(this).data('id');
-        openModal(`<?= base_url('admin/sublets/edit/') ?>${subletId}`, 'Edit Sublet');
+        var subletId = $(this).data('id');
+        editSublet(subletId);
     });
 
-    // --- Bulk Delete Confirmation ---
     deleteSelectedBtn.on('click', function () {
-        const checkedSublets = subletTable.rows().nodes().to$().find('input[name="sublets[]"]:checked');
+        var checkedSublets = subletTable.rows().nodes().to$().find('input[name="sublets[]"]:checked');
         if (checkedSublets.length === 0) {
-            Swal.fire({
-                title: 'No Selection',
-                text: 'Please select at least one sublet to delete.',
-                icon: 'info',
-                confirmButtonText: 'OK'
-            });
+            Swal.fire({ title: 'No Selection', text: 'Please select at least one sublet to delete.', icon: 'info', confirmButtonText: 'OK' });
             return;
         }
-        confirmDeleteModal.show();
+        openModalFn('confirmDeleteModal');
     });
 
-    // --- Confirm Delete Action ---
-      $(confirmDeleteBtn).on('click', function() {
-        confirmDeleteModal.hide();
-        // Set hidden input in the form to tell the backend what action to perform
+    $(confirmDeleteBtn).on('click', function() {
+        closeModalFn('confirmDeleteModal');
         bulkActionForm.append('<input type="hidden" name="action" value="delete">');
-        // Get all checked IDs and append to form as hidden inputs
         subletTable.rows().nodes().to$().find('input[name="sublets[]"]:checked').each(function() {
-            bulkActionForm.append(`<input type="hidden" name="ids[]" value="${$(this).val()}">`);
+            bulkActionForm.append('<input type="hidden" name="ids[]" value="' + $(this).val() + '">');
         });
-        bulkActionForm.submit(); // Submit the form for bulk deletion
+        bulkActionForm.submit();
     });
 
-
-    // --- Listen for custom event to reload DataTables after save ---
     document.addEventListener('subletSaved', function () {
-        subletTable.ajax.reload(null, false); // Reload data, keep current page
+        subletTable.ajax.reload(null, false);
+    });
+});
+
+window.editSublet = function(id) {
+    fetch(BASE_URL + 'admin/sublets/edit/' + id, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        document.getElementById('edit_sublet_id').value = data.id;
+        document.getElementById('edit_sublet_job_card_id').value = data.job_card_id;
+        document.getElementById('edit_sublet_provider_id').value = data.sublet_provider_id;
+        document.getElementById('edit_sublet_description').value = data.description;
+        document.getElementById('edit_sublet_cost').value = data.cost;
+        document.getElementById('edit_sublet_status').value = data.status;
+        document.getElementById('edit_sublet_date_sent').value = data.date_sent;
+        document.getElementById('edit_sublet_date_returned').value = data.date_returned || '';
+        document.getElementById('edit_sublet_notes').value = data.notes || '';
+        openModalFn('editSubletModal');
+    })
+    .catch(function(err) {
+        Swal.fire('Error!', 'Failed to fetch sublet details: ' + err.message, 'error');
+    });
+};
+
+function submitSubletForm(formId, modalId) {
+    var form = document.getElementById(formId);
+    var formData = new FormData(form);
+    fetch(BASE_URL + 'admin/sublets/save', {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(result) {
+        if (result.status === 'success') {
+            closeModalFn(modalId);
+            document.dispatchEvent(new CustomEvent('subletSaved'));
+            Swal.fire('Success!', result.message, 'success');
+        } else {
+            Swal.fire('Error!', result.message || 'Failed to save sublet.', 'error');
+        }
+    })
+    .catch(function(err) {
+        Swal.fire('Error!', 'An unexpected error occurred: ' + err.message, 'error');
+    });
+}
+
+$(document).ready(function() {
+    $('#addSubletForm').on('submit', function(e) {
+        e.preventDefault();
+        submitSubletForm('addSubletForm', 'addSubletModal');
+    });
+    $('#editSubletForm').on('submit', function(e) {
+        e.preventDefault();
+        submitSubletForm('editSubletForm', 'editSubletModal');
     });
 });

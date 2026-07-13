@@ -126,6 +126,11 @@ _modules/*
 /phpunit*.xml
 
 #-------------------------
+# Binary / Build Tools
+#-------------------------
+tailwindcss.exe
+
+#-------------------------
 # User Uploads (not committed)
 #-------------------------
 uploads/*

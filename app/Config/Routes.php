@@ -28,21 +28,21 @@ $routes->post('user/addUserStep3', 'UsersController::addUserStep3');
 $routes->get('user/preview', 'UsersController::preview');
 $routes->get('user/saveUser', 'UsersController::saveUser');
 
-$routes->post('/save-step-data/(:num)', 'UsersController::saveStepData/$1');
+// $routes->post('/save-step-data/(:num)', 'UsersController::saveStepData/$1'); // REMOVED: method does not exist
 
-$routes->post('/final-submit', 'UsersController::finalSubmit');
+// $routes->post('/final-submit', 'UsersController::finalSubmit'); // REMOVED: method does not exist
 
 // $routes->get('user/getLastId/(:any)', 'UsersController::getLastId/$1');
 $routes->get('user/getLastId', 'UsersController::getLastId');
 
 $routes->get('user/preview', 'UsersController::preview');
 
-$routes->post('user/submit', 'UsersController::submit');
+// $routes->post('user/submit', 'UsersController::submit'); // REMOVED: method does not exist
 
 $routes->get('user/success', 'UsersController::success');
 $routes->get('user/failure', 'UsersController::failure');
 
-$routes->post('admin/users/bulk_action', 'UsersController::bulk_action');
+// $routes->post('admin/users/bulk_action', 'UsersController::bulk_action'); // REMOVED: method is commented out
 
 // --- Job Intake routes ---
 $routes->group('job_intake', ['filter' => 'auth:admin,receptionist'], function ($routes) {
@@ -50,8 +50,6 @@ $routes->group('job_intake', ['filter' => 'auth:admin,receptionist'], function (
     $routes->get('search', 'JobIntake::search');
     $routes->post('create_job_card', 'JobIntake::create_job_card');
     $routes->get('create_job_card', 'JobIntake::create_job_card');
-    $routes->post('fetch_vehicle_details', 'JobIntake::fetch_vehicle_details');
-    $routes->post('fetch_customer_details', 'JobIntake::fetch_customer_details');
 });
 
 
@@ -80,7 +78,8 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->get('vehicles/fetch', 'VehicleController::fetchVehicles');
     $routes->get('vehicles/fetch/(:num)', 'VehicleController::fetchVehicles');
 
-    $routes->get('vechicles/edit/(:num)', 'VehicleController::edit/$1');
+    $routes->post('vehicles/add', 'VehicleController::add');
+    $routes->get('vehicles/edit/(:num)', 'VehicleController::edit/$1');
     $routes->post('vehicles/store', 'VehicleController::store');
     $routes->post('vehicles/update/(:num)', 'VehicleController::update/$1');
     $routes->post('vehicles/delete/(:num)', 'VehicleController::delete/$1');
@@ -91,32 +90,26 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->get('jobs', 'JobsController::index');
     $routes->get('jobs/fetch', 'JobsController::fetchJobs');
     $routes->get('jobs/add', 'JobsController::add');
-    $routes->post('jobs/create', 'JobsController::create');
+    // $routes->post('jobs/create', 'JobsController::create'); // REMOVED: method does not exist
     $routes->get('jobs/(:num)', 'JobsController::details/$1');
     $routes->get('jobs/edit/(:num)', 'JobsController::edit/$1');
     $routes->post('jobs/update/(:num)', 'JobsController::update/$1');
     $routes->get('jobs/delete/(:num)', 'JobsController::delete/$1');
-    $routes->post('jobs/bulk_action', 'JobsController::bulk_action');
+    // $routes->post('jobs/bulk_action', 'JobsController::bulk_action'); // REMOVED: method does not exist
     $routes->post('jobs/assign_mechanic/(:num)', 'JobsController::assign_mechanic/$1');
     $routes->post('jobs/update_status/(:num)', 'JobsController::update_status/$1');
     $routes->get('jobs/status_history/(:num)', 'JobsController::status_history/$1');
     // $routes->get('job/job_intake_form', 'JobIntake::index');
 
-    // Job Intake
-    $routes->get('job_intake', 'JobIntake::index');
-    $routes->get('job_intake/search', 'JobIntake::search');
-    $routes->post('job_intake/create_job_card', 'JobIntake::create_job_card');
-    $routes->get('job_intake/create_job_card', 'JobIntake::create_job_card');
-    $routes->post('job_intake/fetch_vehicle_details', 'JobIntake::fetch_vehicle_details');
-    $routes->post('job_intake/fetch_customer_details', 'JobIntake::fetch_customer_details');
-
-    //customers
+    // Customers
     $routes->get('customers', 'CustomersController::index');
     $routes->post('customers/load', 'CustomersController::load');
     $routes->get('customers/load', 'CustomersController::load');
     $routes->get('customers/details/(:num)', 'CustomersController::details/$1');
     $routes->get('customers/add', 'CustomersController::add');
     $routes->get('customers/edit/(:num)', 'CustomersController::edit/$1');
+    $routes->post('customers/store', 'CustomersController::store');
+    $routes->post('customers/update/(:num)', 'CustomersController::update/$1');
     $routes->post('customers/bulk_action', 'CustomersController::bulk_action');
 
     // Calendar
@@ -212,6 +205,7 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
 // Receptionist-only
 $routes->group('receptionist', ['filter' => 'auth:receptionist'], function ($routes) {
     $routes->get('/', 'DashboardController::receptionist');
+    $routes->get('dashboard', 'DashboardController::receptionist');
 });
 
 // Mechanic-only
@@ -229,4 +223,5 @@ $routes->group('mechanic', ['filter' => 'auth:mechanic'], function ($routes) {
 // Customer-only
 $routes->group('customer', ['filter' => 'auth:customer'], function ($routes) {
     $routes->get('/', 'DashboardController::customer');
+    $routes->get('dashboard', 'DashboardController::customer');
 });

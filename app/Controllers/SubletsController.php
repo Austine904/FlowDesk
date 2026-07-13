@@ -26,7 +26,16 @@ class SubletsController extends BaseController
         if (!$this->session->get('isLoggedIn') || (!in_array($this->session->get('role'), ['admin', 'receptionist']))) {
             return redirect()->to('/login')->with('error', 'You do not have permission to access this page.');
         }
-        return view('sublets/index');
+
+        $jobCardModel = new JobCardModel();
+        $data['job_cards'] = $jobCardModel->select('job_cards.id, job_cards.job_no, vehicles.registration_number')
+            ->join('vehicles', 'vehicles.id = job_cards.vehicle_id', 'left')
+            ->findAll();
+
+        $supplierModel = new SupplierModel();
+        $data['sublet_providers'] = $supplierModel->getAll();
+
+        return view('sublets/index', $data);
     }
 
     public function load()
@@ -134,6 +143,15 @@ class SubletsController extends BaseController
     {
         if (!$this->session->get('isLoggedIn') || (!in_array($this->session->get('role'), ['admin', 'receptionist']))) {
             return $this->failForbidden('Forbidden: Insufficient permissions.');
+        }
+
+        if ($this->request->isAJAX() && $id) {
+            $subletModel = new SubletModel();
+            $sublet = $subletModel->find($id);
+            if (!$sublet) {
+                return $this->failNotFound('Sublet not found.');
+            }
+            return $this->respond($sublet);
         }
 
         $data['sublet'] = null;

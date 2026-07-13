@@ -43,9 +43,6 @@ class CustomersController extends BaseController
         $customers = $builder->limit($perpage, ($currentPage - 1) * $perpage)->get()->getResultArray();
         $pager = \Config\Services::pager();
 
-        if ($this->request->isAJAX()) {
-            return view('customers/customers_list', ['customers' => $customers, 'pager' => $pager]);
-        }
         return view('customers/customers', [
             'customers' => $customers,
             'pager' => $pager,
@@ -153,13 +150,12 @@ class CustomersController extends BaseController
             $vehicles = $vehicleModel->getByOwner($id);
             $customer['vehicles'] = $vehicles;
 
-            $jobs = $jobCardModel->where('customer_id', $id)->findAll();
-            foreach ($jobs as &$job) {
-                $vehicle = $vehicleModel->select('registration_number')
-                    ->where('id', $job['vehicle_id'])
-                    ->first();
-                $job['registration_number'] = $vehicle ? $vehicle['registration_number'] : 'Unknown';
-            }
+            $jobs = $jobCardModel->builder()
+                ->select('job_cards.*, vehicles.registration_number')
+                ->join('vehicles', 'vehicles.id = job_cards.vehicle_id', 'left')
+                ->where('job_cards.customer_id', $id)
+                ->get()
+                ->getResultArray();
 
             $customer['jobs'] = $jobs;
 
@@ -236,5 +232,55 @@ class CustomersController extends BaseController
         }
 
         return redirect()->back();
+    }
+
+    public function store()
+    {
+        if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'admin') {
+            return $this->failForbidden('Forbidden: Insufficient permissions.');
+        }
+
+        if (!$this->validate([
+            'name'  => 'required',
+            'phone' => 'required|is_unique[customers.phone]',
+            'email' => 'permit_empty|valid_email',
+        ])) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $customerModel = new CustomerModel();
+        $customerModel->insert([
+            'name'    => $this->request->getPost('name'),
+            'phone'   => $this->request->getPost('phone'),
+            'email'   => $this->request->getPost('email'),
+            'address' => $this->request->getPost('address'),
+        ]);
+
+        return redirect()->to('/admin/customers')->with('success', 'Customer added successfully.');
+    }
+
+    public function update($id)
+    {
+        if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'admin') {
+            return $this->failForbidden('Forbidden: Insufficient permissions.');
+        }
+
+        if (!$this->validate([
+            'name'  => 'required',
+            'phone' => 'required|is_unique[customers.phone,id,' . $id . ']',
+            'email' => 'permit_empty|valid_email',
+        ])) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $customerModel = new CustomerModel();
+        $customerModel->update($id, [
+            'name'    => $this->request->getPost('name'),
+            'phone'   => $this->request->getPost('phone'),
+            'email'   => $this->request->getPost('email'),
+            'address' => $this->request->getPost('address'),
+        ]);
+
+        return redirect()->to('/admin/customers')->with('success', 'Customer updated successfully.');
     }
 }

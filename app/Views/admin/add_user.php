@@ -364,7 +364,7 @@
                     if (!input.checkValidity()) {
                         input.classList.add('is-invalid');
                         isValid = false;
-                        console.log(`Validation failed for input: ${input.id || input.name}, value: "${input.value}"`); // Debugging line
+                        // console.log(`Validation failed for input: ${input.id || input.name}, value: "${input.value}"`); // Debugging line
                     } else {
                         input.classList.remove('is-invalid');
                     }
@@ -377,13 +377,13 @@
                     if (!genderSelected) {
                         genderInputs.forEach(input => input.classList.add('is-invalid')); // Add to all for visual feedback
                         isValid = false;
-                        console.log(`Validation failed for gender selection`); // Debugging line
+                        // console.log(`Validation failed for gender selection`); // Debugging line
                     } else {
                         genderInputs.forEach(input => input.classList.remove('is-invalid'));
                     }
                 }
 
-                console.log(`Step ${stepId} validation result: ${isValid}`); // Debugging line
+                // console.log(`Step ${stepId} validation result: ${isValid}`); // Debugging line
                 return isValid;
             }
 

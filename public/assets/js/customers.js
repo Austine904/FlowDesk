@@ -1,51 +1,28 @@
-// Make openModal function globally accessible if it's used in onclick attributes
-function openModal(url, title = 'Form') {
-    const modalElement = document.getElementById('actionModal');
-    const modal = new bootstrap.Modal(modalElement);
-    const modalTitle = modalElement.querySelector('.modal-title');
-    const modalContent = document.getElementById('modalContent');
-
-    modalContent.innerHTML = `
-            <div class="d-flex justify-content-center align-items-center" style="min-height: 100px;">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-            </div>
-        `;
-    modalTitle.textContent = title;
-
-    modal.show();
-
-    fetch(url, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok ' + response.statusText);
-            }
-            return response.text();
-        })
-        .then(data => {
-            modalContent.innerHTML = data;
-        })
-        .catch(error => {
-            modalTitle.textContent = 'Error';
-            modalContent.innerHTML = `<div class="alert alert-danger" role="alert">Error loading content: ${error.message}. Please try again.</div>`;
-            console.error('Error loading modal content:', error);
-        });
+function openModalById(id) {
+    var modal = document.getElementById(id);
+    var backdrop = document.getElementById(id + '-backdrop');
+    if (modal) modal.classList.remove('hidden');
+    if (backdrop) backdrop.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
 }
-window.openModal = openModal;
 
+function closeModalById(id) {
+    var modal = document.getElementById(id);
+    var backdrop = document.getElementById(id + '-backdrop');
+    if (modal) modal.classList.add('hidden');
+    if (backdrop) backdrop.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+window.openModalById = openModalById;
+window.closeModalById = closeModalById;
 
 $(document).ready(function () {
-    const selectAllCheckbox = document.getElementById('select_all_customers'); // Updated ID
-    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn'); // You might want to add this button if you have bulk delete for customers
-    const bulkActionForm = document.getElementById('bulkActionForm'); // If you have bulk delete form
+    var selectAllCheckbox = document.getElementById('select_all_customers');
+    var deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    var bulkActionForm = document.getElementById('bulkActionForm');
 
-    // --- DataTables Initialization ---
-    const customerTable = $('#customerTable').DataTable({
+    var customerTable = $('#customerTable').DataTable({
         processing: true,
         serverSide: true,
         ajax: {
@@ -56,70 +33,58 @@ $(document).ready(function () {
             {
                 data: 'id',
                 orderable: false,
-                render: function (data, type, row) {
-                    return `<input type="checkbox" name="customers[]" value="${data}">`;
+                render: function (data) {
+                    return '<input type="checkbox" name="customers[]" value="' + data + '">';
                 }
             },
             { data: "name" },
             { data: "phone" },
             { data: "email" },
             {
-                data: "vehicle_count", // Assuming backend provides this
-                render: function (data, type, row) {
-                    return data > 0 ? `${data} vehicles` : '0 vehicles';
+                data: "vehicle_count",
+                render: function (data) {
+                    return data > 0 ? data + ' vehicles' : '0 vehicles';
                 }
             },
             {
-                data: null, // For action buttons
+                data: null,
                 orderable: false,
                 searchable: false,
-                render: function (data, type, row) {
-                    return `
-                            <div class="d-flex justify-content-around">
-                                <button class="icon-btn text-primary view-customer" title="View Details" data-id="${row.id}">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                <button class="icon-btn text-info edit-customer" title="Edit Customer" data-id="${row.id}">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="icon-btn text-danger delete-customer" title="Delete Customer" data-id="${row.id}">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                            </div>
-                        `;
+                render: function (data) {
+                    return '<div class="flex items-center gap-2">' +
+                        '<button class="p-1.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors view-customer" title="View Details" data-id="' + data.id + '">' +
+                            '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>' +
+                        '</button>' +
+                        '<button class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors edit-customer" title="Edit Customer" data-id="' + data.id + '">' +
+                            '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>' +
+                        '</button>' +
+                        '<button class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors delete-customer" title="Delete Customer" data-id="' + data.id + '">' +
+                            '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>' +
+                        '</button>' +
+                        '</div>';
                 }
             }
         ],
-        dom: '<"top d-flex justify-content-between flex-wrap"<"mb-2"l><"mb-2"f>>rt<"bottom d-flex justify-content-between flex-wrap"<"mb-2"i><"mb-2"p>><"clear">',
+        dom: '<"top flex justify-between flex-wrap"<"mb-2"l><"mb-2"f>>rt<"bottom flex justify-between flex-wrap"<"mb-2"i><"mb-2"p>><"clear">',
         language: {
             search: "",
             searchPlaceholder: "Search customers...",
         }
     });
 
-    // --- Checkbox Select All (Optional, if you implement bulk delete) ---
-    if (selectAllCheckbox) { // Check if element exists before adding listener
+    if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', function () {
-            const checkboxes = customerTable.rows({ page: 'current' }).nodes().to$().find('input[type="checkbox"]');
+            var checkboxes = customerTable.rows({ page: 'current' }).nodes().to$().find('input[type="checkbox"]');
             checkboxes.prop('checked', this.checked);
         });
     }
 
-
-    // --- Customer Details Modal ---
-    const customerDetailsModalElement = document.getElementById('customerDetailsModal');
-
-    let customerDetailsModal = null;
-
-    if (customerDetailsModalElement) {
-        customerDetailsModal = new bootstrap.Modal(customerDetailsModalElement);
-    }
-
+    // View customer details
+    var customerDetailsModalElement = document.getElementById('customerDetailsModal');
 
     $('#customerTable tbody').on('click', '.view-customer', async function () {
-        const customerId = $(this).data('id');
+        var customerId = $(this).data('id');
 
-        // Clear previous data and show loading spinners/placeholders
         $('#customer-profile-picture').attr('src', 'https://placehold.co/100x100/cccccc/333333?text=CS');
         $('#customer-fullname-modal').text('Loading...');
         $('#customer-phone-modal').text('');
@@ -127,210 +92,176 @@ $(document).ready(function () {
         $('#customer-address-modal').text('');
         $('#customer-created-at').text('');
 
-        // Overview tab
         $('#overview_fullname').text('Loading...');
         $('#overview_phone').text('');
         $('#overview_email').text('');
         $('#overview_address').text('');
         $('#overview_id').text('');
 
-        // Vehicles tab
-        $('#customer-vehicles-list').html('<tr><td colspan="7" class="text-center text-muted">Loading vehicles...</td></tr>');
-        $('#no-vehicles-message').hide(); // Hide initially
+        $('#customer-vehicles-list').html('<tr><td colspan="7" class="px-3 py-2 text-sm text-gray-500 text-center">Loading vehicles...</td></tr>');
+        $('#no-vehicles-message').hide();
 
-        // Other tabs - placeholders
-        $('#customer-jobs-list').html('<tr><td colspan="5" class="text-center text-muted">Loading job history...</td></tr>');
-        $('#customer-invoices-list').html('<tr><td colspan="4" class="text-center text-muted">Loading invoices...</td></tr>');
-        $('#customer-communication-list').html('<div class="text-center text-muted py-3">Loading communication log...</div>');
+        $('#customer-jobs-list').html('<tr><td colspan="5" class="px-3 py-2 text-sm text-gray-500 text-center">Loading job history...</td></tr>');
+        $('#customer-invoices-list').html('<tr><td colspan="4" class="px-3 py-2 text-sm text-gray-500 text-center">Loading invoices...</td></tr>');
+        $('#customer-communication-list').html('<div class="text-center text-gray-500 py-3 text-sm">Loading communication log...</div>');
 
-
-        if (customerDetailsModal) {
-            customerDetailsModal.show();
-        }
-
+        openModalById('customerDetailsModal');
 
         try {
-            const response = await fetch(`${BASE_URL}admin/customers/details/${customerId}`, {
+            var response = await fetch(BASE_URL + 'admin/customers/details/' + customerId, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
 
-
             if (!response.ok) {
-                throw new Error(`Failed to fetch customer details (Status: ${response.status})`);
+                throw new Error('Failed to fetch customer details (Status: ' + response.status + ')');
             }
 
-            const data = await response.json();
+            var data = await response.json();
 
-            // Populate Customer Summary (Left Column)
-            // You might generate initials for the photo or use a default if no photo field exists
-            const initials = data.name ? data.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'CS';
-            $('#customer-profile-picture').attr('src', `https://placehold.co/100x100/cccccc/333333?text=${initials}`);
+            var initials = data.name ? data.name.split(' ').map(function(n) { return n[0]; }).join('').toUpperCase() : 'CS';
+            $('#customer-profile-picture').attr('src', 'https://placehold.co/100x100/cccccc/333333?text=' + initials);
             $('#customer-fullname-modal').text(data.name || 'N/A');
             $('#customer-phone-modal').text(data.phone || 'N/A');
             $('#customer-email-modal').text(data.email || 'N/A');
             $('#customer-address-modal').text(data.address || 'N/A');
             $('#customer-created-at').text(data.created_at ? new Date(data.created_at).toLocaleDateString() : 'N/A');
 
-            // Populate Overview Tab
             $('#overview_fullname').text(data.name || 'N/A');
             $('#overview_phone').text(data.phone || 'N/A');
             $('#overview_email').text(data.email || 'N/A');
             $('#overview_address').text(data.address || 'N/A');
             $('#overview_id').text(data.id || 'N/A');
 
-
-            // Populate Vehicles Owned Tab
-            const vehiclesList = $('#customer-vehicles-list');
-            vehiclesList.empty(); // Clear loading message
+            var vehiclesList = $('#customer-vehicles-list');
+            vehiclesList.empty();
             if (data.vehicles && data.vehicles.length > 0) {
-                data.vehicles.forEach(vehicle => {
-                    vehiclesList.append(`
-                            <tr>
-                                <td>${vehicle.registration_number || 'N/A'}</td>
-                                <td>${vehicle.make || 'N/A'}</td>
-                                <td>${vehicle.model || 'N/A'}</td>
-                                <td>${vehicle.year_of_manufacture || 'N/A'}</td>
-                                <td>${vehicle.vin || 'N/A'}</td>
-                                <td>${vehicle.mileage || '0'}</td>
-                                <td>${vehicle.reported_problem || 'N/A'}</td>
-                            </tr>
-                        `);
+                data.vehicles.forEach(function(vehicle) {
+                    vehiclesList.append('<tr>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">' + (vehicle.registration_number || 'N/A') + '</td>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">' + (vehicle.make || 'N/A') + '</td>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">' + (vehicle.model || 'N/A') + '</td>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">' + (vehicle.year_of_manufacture || 'N/A') + '</td>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">' + (vehicle.vin || 'N/A') + '</td>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">' + (vehicle.mileage || '0') + '</td>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">' + (vehicle.reported_problem || 'N/A') + '</td>' +
+                        '</tr>');
                 });
             } else {
-                vehiclesList.append('<tr><td colspan="7" class="text-center text-muted">No vehicles registered for this customer.</td></tr>');
+                vehiclesList.append('<tr><td colspan="7" class="px-3 py-2 text-sm text-gray-500 text-center">No vehicles registered for this customer.</td></tr>');
             }
 
-            // Populate Job History Tab (MOCK DATA for now)
-            const jobsList = $('#customer-jobs-list');
+            var jobsList = $('#customer-jobs-list');
             jobsList.empty();
             if (data.jobs && data.jobs.length > 0) {
-                data.jobs.forEach(job => {
-                    jobsList.append(`
-                            <tr>
-                                <td>${job.job_no || 'N/A'}</td>
-                                <td>${job.registration_number || 'N/A'}</td>
-                                <td>${job.date_in || 'N/A'}</td>
-                                <td>${job.job_status || 'N/A'}</td>
-                                <td>${job.diagnosis || 'N/A'}</td>
-                            </tr>
-                        `);
+                data.jobs.forEach(function(job) {
+                    jobsList.append('<tr>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">' + (job.job_no || 'N/A') + '</td>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">' + (job.registration_number || 'N/A') + '</td>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">' + (job.date_in || 'N/A') + '</td>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">' + (job.job_status || 'N/A') + '</td>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">' + (job.diagnosis || 'N/A') + '</td>' +
+                        '</tr>');
                 });
             } else {
-                jobsList.append('<tr><td colspan="5" class="text-center text-muted">No job history available for this customer.</td></tr>');
+                jobsList.append('<tr><td colspan="5" class="px-3 py-2 text-sm text-gray-500 text-center">No job history available for this customer.</td></tr>');
             }
 
-            // Populate Invoices Tab (MOCK DATA for now)
-            const invoicesList = $('#customer-invoices-list');
+            var invoicesList = $('#customer-invoices-list');
             invoicesList.empty();
             if (data.invoices && data.invoices.length > 0) {
-                data.invoices.forEach(invoice => {
-                    invoicesList.append(`
-                            <tr>
-                                <td>${invoice.invoice_no || 'N/A'}</td>
-                                <td>${invoice.date || 'N/A'}</td>
-                                <td>Ksh ${parseFloat(invoice.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                                <td>${invoice.status || 'N/A'}</td>
-                            </tr>
-                        `);
+                data.invoices.forEach(function(invoice) {
+                    invoicesList.append('<tr>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">' + (invoice.invoice_no || 'N/A') + '</td>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">' + (invoice.date || 'N/A') + '</td>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">Ksh ' + parseFloat(invoice.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) + '</td>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">' + (invoice.status || 'N/A') + '</td>' +
+                        '</tr>');
                 });
             } else {
-                invoicesList.append('<tr><td colspan="4" class="text-center text-muted">No invoices available for this customer.</td></tr>');
+                invoicesList.append('<tr><td colspan="4" class="px-3 py-2 text-sm text-gray-500 text-center">No invoices available for this customer.</td></tr>');
             }
 
-            // Populate Communication Log Tab (MOCK DATA for now)
-            const communicationList = $('#customer-communication-list');
+            var communicationList = $('#customer-communication-list');
             communicationList.empty();
             if (data.communication_log && data.communication_log.length > 0) {
-                data.communication_log.forEach(log => {
-                    communicationList.append(`
-                             <div class="list-group-item d-flex align-items-start gap-3">
-                                <i class="bi ${log.type === 'call' ? 'bi-chat-dots-fill text-primary' : 'bi-envelope-fill text-success'} mt-1"></i>
-                                <div>
-                                    <small class="text-muted">${log.date} (${log.agent})</small>
-                                    <p class="mb-1">${log.message}</p>
-                                </div>
-                            </div>
-                        `);
+                data.communication_log.forEach(function(log) {
+                    var iconClass = log.type === 'call' ? 'bi-chat-dots-fill text-indigo-600' : 'bi-envelope-fill text-emerald-600';
+                    communicationList.append('<div class="px-4 py-3 flex items-start gap-3">' +
+                        '<i class="bi ' + iconClass + ' mt-1"></i>' +
+                        '<div>' +
+                        '<small class="text-gray-500">' + log.date + ' (' + log.agent + ')</small>' +
+                        '<p class="text-sm text-gray-700">' + log.message + '</p>' +
+                        '</div>' +
+                        '</div>');
                 });
             } else {
-                communicationList.append('<div class="text-center text-muted py-3">No communication entries.</div>');
+                communicationList.append('<div class="text-center text-gray-500 py-3 text-sm">No communication entries.</div>');
             }
 
-
         } catch (error) {
-            const modalBody = customerDetailsModalElement.querySelector('.modal-body');
-            modalBody.innerHTML = `<div class="alert alert-danger" role="alert">
-                                            <i class="bi bi-exclamation-circle me-2"></i> Failed to load customer details: ${error.message}
-                                        </div>`;
+            var modalBody = customerDetailsModalElement.querySelector('.modal-body');
+            modalBody.innerHTML = '<div class="flex items-center gap-3 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">' +
+                '<i class="bi bi-exclamation-circle me-2"></i> Failed to load customer details: ' + error.message +
+                '</div>';
             console.error('Error fetching customer details:', error);
         }
     });
 
-    // --- Edit Customer Logic ---
+    // Edit Customer
     $('#customerTable tbody').on('click', '.edit-customer', function () {
-        const customerId = $(this).data('id');
-        openModal(`${BASE_URL}admin/customers/edit/${customerId}`, 'Edit Customer Details');
+        var customerId = $(this).data('id');
+        openModal(BASE_URL + 'admin/customers/edit/' + customerId, 'Edit Customer Details');
     });
 
-    // --- Delete Customer Logic ---
-    let customerIdToDelete = null;
+    // Delete Customer
+    var customerIdToDelete = null;
 
     document.addEventListener('DOMContentLoaded', function() {
-        const confirmDeleteModalElement = document.getElementById('confirmDeleteModal');
-        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        var confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
 
-        let confirmDeleteModal;
-
-        if (confirmDeleteModalElement) {
-            confirmDeleteModal = new bootstrap.Modal(confirmDeleteModalElement);
-        } else {
-            console.warn('Confirm Delete Modal element not found. Ensure it exists in your HTML.');
-            return;
-        }
-
-        // When delete icon is clicked in table
         $('#customerTable tbody').on('click', '.delete-customer', function () {
             customerIdToDelete = $(this).data('id');
-            confirmDeleteModal.show();
+            openModalById('confirmDeleteModal');
         });
 
-        // When delete is confirmed
-        confirmDeleteBtn?.addEventListener('click', async function () {
-            confirmDeleteModal.hide();
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.addEventListener('click', async function () {
+                closeModalById('confirmDeleteModal');
 
-            if (customerIdToDelete) {
-                try {
-                    const response = await fetch(`${BASE_URL}admin/customers/bulk_action`, {
-                        method: 'POST',
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ customers: [customerIdToDelete] })
-                    });
+                if (customerIdToDelete) {
+                    try {
+                        var response = await fetch(BASE_URL + 'admin/customers/bulk_action', {
+                            method: 'POST',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ customers: [customerIdToDelete] })
+                        });
 
-                    const responseData = await response.json();
+                        var responseData = await response.json();
 
-                    if (response.ok && responseData.status === 'success') {
-                        Swal.fire('Deleted!', responseData.message, 'success');
-                        customerTable.ajax.reload();
-                    } else {
-                        Swal.fire('Error!', responseData.message || 'Failed to delete customer.', 'error');
+                        if (response.ok && responseData.status === 'success') {
+                            Swal.fire('Deleted!', responseData.message, 'success');
+                            customerTable.ajax.reload();
+                        } else {
+                            Swal.fire('Error!', responseData.message || 'Failed to delete customer.', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error during deletion:', error);
+                        Swal.fire('Error!', 'An unexpected error occurred during deletion.', 'error');
+                    } finally {
+                        customerIdToDelete = null;
                     }
-                } catch (error) {
-                    console.error('Error during deletion:', error);
-                    Swal.fire('Error!', 'An unexpected error occurred during deletion.', 'error');
-                } finally {
-                    customerIdToDelete = null;
                 }
-            }
-        });
+            });
+        }
     });
 
-    // --- Placeholder for Bulk Delete button if you add it ---
+    // Bulk delete (placeholder)
     if (deleteSelectedBtn) {
         deleteSelectedBtn.addEventListener('click', function () {
-            const checkedCustomerIds = [];
+            var checkedCustomerIds = [];
             customerTable.rows().nodes().to$().find('input[name="customers[]"]:checked').each(function () {
                 checkedCustomerIds.push($(this).val());
             });
@@ -342,17 +273,14 @@ $(document).ready(function () {
 
             Swal.fire({
                 title: 'Confirm Deletion',
-                text: `Are you sure you want to delete ${checkedCustomerIds.length} selected customer(s)? This action cannot be undone.`,
+                text: 'Are you sure you want to delete ' + checkedCustomerIds.length + ' selected customer(s)? This action cannot be undone.',
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonText: 'Yes, delete it!',
                 cancelButtonText: 'No, cancel',
                 reverseButtons: true
-            }).then((result) => {
+            }).then(function(result) {
                 if (result.isConfirmed) {
-                    // Submit form with selected IDs for bulk action
-                    // You'll need to create hidden inputs for these IDs or use AJAX to send
-                    // For simplicity, directly calling the AJAX here, assuming backend handles array
                     performBulkDelete(checkedCustomerIds);
                 }
             });
@@ -361,7 +289,7 @@ $(document).ready(function () {
 
     async function performBulkDelete(customerIds) {
         try {
-            const response = await fetch(`BASE_URL + 'admin/customers/bulk_action'`, {
+            var response = await fetch(BASE_URL + 'admin/customers/bulk_action', {
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
@@ -370,12 +298,12 @@ $(document).ready(function () {
                 body: JSON.stringify({ customers: customerIds })
             });
 
-            const responseData = await response.json();
+            var responseData = await response.json();
 
             if (response.ok && responseData.status === 'success') {
                 Swal.fire('Deleted!', responseData.message, 'success');
                 customerTable.ajax.reload();
-                if (selectAllCheckbox) selectAllCheckbox.checked = false; // Uncheck select all
+                if (selectAllCheckbox) selectAllCheckbox.checked = false;
             } else {
                 Swal.fire('Error!', responseData.message || 'Failed to perform bulk deletion.', 'error');
             }
@@ -384,5 +312,4 @@ $(document).ready(function () {
             Swal.fire('Error!', 'An unexpected error occurred during bulk deletion.', 'error');
         }
     }
-
 });
