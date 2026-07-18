@@ -1,5 +1,5 @@
 $(document).ready(function () {
-    var table = $('#vehicleTable').DataTable({
+    var table = FlowDesk.clientSideTable('#vehicleTable', {
         "ajax": BASE_URL + 'admin/vehicles/fetch',
         "columns": [{
             "data": "id"
@@ -60,14 +60,11 @@ $(document).ready(function () {
             method: 'POST',
             data: $(this).serialize(),
             success: function (response) {
-                alert('Vehicle added successfully!');
+                Swal.fire('Success!', 'Vehicle added successfully!', 'success');
                 closeModal('addVehicleModal');
                 table.ajax.reload();
             },
-            error: function (xhr) {
-                console.error(xhr.responseText);
-                alert('Failed to add vehicle.');
-            }
+            error: function (xhr) { FlowDesk.handleAjaxError(xhr, 'add'); }
         });
     });
 
@@ -93,7 +90,7 @@ $(document).ready(function () {
                 openModal('viewVehicleModal');
             },
             error: function () {
-                alert('Failed to fetch vehicle details.');
+                Swal.fire('Error!', 'Failed to fetch vehicle details.', 'error');
             }
         });
     };
@@ -137,27 +134,32 @@ $(document).ready(function () {
             success: function () {
                 closeModal('editVehicleModal');
                 table.ajax.reload();
-                alert('Vehicle updated successfully!');
+                Swal.fire('Success!', 'Vehicle updated successfully!', 'success');
             },
-            error: function () {
-                alert('Failed to update vehicle');
-            }
+            error: function (xhr) { FlowDesk.handleAjaxError(xhr, 'update'); }
         });
     });
 
     // Delete Vehicle
     window.deleteVehicle = function (id) {
-        if (confirm('Are you sure you want to delete this vehicle?')) {
+        Swal.fire({
+            title: 'Confirm Delete',
+            text: 'Are you sure you want to delete this vehicle?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'Cancel'
+        }).then(function(result) {
+            if (!result.isConfirmed) return;
             $.ajax({
                 url: BASE_URL + 'admin/vehicles/delete/' + id,
                 method: 'POST',
                 success: function () {
+                    Swal.fire('Deleted!', 'Vehicle deleted successfully.', 'success');
                     table.ajax.reload();
                 },
-                error: function () {
-                    alert('Failed to delete vehicle.');
-                }
+                error: function (xhr) { FlowDesk.handleAjaxError(xhr, 'delete'); }
             });
-        }
+        });
     };
 });

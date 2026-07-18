@@ -51,38 +51,42 @@
 </div>
 
 <script>
-function closeModal(name) {
-    document.getElementById(name).classList.add('hidden');
-    var backdrop = document.getElementById(name + '-backdrop');
-    if (backdrop) backdrop.classList.add('hidden');
-    document.body.classList.remove('overflow-hidden');
+if (typeof window.closeModal !== 'function') {
+    window.closeModal = function(name) {
+        document.getElementById(name).classList.add('hidden');
+        var backdrop = document.getElementById(name + '-backdrop');
+        if (backdrop) backdrop.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    };
 }
 
-function openModal(url, title) {
-    var label = document.getElementById('actionModalLabel');
-    if (label && title) label.textContent = title;
-    var content = document.getElementById('modalContent');
-    if (content) {
-        content.innerHTML = '<div class="flex justify-center items-center py-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>';
-    }
-    document.getElementById('actionModal').classList.remove('hidden');
-    document.getElementById('actionModal-backdrop').classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
+if (typeof window.openModal !== 'function') {
+    window.openModal = function(url, title) {
+        var label = document.getElementById('actionModalLabel');
+        if (label && title) label.textContent = title;
+        var content = document.getElementById('modalContent');
+        if (content) {
+            content.innerHTML = '<div class="flex justify-center items-center py-10"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div></div>';
+        }
+        document.getElementById('actionModal').classList.remove('hidden');
+        document.getElementById('actionModal-backdrop').classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
 
-    fetch(url, {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(function(response) {
-        if (!response.ok) throw new Error('Network response was not ok ' + response.statusText);
-        return response.text();
-    })
-    .then(function(data) {
-        if (content) content.innerHTML = data;
-    })
-    .catch(function(error) {
-        if (label) label.textContent = 'Error';
-        if (content) content.innerHTML = '<div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">Error loading content: ' + error.message + '. Please try again.</div>';
-        console.error('Error loading modal content:', error);
-    });
+        fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(response) {
+            if (!response.ok) throw new Error('Network response was not ok ' + response.statusText);
+            return response.text();
+        })
+        .then(function(data) {
+            if (content) content.innerHTML = data;
+        })
+        .catch(function(error) {
+            if (label) label.textContent = 'Error';
+            if (content) content.innerHTML = '<div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">Error loading content: ' + error.message + '. Please try again.</div>';
+            console.error('Error loading modal content:', error);
+        });
+    };
 }
 </script>

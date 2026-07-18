@@ -1,150 +1,154 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('content') ?>
-<div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="mb-0">Customer Reports</h3>
-        <div>
-            <a href="<?= base_url('admin/reports/export/customers/csv') ?>" class="btn btn-outline-success btn-sm">
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-900">Customer Reports</h3>
+        <div class="flex items-center gap-2">
+            <a href="<?= base_url('admin/reports/export/customers/csv') ?>" class="bg-white border border-emerald-500 text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-1.5">
                 <i class="bi bi-download"></i> Export CSV
             </a>
-            <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+            <button onclick="window.print()" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-1.5">
                 <i class="bi bi-printer"></i> Print
             </button>
         </div>
     </div>
 
-    <form method="GET" class="row g-3 mb-4 align-items-end">
-        <div class="col-auto">
-            <label class="form-label">Start Date</label>
-            <input type="date" name="start_date" class="form-control" value="<?= $start_date ?>">
+    <form method="GET" class="flex flex-wrap items-end gap-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+            <input type="date" name="start_date" class="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none" value="<?= $start_date ?>">
         </div>
-        <div class="col-auto">
-            <label class="form-label">End Date</label>
-            <input type="date" name="end_date" class="form-control" value="<?= $end_date ?>">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+            <input type="date" name="end_date" class="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none" value="<?= $end_date ?>">
         </div>
-        <div class="col-auto">
-            <button type="submit" class="btn btn-primary">Filter</button>
+        <div>
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">Filter</button>
         </div>
     </form>
 
-    <!-- Summary Cards -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white">
-                <div class="card-body">
-                    <h6>Total Customers</h6>
-                    <h3><?= $totalCustomers ?></h3>
-                </div>
-            </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-indigo-600 text-white rounded-xl shadow-sm p-5">
+            <p class="text-xs font-medium text-indigo-100 uppercase tracking-wider">Total Customers</p>
+            <p class="text-xl font-bold mt-1"><?= $totalCustomers ?></p>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-success text-white">
-                <div class="card-body">
-                    <h6>New This Period</h6>
-                    <h3><?= $newThisPeriod ?></h3>
-                </div>
-            </div>
+        <div class="bg-emerald-600 text-white rounded-xl shadow-sm p-5">
+            <p class="text-xs font-medium text-emerald-100 uppercase tracking-wider">New This Period</p>
+            <p class="text-xl font-bold mt-1"><?= $newThisPeriod ?></p>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-warning">
-                <div class="card-body">
-                    <h6>With Outstanding</h6>
-                    <h3><?= $outstandingCount ?></h3>
-                </div>
-            </div>
+        <div class="bg-amber-400 rounded-xl shadow-sm p-5">
+            <p class="text-xs font-medium text-amber-800 uppercase tracking-wider">With Outstanding</p>
+            <p class="text-xl font-bold text-amber-900 mt-1"><?= $outstandingCount ?></p>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-danger text-white">
-                <div class="card-body">
-                    <h6>Total Outstanding</h6>
-                    <h3><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($totalOutstandingAmount, 2) ?></h3>
-                </div>
-            </div>
+        <div class="bg-red-600 text-white rounded-xl shadow-sm p-5">
+            <p class="text-xs font-medium text-red-100 uppercase tracking-wider">Total Outstanding</p>
+            <p class="text-xl font-bold mt-1"><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($totalOutstandingAmount, 2) ?></p>
         </div>
     </div>
 
-    <!-- Top Customers by Revenue -->
-    <div class="card mb-4">
-        <div class="card-header"><strong>Top 10 Customers by Revenue</strong></div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-striped mb-0">
-                    <thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Invoice Count</th><th>Total Paid</th></tr></thead>
-                    <tbody>
-                        <?php $rank = 1; ?>
-                        <?php foreach ($topCustomers as $c): ?>
-                        <tr>
-                            <td><?= $rank++ ?></td>
-                            <td><?= esc($c['name']) ?></td>
-                            <td><?= esc($c['phone']) ?></td>
-                            <td><?= (int) $c['invoice_count'] ?></td>
-                            <td><?= number_format($c['total_paid'], 2) ?></td>
-                        </tr>
-                        <?php endforeach; ?>
-                        <?php if (empty($topCustomers)): ?>
-                        <tr><td colspan="5" class="text-muted">No revenue data for this period.</td></tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h4 class="text-sm font-semibold text-gray-900">Top 10 Customers by Revenue</h4>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice Count</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Paid</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <?php $rank = 1; ?>
+                    <?php foreach ($topCustomers as $c): ?>
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm text-gray-700"><?= $rank++ ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-900"><?= esc($c['name']) ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-700"><?= esc($c['phone']) ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-700"><?= (int) $c['invoice_count'] ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-900"><?= number_format($c['total_paid'], 2) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php if (empty($topCustomers)): ?>
+                    <tr><td colspan="5" class="px-4 py-8 text-center text-sm text-gray-400">No revenue data for this period.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- Customer Visit Frequency -->
-    <div class="card mb-4">
-        <div class="card-header"><strong>Customer Visit Frequency</strong></div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-striped mb-0">
-                    <thead><tr><th>Name</th><th>Phone</th><th>Visit Count</th><th>Last Visit</th></tr></thead>
-                    <tbody>
-                        <?php foreach ($visitFrequency as $c): ?>
-                        <tr>
-                            <td><?= esc($c['name']) ?></td>
-                            <td><?= esc($c['phone']) ?></td>
-                            <td><?= (int) $c['visit_count'] ?></td>
-                            <td><?= $c['last_visit'] ?? '-' ?></td>
-                        </tr>
-                        <?php endforeach; ?>
-                        <?php if (empty($visitFrequency)): ?>
-                        <tr><td colspan="4" class="text-muted">No visit data for this period.</td></tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h4 class="text-sm font-semibold text-gray-900">Customer Visit Frequency</h4>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visit Count</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Visit</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <?php foreach ($visitFrequency as $c): ?>
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm text-gray-900"><?= esc($c['name']) ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-700"><?= esc($c['phone']) ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-700"><?= (int) $c['visit_count'] ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-700"><?= $c['last_visit'] ?? '-' ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php if (empty($visitFrequency)): ?>
+                    <tr><td colspan="4" class="px-4 py-8 text-center text-sm text-gray-400">No visit data for this period.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- Customers with Outstanding Balances -->
-    <div class="card mb-4">
-        <div class="card-header"><strong>Customers with Outstanding Balances</strong></div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-striped mb-0">
-                    <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Invoice Count</th><th>Total Outstanding</th></tr></thead>
-                    <tbody>
-                        <?php foreach ($outstandingCustomers as $c): ?>
-                        <tr>
-                            <td><?= esc($c['name']) ?></td>
-                            <td><?= esc($c['phone']) ?></td>
-                            <td><?= esc($c['email'] ?? '-') ?></td>
-                            <td><?= (int) $c['invoice_count'] ?></td>
-                            <td class="text-danger fw-bold"><?= number_format($c['total_outstanding'], 2) ?></td>
-                        </tr>
-                        <?php endforeach; ?>
-                        <?php if (empty($outstandingCustomers)): ?>
-                        <tr><td colspan="5" class="text-muted">No customers with outstanding balances.</td></tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h4 class="text-sm font-semibold text-gray-900">Customers with Outstanding Balances</h4>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice Count</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Outstanding</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <?php foreach ($outstandingCustomers as $c): ?>
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm text-gray-900"><?= esc($c['name']) ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-700"><?= esc($c['phone']) ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-700"><?= esc($c['email'] ?? '-') ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-700"><?= (int) $c['invoice_count'] ?></td>
+                        <td class="px-4 py-3 text-sm text-red-600 font-bold"><?= number_format($c['total_outstanding'], 2) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php if (empty($outstandingCustomers)): ?>
+                    <tr><td colspan="5" class="px-4 py-8 text-center text-sm text-gray-400">No customers with outstanding balances.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- New Customers per Month -->
-    <div class="card mb-4">
-        <div class="card-header"><strong>New Customers per Month (Last 12 Months)</strong></div>
-        <div class="card-body">
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h4 class="text-sm font-semibold text-gray-900">New Customers per Month (Last 12 Months)</h4>
+        </div>
+        <div class="p-6">
             <canvas id="newCustomersChart" height="80"></canvas>
         </div>
     </div>
@@ -164,8 +168,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     datasets: [{
                         label: 'New Customers',
                         data: data,
-                        borderColor: '#17a2b8',
-                        backgroundColor: 'rgba(23,162,184,0.1)',
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6,182,212,0.1)',
                         fill: true,
                         tension: 0.3
                     }]
@@ -177,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         } else {
-            ctx.parentElement.innerHTML = '<p class="text-muted text-center">No customer data available.</p>';
+            ctx.parentElement.innerHTML = '<p class="text-sm text-gray-400 text-center">No customer data available.</p>';
         }
     }
 });

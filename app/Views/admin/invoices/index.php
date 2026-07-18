@@ -1,89 +1,89 @@
 <?= $this->extend('layouts/main') ?>
 
+<?php $pageTitle = 'Invoices'; ?>
+
 <?= $this->section('content') ?>
-<div class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="mb-0"><i class="bi bi-receipt me-2"></i> Invoices</h3>
-        <div>
-            <a href="<?= base_url('admin/invoices/mark_overdue') ?>" class="btn btn-outline-warning me-2" onclick="return confirm('Mark overdue invoices?')">
-                <i class="bi bi-clock-history"></i> Mark Overdue
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-gray-900"><i class="bi bi-receipt mr-2"></i> <?= $pageTitle ?></h1>
+        <div class="flex items-center gap-3">
+            <a href="<?= base_url('admin/invoices/mark_overdue') ?>" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors" onclick="return confirm('Mark overdue invoices?')">
+                <i class="bi bi-clock-history mr-1"></i> Mark Overdue
             </a>
         </div>
     </div>
 
     <?php if (session()->getFlashdata('success')): ?>
-        <div class="alert alert-success"><?= esc(session()->getFlashdata('success')) ?></div>
+        <div class="flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg mb-6"><?= esc(session()->getFlashdata('success')) ?></div>
     <?php endif; ?>
     <?php if (session()->getFlashdata('error')): ?>
-        <div class="alert alert-danger"><?= esc(session()->getFlashdata('error')) ?></div>
+        <div class="flex items-center gap-3 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6"><?= esc(session()->getFlashdata('error')) ?></div>
     <?php endif; ?>
 
-    <div class="card">
-        <div class="card-body">
-            <table id="invoicesTable" class="table table-striped table-bordered" style="width:100%">
-                <thead>
-                    <tr>
-                        <th>Invoice No</th>
-                        <th>Customer</th>
-                        <th>Job No</th>
-                        <th>Date</th>
-                        <th>Due Date</th>
-                        <th>Total</th>
-                        <th>Paid</th>
-                        <th>Balance</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (!empty($invoices)): ?>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div class="p-0">
+            <div class="overflow-x-auto rounded-xl">
+                <table id="invoicesTable" class="w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice No</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job No</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
                         <?php foreach ($invoices as $inv): ?>
-                            <tr>
-                                <td><?= esc($inv['invoice_no']) ?></td>
-                                <td><?= esc($inv['customer_name'] ?? 'N/A') ?></td>
-                                <td><?= esc($inv['job_no'] ?? 'N/A') ?></td>
-                                <td><?= esc($inv['invoice_date']) ?></td>
-                                <td><?= esc($inv['due_date']) ?></td>
-                                <td><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($inv['grand_total'], 2) ?></td>
-                                <td><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($inv['amount_paid'], 2) ?></td>
-                                <td><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($inv['balance_due'], 2) ?></td>
-                                <td>
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3 text-sm text-gray-900"><?= esc($inv['invoice_no']) ?></td>
+                                <td class="px-4 py-3 text-sm text-gray-900"><?= esc($inv['customer_name'] ?? 'N/A') ?></td>
+                                <td class="px-4 py-3 text-sm text-gray-900"><?= esc($inv['job_no'] ?? 'N/A') ?></td>
+                                <td class="px-4 py-3 text-sm text-gray-900"><?= esc($inv['invoice_date']) ?></td>
+                                <td class="px-4 py-3 text-sm text-gray-900"><?= esc($inv['due_date']) ?></td>
+                                <td class="px-4 py-3 text-sm text-gray-900"><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($inv['grand_total'], 2) ?></td>
+                                <td class="px-4 py-3 text-sm text-gray-900"><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($inv['amount_paid'], 2) ?></td>
+                                <td class="px-4 py-3 text-sm text-gray-900"><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($inv['balance_due'], 2) ?></td>
+                                <td class="px-4 py-3 text-sm">
                                     <?php
                                         $badgeMap = [
-                                            'Draft' => 'bg-secondary',
-                                            'Sent' => 'bg-primary',
-                                            'Partially Paid' => 'bg-warning text-dark',
-                                            'Paid' => 'bg-success',
-                                            'Overdue' => 'bg-danger',
-                                            'Cancelled' => 'bg-dark',
+                                            'Draft' => 'bg-gray-100 text-gray-700',
+                                            'Sent' => 'bg-blue-100 text-blue-700',
+                                            'Partially Paid' => 'bg-amber-100 text-amber-700',
+                                            'Paid' => 'bg-emerald-100 text-emerald-700',
+                                            'Overdue' => 'bg-red-100 text-red-700',
+                                            'Cancelled' => 'bg-red-100 text-red-700',
                                         ];
-                                        $badgeClass = $badgeMap[$inv['status']] ?? 'bg-secondary';
+                                        $badgeClass = $badgeMap[$inv['status']] ?? 'bg-gray-100 text-gray-700';
                                     ?>
-                                    <span class="badge <?= $badgeClass ?>"><?= esc($inv['status']) ?></span>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?= $badgeClass ?>"><?= esc($inv['status']) ?></span>
                                 </td>
-                                <td>
-                                    <a href="<?= base_url('admin/invoices/view/' . $inv['id']) ?>" class="btn btn-sm btn-outline-primary">
+                                <td class="px-4 py-3 text-sm">
+                                    <a href="<?= base_url('admin/invoices/view/' . $inv['id']) ?>" class="inline-flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">
                                         <i class="bi bi-eye"></i> View
                                     </a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan="10" class="text-center text-muted">No invoices found.</td>
-                        </tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
 $(document).ready(function() {
-    $('#invoicesTable').DataTable({
+    FlowDesk.clientSideTable('#invoicesTable', {
         order: [[3, 'desc']],
-        pageLength: 25,
+        language: {
+            emptyTable: 'No invoices found. Generate an invoice from a job card to get started.'
+        }
     });
 });
 </script>

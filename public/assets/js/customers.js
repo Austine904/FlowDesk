@@ -22,9 +22,7 @@ $(document).ready(function () {
     var deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
     var bulkActionForm = document.getElementById('bulkActionForm');
 
-    var customerTable = $('#customerTable').DataTable({
-        processing: true,
-        serverSide: true,
+    var customerTable = FlowDesk.serverSideTable('#customerTable', {
         ajax: {
             url: BASE_URL + 'admin/customers/load',
             type: "POST"
@@ -65,10 +63,8 @@ $(document).ready(function () {
                 }
             }
         ],
-        dom: '<"top flex justify-between flex-wrap"<"mb-2"l><"mb-2"f>>rt<"bottom flex justify-between flex-wrap"<"mb-2"i><"mb-2"p>><"clear">',
         language: {
-            search: "",
-            searchPlaceholder: "Search customers...",
+            searchPlaceholder: "Search customers..."
         }
     });
 

@@ -49,19 +49,11 @@
 
 <script>
 $(document).ready(function() {
-    var table = $('#inventoryTable').DataTable({
-        processing: true,
-        serverSide: true,
+    var table = FlowDesk.serverSideTable('#inventoryTable', {
         ajax: {
-            url: '<?= base_url('admin/inventory/load') ?>',
-            type: 'POST',
-            data: function(d) {
-                var csrf = getCsrfMeta();
-                d[csrf.name] = csrf.hash;
-            }
+            url: '<?= base_url('admin/inventory/load') ?>'
         },
         order: [[0, 'asc']],
-        pageLength: 25,
         columns: [
             { data: 'name' },
             { data: 'part_number', defaultContent: '—' },
@@ -94,10 +86,10 @@ $(document).ready(function() {
                 data: 'id',
                 orderable: false,
                 render: function(data) {
-                    return `
-                        <button onclick="editInventory(${data})" class="bg-white border border-gray-300 border-solid text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors inline-flex items-center gap-1"><i class="bi bi-pencil"></i> Edit</button>
-                        <button class="bg-white border border-gray-300 border-solid text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors inline-flex items-center gap-1 btn-delete" data-id="${data}"><i class="bi bi-trash"></i> Delete</button>
-                    `;
+                    return '\
+                        <button onclick="editInventory(' + data + ')" class="bg-white border border-gray-300 border-solid text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors inline-flex items-center gap-1"><i class="bi bi-pencil"></i> Edit</button>\
+                        <button class="bg-white border border-gray-300 border-solid text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors inline-flex items-center gap-1 btn-delete" data-id="' + data + '"><i class="bi bi-trash"></i> Delete</button>\
+                    ';
                 }
             }
         ],
@@ -122,27 +114,30 @@ $(document).ready(function() {
     $(document).on('click', '.btn-delete', function() {
         var id = $(this).data('id');
         var csrf = getCsrfMeta();
-        if (!confirm('Are you sure you want to delete this part?')) return;
-        $.ajax({
-            url: '<?= base_url('admin/inventory/delete/') ?>' + id,
-            type: 'POST',
-            data: { [csrf.name]: csrf.hash },
-            dataType: 'json',
-            success: function(res) {
-                if (res.status === 'success') {
-                    $('#inventoryTable').DataTable().ajax.reload();
-                } else {
-                    alert(res.message || 'Delete failed.');
-                }
-            },
-            error: function(xhr) {
-                var msg = 'Delete failed.';
-                try {
-                    var r = JSON.parse(xhr.responseText);
-                    msg = r.message || r.messages?.error || msg;
-                } catch(e) {}
-                alert(msg);
-            }
+        Swal.fire({
+            title: 'Confirm Delete',
+            text: 'Are you sure you want to delete this part?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'Cancel'
+        }).then(function(result) {
+            if (!result.isConfirmed) return;
+            $.ajax({
+                url: '<?= base_url('admin/inventory/delete/') ?>' + id,
+                type: 'POST',
+                data: { [csrf.name]: csrf.hash },
+                dataType: 'json',
+                success: function(res) {
+                    if (res.status === 'success') {
+                        Swal.fire('Deleted!', res.message || 'Part deleted successfully.', 'success');
+                        table.ajax.reload();
+                    } else {
+                        Swal.fire('Error!', res.message || 'Delete failed.', 'error');
+                    }
+                },
+                error: function(xhr) { FlowDesk.handleAjaxError(xhr, 'delete'); }
+            });
         });
     });
 });

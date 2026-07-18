@@ -7,9 +7,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const endDateInput = document.getElementById('endDate');
     const resetFiltersBtn = document.getElementById('resetFiltersBtn');
     const eventCountDisplay = document.getElementById('eventCount');
-    const actionModalElement = document.getElementById('actionModal');
-    const actionModal = new bootstrap.Modal(actionModalElement);
-    const addEventModalElement = document.getElementById('addEventModal');
     const addEventForm = document.getElementById('addEventForm');
 
     let calendar;
@@ -103,17 +100,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 dayMaxEvents: true,
 
                 events: function (fetchInfo, successCallback, failureCallback) {
-                    fetch(`${BASE_URL}admin/calendar/getEvents`)
+                    fetch(`${BASE_URL}admin/calendar/getEvents?start=${fetchInfo.startStr}&end=${fetchInfo.endStr}`)
                         .then(res => res.json())
                         .then(data => {
-                            allEvents = data;
+                            allEvents = Array.isArray(data) ? data : [];
                             const filtered = allEvents.filter(filterEvents);
                             successCallback(filtered);
                             updateEventCount(filtered.length);
                         })
                         .catch(error => {
                             console.error('Fetch error:', error);
-                            Swal.fire('Error', 'There was an error while fetching events!', 'error');
                             failureCallback(error);
                         });
                 },
@@ -127,16 +123,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 eventClick: function (info) {
                     info.jsEvent.preventDefault();
                     populateEventModal(info.event);
-                    actionModal.show();
+                    openModal('actionModal');
                 },
 
                 select: function (info) {
-                    const url = `${BASE_URL}admin/calendar/addEventForm?start=${info.startStr}&end=${info.endStr}`;
-                    if (typeof openModal === 'function') {
-                        openModal(url, 'Add New Event');
-                    } else {
-                        console.warn('openModal function is not defined.');
-                    }
+                    openModal('addEventModal');
+                    var startInput = document.getElementById('eventStartTimeInput');
+                    var endInput = document.getElementById('eventEndTimeInput');
+                    if (startInput) startInput.value = info.startStr.slice(0, 16);
+                    if (endInput && info.endStr) endInput.value = info.endStr.slice(0, 16);
                 }
             });
 
@@ -167,22 +162,10 @@ document.addEventListener('DOMContentLoaded', function () {
         refilterEvents();
     });
 
-    if (addEventModalElement && addEventForm && addEventBtn) {
-        const addEventModal = new bootstrap.Modal(addEventModalElement);
-
+    if (addEventForm && addEventBtn) {
         addEventBtn.addEventListener('click', function () {
             addEventForm.reset();
-
-            const eventAllDayCheckbox = document.getElementById('eventAllDay');
-            const eventEndInput = document.getElementById('eventEnd');
-
-            if (eventAllDayCheckbox) eventAllDayCheckbox.checked = false;
-            if (eventEndInput) {
-                eventEndInput.readOnly = false;
-                eventEndInput.style.backgroundColor = '';
-            }
-
-            addEventModal.show();
+            openModal('addEventModal');
         });
     }
 

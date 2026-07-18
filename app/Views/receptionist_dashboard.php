@@ -17,7 +17,7 @@
                     <i class="bi bi-plus-circle" style="font-size: 3rem;"></i>
                     <h4 class="mt-3">New Job Intake</h4>
                     <p class="mb-4">Create a new job card for a customer</p>
-                    <a href="<?= base_url('job_intake') ?>" class="btn btn-light btn-lg">
+                    <a href="<?= base_url('admin/jobs') ?>" class="btn btn-light btn-lg">
                         <i class="bi bi-arrow-right"></i> Go to Job Intake
                     </a>
                 </div>
