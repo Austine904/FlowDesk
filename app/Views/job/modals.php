@@ -327,6 +327,210 @@
     </div>
 </div>
 
+<!-- Job Details Modal -->
+<div id="jobDetailsModal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden" onclick="closeModal('jobDetailsModal')"></div>
+<div id="jobDetailsModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-6xl">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <h5 class="text-lg font-semibold text-gray-900" id="jobDetailsModalLabel">
+                <i class="bi bi-wrench mr-2"></i> Job Details
+            </h5>
+            <button type="button" onclick="closeModal('jobDetailsModal')" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h4 class="text-xl font-bold text-gray-900" id="jd-job-no"></h4>
+                    <span id="jd-job-status-badge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1"></span>
+                </div>
+                <div class="text-right text-sm text-gray-500 shrink-0">
+                    <div>Date In: <span class="font-medium text-gray-700" id="jd-date-in"></span></div>
+                    <div>Time In: <span class="font-medium text-gray-700" id="jd-time-in"></span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex flex-nowrap whitespace-nowrap border-b border-gray-200 overflow-x-hidden px-6">
+                <button class="job-tab-btn px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px text-indigo-600 border-indigo-600" onclick="switchJobTab('jd-overview', this)" type="button">Overview</button>
+                <button class="job-tab-btn px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300" onclick="switchJobTab('jd-parts-labor', this)" type="button">Parts &amp; Labor</button>
+                <button class="job-tab-btn px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300" onclick="switchJobTab('jd-photos', this)" type="button">Photos</button>
+                <button class="job-tab-btn px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300" onclick="switchJobTab('jd-lpos-invoice', this)" type="button">LPOs &amp; Invoice</button>
+                <button class="job-tab-btn px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300" onclick="switchJobTab('jd-status-history', this)" type="button">Status History</button>
+            </div>
+
+        <div class="p-6 h-[28rem] overflow-y-scroll">
+            <!-- Tab: Overview -->
+            <div id="jd-overview" class="job-tab-panel block">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Customer Info -->
+                    <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                        <h6 class="text-sm font-semibold text-gray-700 mb-3"><i class="bi bi-person mr-1"></i> Customer</h6>
+                        <div class="space-y-2 text-sm">
+                            <div><span class="text-gray-500">Name:</span> <span class="font-medium text-gray-900" id="jd-customer-name"></span></div>
+                            <div><span class="text-gray-500">Phone:</span> <span class="font-medium text-gray-900" id="jd-customer-phone"></span></div>
+                            <div><span class="text-gray-500">Email:</span> <span class="font-medium text-gray-900" id="jd-customer-email"></span></div>
+                            <div><span class="text-gray-500">Address:</span> <span class="font-medium text-gray-900" id="jd-customer-address"></span></div>
+                        </div>
+                    </div>
+                    <!-- Vehicle Info -->
+                    <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                        <h6 class="text-sm font-semibold text-gray-700 mb-3"><i class="bi bi-truck mr-1"></i> Vehicle</h6>
+                        <div class="space-y-2 text-sm">
+                            <div><span class="text-gray-500">Registration:</span> <span class="font-medium text-gray-900" id="jd-vehicle-reg"></span></div>
+                            <div><span class="text-gray-500">Make/Model:</span> <span class="font-medium text-gray-900" id="jd-vehicle-make-model"></span></div>
+                            <div><span class="text-gray-500">VIN:</span> <span class="font-medium text-gray-900" id="jd-vehicle-vin"></span></div>
+                            <div><span class="text-gray-500">Year:</span> <span class="font-medium text-gray-900" id="jd-vehicle-year"></span></div>
+                            <div><span class="text-gray-500">Color:</span> <span class="font-medium text-gray-900" id="jd-vehicle-color"></span></div>
+                            <div><span class="text-gray-500">Transmission:</span> <span class="font-medium text-gray-900" id="jd-vehicle-transmission"></span></div>
+                            <div><span class="text-gray-500">Fuel Type:</span> <span class="font-medium text-gray-900" id="jd-vehicle-fuel"></span></div>
+                            <div><span class="text-gray-500">Engine No:</span> <span class="font-medium text-gray-900" id="jd-vehicle-engine"></span></div>
+                            <div><span class="text-gray-500">Chassis No:</span> <span class="font-medium text-gray-900" id="jd-vehicle-chassis"></span></div>
+                            <div><span class="text-gray-500">Mileage In:</span> <span class="font-medium text-gray-900" id="jd-vehicle-mileage"></span></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Diagnosis & Job Info -->
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                        <h6 class="text-sm font-semibold text-gray-700 mb-3"><i class="bi bi-clipboard-pulse mr-1"></i> Diagnosis</h6>
+                        <p class="text-sm text-gray-700" id="jd-diagnosis"></p>
+                        <div class="mt-3">
+                            <span class="text-xs font-medium text-gray-500">Diagnosis Category:</span>
+                            <span class="text-sm font-medium text-gray-900" id="jd-diagnosis-category"></span>
+                        </div>
+                        <div class="mt-2">
+                            <span class="text-xs font-medium text-gray-500">Initial Damage Notes:</span>
+                            <p class="text-sm text-gray-700" id="jd-damage-notes"></p>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                        <h6 class="text-sm font-semibold text-gray-700 mb-3"><i class="bi bi-person-badge mr-1"></i> Assignment</h6>
+                        <div class="space-y-2 text-sm">
+                            <div><span class="text-gray-500">Service Advisor:</span> <span class="font-medium text-gray-900" id="jd-advisor"></span></div>
+                            <div><span class="text-gray-500">Assigned Mechanic:</span> <span class="font-medium text-gray-900" id="jd-mechanic"></span></div>
+                            <div><span class="text-gray-500">Estimated Labor Hours:</span> <span class="font-medium text-gray-900" id="jd-est-hours"></span></div>
+                            <div><span class="text-gray-500">Quote Amount:</span> <span class="font-medium text-gray-900" id="jd-quote-amount"></span></div>
+                            <div><span class="text-gray-500">Quote Status:</span> <span class="font-medium text-gray-900" id="jd-quote-status"></span></div>
+                            <div><span class="text-gray-500">Job Summary:</span> <span class="font-medium text-gray-900" id="jd-summary"></span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Parts & Labor -->
+            <div id="jd-parts-labor" class="job-tab-panel hidden">
+                <div class="mb-6">
+                    <h6 class="text-sm font-semibold text-gray-700 mb-3"><i class="bi bi-box-seam mr-1"></i> Parts Required</h6>
+                    <div class="overflow-x-auto rounded-lg border border-gray-200">
+                        <table class="w-full border-collapse">
+                            <thead>
+                                <tr>
+                                    <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-left">Part Name</th>
+                                    <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-left">Part No.</th>
+                                    <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-right">Qty</th>
+                                    <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-right">Unit Price</th>
+                                    <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="jd-parts-list">
+                                <tr><td colspan="5" class="px-3 py-2 text-sm text-gray-500 text-center">No parts recorded.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div>
+                    <h6 class="text-sm font-semibold text-gray-700 mb-3"><i class="bi bi-tools mr-1"></i> Labor Tasks</h6>
+                    <div class="overflow-x-auto rounded-lg border border-gray-200">
+                        <table class="w-full border-collapse">
+                            <thead>
+                                <tr>
+                                    <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-left">Task Name</th>
+                                    <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-right">Est. Hours</th>
+                                    <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-right">Rate/hr</th>
+                                    <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-right">Labor Cost</th>
+                                    <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-left">Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="jd-labor-list">
+                                <tr><td colspan="5" class="px-3 py-2 text-sm text-gray-500 text-center">No labor tasks recorded.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Photos -->
+            <div id="jd-photos" class="job-tab-panel hidden">
+                <h6 class="text-sm font-semibold text-gray-700 mb-3"><i class="bi bi-images mr-1"></i> Job Card Photos</h6>
+                <div id="jd-photos-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <p class="text-sm text-gray-500 col-span-full text-center py-8">No photos uploaded.</p>
+                </div>
+            </div>
+
+            <!-- Tab: LPOs & Invoice -->
+            <div id="jd-lpos-invoice" class="job-tab-panel hidden">
+                <div class="mb-6">
+                    <h6 class="text-sm font-semibold text-gray-700 mb-3"><i class="bi bi-receipt mr-1"></i> LPOs</h6>
+                    <div class="overflow-x-auto rounded-lg border border-gray-200">
+                        <table class="w-full border-collapse">
+                            <thead>
+                                <tr>
+                                    <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-left">LPO No.</th>
+                                    <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-left">Supplier</th>
+                                    <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-left">Date</th>
+                                    <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-right">Amount</th>
+                                    <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-left">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="jd-lpos-list">
+                                <tr><td colspan="5" class="px-3 py-2 text-sm text-gray-500 text-center">No LPOs for this job.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div>
+                    <h6 class="text-sm font-semibold text-gray-700 mb-3"><i class="bi bi-file-earmark-text mr-1"></i> Invoice</h6>
+                    <div id="jd-invoice-section" class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <p class="text-sm text-gray-500">No invoice generated for this job.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Status History -->
+            <div id="jd-status-history" class="job-tab-panel hidden">
+                <h6 class="text-sm font-semibold text-gray-700 mb-3"><i class="bi bi-clock-history mr-1"></i> Status Transitions</h6>
+                <div class="overflow-x-auto rounded-lg border border-gray-200">
+                    <table class="w-full border-collapse">
+                        <thead>
+                            <tr>
+                                <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-left">From</th>
+                                <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-left">To</th>
+                                <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-left">Changed By</th>
+                                <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-left">Notes</th>
+                                <th class="bg-gray-50 text-gray-500 text-xs font-medium uppercase tracking-wider px-3 py-2 text-left">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jd-history-list">
+                            <tr><td colspan="5" class="px-3 py-2 text-sm text-gray-500 text-center">Loading history...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200">
+            <div id="jd-status-actions" class="flex-1 flex items-center gap-2 flex-wrap"></div>
+            <button type="button" onclick="closeModal('jobDetailsModal')" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2">
+                <i class="bi bi-x-circle"></i> Close
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 $(document).ready(function () {
 

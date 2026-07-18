@@ -90,19 +90,7 @@ class JobsController extends BaseController
 
     public function view($id)
     {
-        $jobCardModel = new JobCardModel();
-        $job = $jobCardModel->find($id);
-
-        if (!$job) {
-            return redirect()->to('/admin/jobs')->with('error', 'Job not found.');
-        }
-
-        $userModel = new UserModel();
-        $data['job'] = $job;
-        $data['service_advisors'] = $userModel->whereIn('role', ['admin', 'receptionist'])->findAll();
-        $data['mechanics'] = $userModel->getByRole('mechanic');
-
-        return view('jobs/view', $data);
+        return redirect()->to('/admin/jobs');
     }
 
     public function update($id)
@@ -209,6 +197,7 @@ class JobsController extends BaseController
             'valid_transitions' => $validTransitions,
             'current_role' => $role,
             'diagnosis' => $job['diagnosis'],
+            'diagnosis_category' => $job['diagnosis_category'] ?? null,
             'initial_damage_notes' => $job['initial_damage_notes'],
             'mileage_in' => $job['mileage_in'],
             'fuel_level' => $job['fuel_level'],
