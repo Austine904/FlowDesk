@@ -11,34 +11,13 @@ use CodeIgniter\Database\Query;
 class UsersController extends BaseController
 {
     protected $session; // Define the $session property
-    // Display all users
     public function index()
     {
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
             return redirect()->to('/login');
         }
 
-        $userModel = new \App\Models\UserModel();
-        $role = $this->request->getVar('role');
-
-        $search = $this->request->getVar('search');
-
-        if (!empty($search)) {
-            $userModel->like('name', $search)
-                ->orLike('phone', $search)
-                ->orLike('role', $search)
-                ->orLike('company_id', $search);
-        }
-
-        $data['users'] = $userModel->paginate(10);
-        $data['pager'] = $userModel->pager;
-        $total = $data['pager']->getTotal();
-
-        if ($this->request->isAJAX()) {
-            return view('admin/users/user_list', $data + ['total' => $total]);
-        }
-
-        return view('admin/users', $data + ['total' => $total]);
+        return view('admin/users');
     }
 
     // Show the add user form
@@ -56,58 +35,68 @@ class UsersController extends BaseController
         $this->session = Services::session();
     }
 
-    // Handle editing a user (Form)
     public function edit($id)
     {
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
             return redirect()->to('/login');
         }
 
-        $db = \Config\Database::connect();
-        $builder = $db->table('users');
-        $user = $builder->where('id', $id)->get()->getRowArray();
+        $userModel = new \App\Models\UserModel();
+        $user = $userModel->find($id);
+        if (!$user) {
+            return $this->response->setStatusCode(404)->setJSON(['error' => 'User not found']);
+        }
 
         return view('admin/edit_user', ['user' => $user]);
     }
 
-    // Handle updating a user
     public function update($id)
     {
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
             return redirect()->to('/login');
         }
 
-        $name = $this->request->getPost('name');
-        $phone = $this->request->getPost('phone');
-        $role = $this->request->getPost('role');
+        $userModel = new \App\Models\UserModel();
 
         $data = [
-            'phone' => $phone,
-            'role' => $role
+            'first_name'   => $this->request->getPost('first_name'),
+            'last_name'    => $this->request->getPost('last_name'),
+            'email'        => $this->request->getPost('email'),
+            'phone_number' => $this->request->getPost('phone_number'),
+            'role'         => $this->request->getPost('role'),
+            'gender'       => $this->request->getPost('gender'),
+            'dob'          => $this->request->getPost('dob'),
+            'national_id'  => $this->request->getPost('national_id'),
+            'date_of_employment' => $this->request->getPost('date_of_employment'),
+            'address'      => $this->request->getPost('address'),
         ];
 
+        // Remove empty values
+        $data = array_filter($data, function ($v) { return $v !== null && $v !== ''; });
+
         if ($this->request->getPost('password')) {
-            $password = password_hash($this->request->getPost('password'), PASSWORD_DEFAULT);
-            $data['password'] = $password;
+            $data['password'] = password_hash($this->request->getPost('password'), PASSWORD_DEFAULT);
         }
 
-        $userModel = new \App\Models\UserModel();
         $userModel->update($id, $data);
+
+        if ($this->request->isAJAX()) {
+            return $this->response->setJSON(['status' => 'success', 'message' => 'User updated successfully.']);
+        }
 
         return redirect()->to('/admin/users')->with('success', 'User updated successfully.');
     }
 
-    // Handle deleting a user
     public function delete($id)
     {
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
-            return redirect()->to('/login');
+            return $this->failUnauthorized('Unauthorized.');
         }
 
         $userModel = new \App\Models\UserModel();
         $userModel->delete($id);
 
-        return redirect()->to('/admin/users')->with('success', 'User deleted successfully.');
+        return $this->response->setJSON(['status' => 'success', 'message' => 'User deleted successfully.']);
     }
 
     // Handle bulk actions (delete)
@@ -130,6 +119,24 @@ class UsersController extends BaseController
     //     }
     // }
 
+
+    public function bulk_action()
+    {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
+            return $this->failUnauthorized('Unauthorized.');
+        }
+
+        $action = $this->request->getPost('action');
+        $userIds = $this->request->getPost('users');
+
+        if ($action === 'delete' && is_array($userIds) && !empty($userIds)) {
+            $userModel = new \App\Models\UserModel();
+            $userModel->whereIn('id', $userIds)->delete();
+            return $this->response->setJSON(['status' => 'success', 'message' => count($userIds) . ' user(s) deleted.']);
+        }
+
+        return $this->response->setJSON(['status' => 'error', 'message' => 'Invalid action or no users selected.']);
+    }
 
     public function deleteMultiple()
     {
@@ -167,10 +174,10 @@ class UsersController extends BaseController
 
         // Append kin details to user result
         $result['next_of_kin'] = $kinResult ?? [
-            'first_name' => '',
-            'last_name' => '',
+            'kin_first_name' => '',
+            'kin_last_name' => '',
             'relationship' => '',
-            'phone_number' => ''
+            'kin_phone_number' => ''
         ];
 
         return $this->response->setJSON($result);
@@ -404,25 +411,86 @@ class UsersController extends BaseController
 
     public function fetchUsers()
     {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
+            return $this->failUnauthorized('Unauthorized.');
+        }
+
         $db = \Config\Database::connect();
         $builder = $db->table('users');
 
-        $builder->where('deleted_at', null);
+        // DataTable request params
+        $draw    = (int) $this->request->getVar('draw');
+        $start   = (int) $this->request->getVar('start');
+        $length  = (int) $this->request->getVar('length');
+        $search  = $this->request->getVar('search')['value'] ?? '';
+        $order   = $this->request->getVar('order');
+        $columns = $this->request->getVar('columns');
+        $roleFilter = $this->request->getVar('role_filter');
 
-        $query = $builder->get();
-        $result = $query->getResultArray();
+        // Base: exclude soft-deleted
+        $builder->where('users.deleted_at', null);
 
+        // Total unfiltered count (deleted_at filter only)
+        $totalRecords = $builder->countAllResults(false);
+
+        // Role filter
+        if (!empty($roleFilter)) {
+            $builder->where('users.role', $roleFilter);
+        }
+
+        // Search filter
+        if (!empty($search)) {
+            $builder->groupStart()
+                ->like('users.first_name', $search)
+                ->orLike('users.last_name', $search)
+                ->orLike('users.phone_number', $search)
+                ->orLike('users.company_id', $search)
+                ->orLike('users.role', $search)
+                ->groupEnd();
+        }
+
+        // Filtered count (includes role filter + search)
+        $filteredRecords = $builder->countAllResults(false);
+
+        // Sorting
+        $sortCol = 'users.id';
+        $sortDir = 'DESC';
+        if ($order && isset($columns[$order[0]['column']])) {
+            $colName = $columns[$order[0]['column']]['data'] ?? '';
+            $colMap = [
+                'id'    => 'users.id',
+                'name'  => 'users.first_name',
+                'phone' => 'users.phone_number',
+                'role'  => 'users.role',
+            ];
+            if (isset($colMap[$colName])) {
+                $sortCol = $colMap[$colName];
+                $sortDir = strtoupper($order[0]['dir']) === 'ASC' ? 'ASC' : 'DESC';
+            }
+        }
+        $builder->orderBy($sortCol, $sortDir);
+
+        // Pagination
+        $data = $builder->limit($length, $start)->get()->getResultArray();
+
+        // Format response
         $users = [];
-        foreach ($result as $user) {
+        foreach ($data as $user) {
             $users[] = [
-                'id' => $user['id'],
-                'name' => $user['first_name'] . ' ' . $user['last_name'],
-                'phone' => $user['phone_number'],
-                'role' => $user['role'],
-                'company_id' => $user['company_id'],
+                'id'              => (int) $user['id'],
+                'name'            => ($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''),
+                'phone'           => $user['phone_number'] ?? '',
+                'role'            => $user['role'] ?? '',
+                'company_id'      => $user['company_id'] ?? '',
+                'profile_picture' => $user['profile_picture'] ?? '',
             ];
         }
 
-        return $this->response->setJSON(['data' => $users]);
+        return $this->response->setJSON([
+            'draw'            => $draw,
+            'recordsTotal'    => $totalRecords,
+            'recordsFiltered' => $filteredRecords,
+            'data'            => $users,
+        ]);
     }
 }
