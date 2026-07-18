@@ -203,12 +203,12 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->post('pettycash/delete/(:num)', 'PettyCashController::delete/$1');
     $routes->get('pettycash/ledger', 'PettyCashController::ledger');
     $routes->post('pettycash/filter', 'PettyCashController::filter');
-
-    // Profile
-    $routes->get('profile', 'ProfileController::index');
-    $routes->post('profile/update', 'ProfileController::update');
     
 });
+
+// Profile (accessible by admin, receptionist, mechanic)
+$routes->get('admin/profile', 'ProfileController::index', ['filter' => 'auth:admin,receptionist,mechanic']);
+$routes->post('admin/profile/update', 'ProfileController::update', ['filter' => 'auth:admin,receptionist,mechanic']);
 
 // Receptionist-only
 $routes->group('receptionist', ['filter' => 'auth:receptionist'], function ($routes) {

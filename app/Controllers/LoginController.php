@@ -50,6 +50,17 @@ class LoginController extends BaseController
                 } elseif ($user['role'] === 'mechanic') {
                     return redirect()->to('/mechanic/dashboard');
                 } elseif ($user['role'] === 'customer') {
+                    $customerModel = new CustomerModel();
+                    $customer = null;
+                    if (!empty($user['email'])) {
+                        $customer = $customerModel->where('email', $user['email'])->first();
+                    }
+                    if (!$customer && !empty($user['phone_number'])) {
+                        $customer = $customerModel->where('phone', $user['phone_number'])->first();
+                    }
+                    if ($customer) {
+                        $session->set('customer_id', $customer['id']);
+                    }
                     return redirect()->to('/customer/dashboard');
                 } else {
                     return redirect()->back()->with('error', 'Unauthorized role.');
