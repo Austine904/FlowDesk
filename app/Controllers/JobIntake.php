@@ -161,14 +161,17 @@ class JobIntake extends BaseController
         } else {
             $rules['vehicle_id'] = 'required|integer';
         }
+        
 
         $this->validation->setRules($rules);
 
         if (!$this->validation->withRequest($this->request)->run()) {
             return $this->fail(['message' => 'Validation failed', 'errors' => $this->validation->getErrors()], 400);
         }
+        
 
         $this->db->transStart();
+        
 
         try {
             $customerModel = new CustomerModel();

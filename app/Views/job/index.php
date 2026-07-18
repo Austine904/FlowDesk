@@ -26,7 +26,7 @@
                             <th class="text-gray-500 text-xs font-medium uppercase tracking-wider px-4 py-3 text-left">Vehicle Reg</th>
                             <th class="text-gray-500 text-xs font-medium uppercase tracking-wider px-4 py-3 text-left">Description</th>
                             <th class="text-gray-500 text-xs font-medium uppercase tracking-wider px-4 py-3 text-left">Status</th>
-                            <th class="text-gray-500 text-xs font-medium uppercase tracking-wider px-4 py-3 text-left">Actions</th>
+                            <th class="text-gray-500 text-xs font-medium uppercase tracking-wider px-4 py-3 text-left">Action</th>
                         </tr>
                     </thead>
                 </table>
@@ -62,6 +62,36 @@
 
 <?= $this->section('scripts') ?>
 <script>
+    function viewJob(id) {
+        window.location.href = "<?= base_url('admin/jobs/view/') ?>" + id;
+    }
+
+    function deleteJob(id) {
+        if (!confirm('Are you sure you want to delete this job card? This action cannot be undone.')) {
+            return;
+        }
+
+        $.ajax({
+            url: "<?= base_url('admin/jobs/delete/') ?>" + id,
+            method: 'POST',
+            data: {
+                <?= csrf_token() ?>: '<?= csrf_hash() ?>'
+            },
+            dataType: 'json',
+            success: function(res) {
+                if (res.status === 'success') {
+                    $('#JobTable').DataTable().ajax.reload(null, false);
+                    alert(res.message);
+                } else {
+                    alert(res.message || 'Failed to delete job.');
+                }
+            },
+            error: function(xhr) {
+                const res = xhr.responseJSON;
+                alert((res && res.message) || 'Failed to delete job.');
+            }
+        });
+    }
     function openModal(id) {
         document.getElementById(id).classList.remove('hidden');
         const backdrop = document.getElementById(id + '-backdrop');
@@ -96,10 +126,8 @@
                     "render": function(data, type, row) {
                         return `
                             <div style="display: flex; justify-content: space-around;">
-                                <button class="icon-btn text-info" title="Edit" onclick="editJob(${data.id})">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="icon-btn text-primary view-job" title="View Details" data-id="${row.id}">
+                                
+                                <button class="icon-btn text-primary" title="View Details" onclick="viewJob(${data.id})">
                                     <i class="fas fa-eye"></i>
                                 </button>
                                 <button class="icon-btn text-danger" title="Delete" onclick="deleteJob(${data.id})">

@@ -41,6 +41,10 @@ class JobsController extends BaseController
             return view('admin/jobs/jobs_list', ['jobs' => $jobs, 'pager' => $pager]);
         }
 
+        // echo'<pre>';
+        // print_r("Here is your problem");
+        // exit;
+
         return view('job/index', ['jobs' => $jobs, 'pager' => $pager, 'service_advisors' => $service_advisors, 'mechanics' => $mechanics]);
     }
 
@@ -84,7 +88,7 @@ class JobsController extends BaseController
         return view('jobs/add', ['service_advisors' => $service_advisors]);
     }
 
-    public function edit($id)
+    public function view($id)
     {
         $jobCardModel = new JobCardModel();
         $job = $jobCardModel->find($id);
@@ -93,13 +97,31 @@ class JobsController extends BaseController
             return redirect()->to('/admin/jobs')->with('error', 'Job not found.');
         }
 
-        return view('jobs/edit', ['job' => $job]);
+        $userModel = new UserModel();
+        $data['job'] = $job;
+        $data['service_advisors'] = $userModel->whereIn('role', ['admin', 'receptionist'])->findAll();
+        $data['mechanics'] = $userModel->getByRole('mechanic');
+
+        return view('jobs/view', $data);
     }
 
     public function update($id)
     {
+        $jobCardModel = new JobCardModel();
+
+        $job = $jobCardModel->find($id);
+        if (!$job) {
+            return redirect()->to('/admin/jobs')->with('error', 'Job not found.');
+        }
+
         $rules = [
-            'job_name' => 'required|min_length[3]',
+            'reported_problem'             => 'required|min_length[10]',
+            'initial_damage_notes'         => 'permit_empty|max_length[500]',
+            'mileage_in'                   => 'required|integer|greater_than_equal_to[0]',
+            'fuel_level'                   => 'required|in_list[Empty,1/4,1/2,3/4,Full]',
+            'job_status'                   => 'required|in_list[Awaiting Assignment,Awaiting Diagnosis,In Progress,Awaiting Parts,Completed,Cancelled]',
+            'assigned_service_advisor_id'  => 'required|integer',
+            'assigned_mechanic_id'         => 'permit_empty|integer',
         ];
 
         if (!$this->validate($rules)) {
@@ -108,13 +130,24 @@ class JobsController extends BaseController
                 ->with('errors', $this->validator->getErrors());
         }
 
-        $data = $this->request->getPost();
+        $assigned_mechanic_id = $this->request->getPost('assigned_mechanic_id');
+        $assigned_mechanic_id = !empty($assigned_mechanic_id) ? (int) $assigned_mechanic_id : null;
+
+        $data = [
+            'diagnosis'                    => $this->request->getPost('reported_problem'),
+            'initial_damage_notes'         => $this->request->getPost('initial_damage_notes'),
+            'mileage_in'                   => $this->request->getPost('mileage_in'),
+            'fuel_level'                   => $this->request->getPost('fuel_level'),
+            'job_status'                   => $this->request->getPost('job_status'),
+            'assigned_service_advisor_id'  => (int) $this->request->getPost('assigned_service_advisor_id'),
+            'assigned_mechanic_id'         => $assigned_mechanic_id,
+        ];
 
         try {
-            $jobCardModel = new JobCardModel();
             $jobCardModel->update($id, $data);
-            return redirect()->to('/admin/jobs')->with('success', 'Job updated successfully!');
+            return redirect()->to(base_url('admin/jobs/view/' . $id))->with('success', 'Job updated successfully!');
         } catch (\Exception $e) {
+            log_message('error', 'Job update failed for ID ' . $id . ': ' . $e->getMessage());
             return redirect()->back()->withInput()->with('error', 'Error: ' . $e->getMessage());
         }
     }
@@ -242,13 +275,34 @@ class JobsController extends BaseController
 
     public function delete($id)
     {
-        try {
-            $jobCardModel = new JobCardModel();
-            $jobCardModel->update($id, ['deleted_at' => date('Y-m-d H:i:s')]);
+        if (!$this->session->get('isLoggedIn')) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Unauthorized'])->setStatusCode(401);
+        }
 
-            return redirect()->to('/admin/jobs')->with('success', 'Job deleted successfully!');
+        $user_role = $this->session->get('role');
+        if ($user_role !== 'admin' && $user_role !== 'receptionist') {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Forbidden: Insufficient permissions.'])->setStatusCode(403);
+        }
+
+        $jobCardModel = new JobCardModel();
+        $job = $jobCardModel->find($id);
+
+        if (!$job) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Job not found.'])->setStatusCode(404);
+        }
+
+        try {
+            $jobCardModel->delete($id);
+
+            log_activity('job_deleted', 'job_card', $id, "Job card {$job['job_no']} deleted");
+
+            return $this->response->setJSON([
+                'status' => 'success',
+                'message' => "Job card {$job['job_no']} deleted successfully."
+            ]);
         } catch (\Exception $e) {
-            return redirect()->to('/admin/jobs')->with('error', 'Deletion failed: ' . $e->getMessage());
+            log_message('error', 'Job delete failed for ID ' . $id . ': ' . $e->getMessage());
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Error: ' . $e->getMessage()])->setStatusCode(500);
         }
     }
 

@@ -44,7 +44,7 @@ $routes->get('user/failure', 'UsersController::failure');
 
 // $routes->post('admin/users/bulk_action', 'UsersController::bulk_action'); // REMOVED: method is commented out
 
-// --- Job Intake routes ---
+// --- Job Intake routes [used]---
 $routes->group('job_intake', ['filter' => 'auth:admin,receptionist'], function ($routes) {
     $routes->get('/', 'JobIntake::index');
     $routes->get('search', 'JobIntake::search');
@@ -92,9 +92,9 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->get('jobs/add', 'JobsController::add');
     // $routes->post('jobs/create', 'JobsController::create'); // REMOVED: method does not exist
     $routes->get('jobs/(:num)', 'JobsController::details/$1');
-    $routes->get('jobs/edit/(:num)', 'JobsController::edit/$1');
+    $routes->get('jobs/view/(:num)', 'JobsController::view/$1');
     $routes->post('jobs/update/(:num)', 'JobsController::update/$1');
-    $routes->get('jobs/delete/(:num)', 'JobsController::delete/$1');
+    $routes->post('jobs/delete/(:num)', 'JobsController::delete/$1');
     // $routes->post('jobs/bulk_action', 'JobsController::bulk_action'); // REMOVED: method does not exist
     $routes->post('jobs/assign_mechanic/(:num)', 'JobsController::assign_mechanic/$1');
     $routes->post('jobs/update_status/(:num)', 'JobsController::update_status/$1');

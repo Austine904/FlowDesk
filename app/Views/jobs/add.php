@@ -5,7 +5,7 @@
     <h3 class="mb-4">Add Job</h3>
     <div class="card">
         <div class="card-body">
-            <form method="POST" action="<?= base_url('admin/jobs/create') ?>">
+            <form method="POST" action="<?= base_url('create_job_card') ?>">
                 <?= csrf_field() ?>
                 <div class="mb-3">
                     <label for="job_name" class="form-label">Job Name</label>
