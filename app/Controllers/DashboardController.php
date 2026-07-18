@@ -117,7 +117,8 @@ class DashboardController extends BaseController
             'cancelledJobs'          => $jobStatusData['Cancelled'] ?? 0,
             'activeJobs'             => $activeJobs,
             'totalJobs'              => $totalJobsQuery,
-            'jobStatusData'          => json_encode($jobStatusData),
+            'jobStatusData'          => $jobStatusData,
+            'jobStatusDataJson'      => json_encode($jobStatusData),
             'jobStatusColors'        => json_encode($statusColors),
         ];
     }

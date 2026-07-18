@@ -417,10 +417,10 @@ loadChartJS().then(function(Chart) {
     const statusCtx = document.getElementById('jobStatusChart');
     if (statusCtx) {
         const ctx = statusCtx.getContext('2d');
-        const jobStatusData = <?= $jobStatusData ?? '{}' ?>;
+        const jobStatusData = <?= $jobStatusDataJson ?? json_encode($jobStatusData ?? []) ?>;
         const statusLabels = Object.keys(jobStatusData).filter(function(k) { return jobStatusData[k] > 0; });
         const statusCounts = statusLabels.map(function(k) { return jobStatusData[k]; });
-        const colors = <?= json_encode($jobStatusColors ?? []) ?>;
+        const colors = <?= $jobStatusColors ?? '{}' ?>;
         const bgColors = statusLabels.map(function(k) { return colors[k] || '#6b7280'; });
         new Chart(ctx, {
             type: 'doughnut',
