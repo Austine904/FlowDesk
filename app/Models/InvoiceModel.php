@@ -128,6 +128,29 @@ class InvoiceModel extends Model
         return $data;
     }
 
+    public function getOverdueCount(): int
+    {
+        return $this->where('status', 'Overdue')->countAllResults();
+    }
+
+    public function getOverdueTotal(): float
+    {
+        $result = $this->selectSum('balance_due', 'total')
+            ->where('status', 'Overdue')
+            ->get()
+            ->getRowArray();
+        return (float) ($result['total'] ?? 0);
+    }
+
+    public function getOutstandingBalance(): float
+    {
+        $result = $this->selectSum('balance_due', 'total')
+            ->whereNotIn('status', ['Paid', 'Cancelled'])
+            ->get()
+            ->getRowArray();
+        return (float) ($result['total'] ?? 0);
+    }
+
     public function getWithDetails(int $id = null): array
     {
         $builder = $this->select('invoices.*, customers.name AS customer_name, customers.phone AS customer_phone, job_cards.job_no, CONCAT(users.first_name, " ", users.last_name) AS created_by_name')
