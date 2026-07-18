@@ -8,6 +8,11 @@ use App\Models\VehicleModel;
 use App\Models\InventoryModel;
 use App\Models\LpoModel;
 use App\Models\PettyCashModel;
+use App\Models\InvoiceModel;
+use App\Models\PaymentModel;
+use App\Models\ActivityLogModel;
+use App\Models\CalendarEventModel;
+use Config\JobStatus;
 
 class DashboardController extends BaseController
 {
@@ -29,71 +34,44 @@ class DashboardController extends BaseController
     public function admin()
     {
         helper('activity');
-        helper('time');
 
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
             return redirect()->to('/login');
         }
 
-        $jobCardModel = new JobCardModel();
+        $data = array_merge(
+            ['pageTitle' => 'Dashboard'],
+            $this->buildStatsData(),
+            $this->buildJobStatusChartData(),
+            $this->buildRevenueData(),
+            $this->buildAlertsData(),
+            $this->buildUpcomingEvents(),
+            $this->buildRecentActivity()
+        );
+
+        return view('admin/dashboard', $data);
+    }
+
+    private function buildStatsData(): array
+    {
         $userModel = new UserModel();
         $vehicleModel = new VehicleModel();
+        $jobCardModel = new JobCardModel();
 
-        $recentActivity = [];
+        return [
+            'userCount'      => $userModel->countAllResults(),
+            'vehicleCount'   => $vehicleModel->where('status', 'On Job')->countAllResults(),
+            'latestUsers'    => $userModel->orderBy('created_at', 'DESC')->findAll(5),
+            'latestVehicles' => $vehicleModel->orderBy('created_at', 'DESC')->findAll(5),
+            'recentJobs'     => $jobCardModel->getRecentJobs(5),
+        ];
+    }
 
-        $jobs = $jobCardModel->select('id, updated_at, job_status')->orderBy('updated_at', 'DESC')->findAll(3);
-        foreach ($jobs as $job) {
-            $recentActivity[] = [
-                'type' => 'jobs',
-                'icon' => 'bi-briefcase',
-                'text' => "Job #{$job['id']} status updated to '{$job['job_status']}'",
-                'time' => timeAgo($job['updated_at']),
-            ];
-        }
-
-        $users = $userModel->select('id, first_name, last_name, role, created_at')->orderBy('created_at', 'DESC')->findAll(3);
-        foreach ($users as $user) {
-            $name = esc($user['first_name'] . ' ' . $user['last_name']);
-            $recentActivity[] = [
-                'type' => 'users',
-                'icon' => 'bi-person-plus',
-                'text' => "New user <a href='#' class='activity-link'>{$name}</a> ({$user['role']}) registered by admin.",
-                'time' => timeAgo($user['created_at']),
-            ];
-        }
-
-        $vehicles = $vehicleModel->select('registration_number, make, model, owner_id, created_at')->orderBy('created_at', 'DESC')->findAll(3);
-        foreach ($vehicles as $v) {
-            $vehicleText = "{$v['make']} {$v['model']} ({$v['registration_number']})";
-            $recentActivity[] = [
-                'type' => 'vehicles',
-                'icon' => 'bi-car-front',
-                'text' => "New vehicle <a href='#' class='activity-link'>{$vehicleText}</a> registered.",
-                'time' => timeAgo($v['created_at']),
-            ];
-        }
-
-        $recentJobs = $jobCardModel->getRecentJobs(5);
-        foreach ($recentJobs as $jobCard) {
-            $vehicleregistration = esc($jobCard['registration_number'] ?? 'Unknown Vehicle');
-            $diagnosis = esc($jobCard['diagnosis']);
-            $recentActivity[] = [
-                'type' => 'job_cards',
-                'icon' => 'bi-file-earmark-text',
-                'text' => "New job card added for vehicle <a href='#' class='activity-link'>{$vehicleregistration}</a> with description: {$diagnosis}",
-                'time' => timeAgo($jobCard['created_at']),
-            ];
-        }
-
-        usort($recentActivity, fn($a, $b) => strtotime($b['time']) - strtotime($a['time']));
-
-        $userCount = $userModel->countAllResults();
-
-        $vehicleCount = $vehicleModel->where('status', 'On Job')->countAllResults();
-
-        $latestUsers = $userModel->orderBy('created_at', 'DESC')->findAll(5);
-
-        $latestVehicles = $vehicleModel->orderBy('created_at', 'DESC')->findAll(5);
+    private function buildJobStatusChartData(): array
+    {
+        $jobCardModel = new JobCardModel();
+        $jobStatus = new JobStatus();
+        $statusColors = $jobStatus->statusColors;
 
         $jobStatusQuery = $jobCardModel->builder()
             ->select("job_status, COUNT(*) as count")
@@ -101,163 +79,149 @@ class DashboardController extends BaseController
             ->get()
             ->getResult();
 
-        $jobStatusQuery = array_map(function ($row) {
-            return (object)[
-                'job_status' => $row->job_status,
-                'count' => $row->count,
-            ];
-        }, $jobStatusQuery);
-
-        $labels = [];
-        $counts = [];
-        $backgroundColors = [];
-        $borderColors = [];
-
-        $statusColors = [
-            'Awaiting Assignment' => '#6c757d',
-            'Awaiting Diagnosis' => '#007bff',
-            'Diagnosis Complete' => '#ffc107',
-            'Approved' => '#17a2b8',
-            'In Progress' => '#6f42c1',
-            'Awaiting Parts' => '#fd7e14',
-            'Quality Check' => '#20c997',
-            'Ready for Invoice' => '#e83e8c',
-            'Quote Sent' => '#6610f2',
-            'Paid' => '#28a745',
-            'Completed' => '#28a745',
-            'On Hold' => '#343a40',
-            'Rework' => '#6c757d',
-            'Cancelled' => '#dc3545',
-        ];
-
         $defaultColor = '#999999';
-        $defaultBorderColor = '#ffffff';
-
-        $jobStatusData = [
-            'Awaiting Assignment' => 0,
-            'Awaiting Diagnosis' => 0,
-            'Diagnosis Complete' => 0,
-            'Approved' => 0,
-            'In Progress' => 0,
-            'Awaiting Parts' => 0,
-            'Quality Check' => 0,
-            'Ready for Invoice' => 0,
-            'Quote Sent' => 0,
-            'Paid' => 0,
-            'Completed' => 0,
-            'On Hold' => 0,
-            'Rework' => 0,
-            'Cancelled' => 0,
-        ];
+        $jobStatusData = [];
 
         foreach ($jobStatusQuery as $row) {
-            $currentStatus = $row->job_status;
-            $count = (int)$row->count;
-
-            $labels[] = $currentStatus;
-            $counts[] = $count;
-
-            $backgroundColors[] = $statusColors[$currentStatus] ?? $defaultColor;
-            $borderColor[] = $defaultBorderColor;
-
-            $jobStatusTotals[$currentStatus] = $count;
             $status = $row->job_status;
-            if (array_key_exists($status, $jobStatusData)) {
-                $jobStatusData[$status] = (int)$row->count;
+            $count = (int) $row->count;
+
+            if ($count === 0) {
+                continue;
             }
+
+            $jobStatusData[$status] = $count;
         }
 
         $totalJobsQuery = array_sum($jobStatusData);
 
-        $db = \Config\Database::connect();
+        $activeJobs = ($jobStatusData['In Progress'] ?? 0) +
+            ($jobStatusData['Awaiting Parts'] ?? 0) +
+            ($jobStatusData['Quality Check'] ?? 0) +
+            ($jobStatusData['Ready for Invoice'] ?? 0);
 
-        $revenueData = $db->table('payments')
-            ->select("MONTH(payment_date) as month, SUM(amount) as total")
-            ->where('payment_date >=', date('Y-m-d', strtotime('-6 months')))
-            ->groupBy('MONTH(payment_date)')
-            ->orderBy('MONTH(payment_date)', 'ASC')
-            ->get()
-            ->getResultArray();
+        return [
+            'awaitingAssignmentJobs' => $jobStatusData['Awaiting Assignment'] ?? 0,
+            'awaitingDiagnosisJobs'  => $jobStatusData['Awaiting Diagnosis'] ?? 0,
+            'diagnosedJobs'          => $jobStatusData['Diagnosis Complete'] ?? 0,
+            'approvedJobs'           => $jobStatusData['Approved'] ?? 0,
+            'inProgressJobs'         => $jobStatusData['In Progress'] ?? 0,
+            'awaitingPartsJobs'      => $jobStatusData['Awaiting Parts'] ?? 0,
+            'qualityCheckJobs'       => $jobStatusData['Quality Check'] ?? 0,
+            'readyForInvoiceJobs'    => $jobStatusData['Ready for Invoice'] ?? 0,
+            'quoteSentJobs'          => $jobStatusData['Quote Sent'] ?? 0,
+            'paidJobs'               => $jobStatusData['Paid'] ?? 0,
+            'completedJobs'          => $jobStatusData['Completed'] ?? 0,
+            'onHoldJobs'             => $jobStatusData['On Hold'] ?? 0,
+            'reworkJobs'             => $jobStatusData['Rework'] ?? 0,
+            'cancelledJobs'          => $jobStatusData['Cancelled'] ?? 0,
+            'activeJobs'             => $activeJobs,
+            'totalJobs'              => $totalJobsQuery,
+            'jobStatusData'          => json_encode($jobStatusData),
+            'jobStatusColors'        => json_encode($statusColors),
+        ];
+    }
+
+    private function buildRevenueData(): array
+    {
+        $paymentModel = new PaymentModel();
+        $invoiceModel = new InvoiceModel();
+
+        $revenueData = $paymentModel->getMonthlyRevenue(6);
 
         $revenueByMonth = [];
         $revenueLabels = [];
         $monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        $start = date('Y-m-01');
         for ($i = 5; $i >= 0; $i--) {
-            $m = (int) date('m', strtotime("-{$i} months"));
-            $revenueByMonth[] = 0;
-            $revenueLabels[] = $monthNames[$m];
+            $ts = strtotime("-{$i} months", strtotime($start));
+            $key = date('Y-m', $ts);
+            $revenueByMonth[$key] = 0;
+            $revenueLabels[] = $monthNames[(int) date('m', $ts)];
         }
+
         foreach ($revenueData as $row) {
-            $monthIdx = (int) $row['month'];
-            $revIdx = 5 - ((int) date('m') - $monthIdx);
-            if ($revIdx >= 0 && $revIdx < 6) {
-                $revenueByMonth[$revIdx] = (float) $row['total'];
+            $key = $row['year'] . '-' . str_pad($row['month'], 2, '0', STR_PAD_LEFT);
+            if (array_key_exists($key, $revenueByMonth)) {
+                $revenueByMonth[$key] = (float) $row['total'];
             }
         }
 
-        $thisMonthRevenue = $db->table('payments')
-            ->selectSum('amount', 'total')
-            ->where('payment_date >=', date('Y-m-01'))
-            ->where('payment_date <=', date('Y-m-t'))
-            ->get()
-            ->getRowArray();
-        $totalRevenue = (float) ($thisMonthRevenue['total'] ?? 0);
+        $revenueByMonthNumeric = array_values($revenueByMonth);
 
-        $outstandingRow = $db->table('invoices')
-            ->selectSum('balance_due', 'total')
-            ->whereNotIn('status', ['Paid', 'Cancelled'])
-            ->get()
-            ->getRowArray();
-        $outstandingBalance = (float) ($outstandingRow['total'] ?? 0);
-
-        $inventoryModel = new InventoryModel();
-        $lowStockItems = $inventoryModel->getLowStock();
-
-        $lpoModel = new LpoModel();
-        $pendingLPOs = $lpoModel->where('status', 'Sent')->countAllResults();
-
-        $pettyCashModel = new PettyCashModel();
-        $pettyCashSummary = $pettyCashModel->getSummary();
-
-        $data = [
-            'pageTitle'          => 'Dashboard',
-            'pendingLPOs'        => $pendingLPOs,
-            'pettyCashBalance'   => $pettyCashSummary['current_balance'],
-            'totalRevenue'       => $totalRevenue,
-            'outstandingBalance' => $outstandingBalance,
-            'revenueByMonth'     => json_encode($revenueByMonth),
+        return [
+            'revenueByMonth'     => json_encode($revenueByMonthNumeric),
             'revenueLabels'      => json_encode($revenueLabels),
-            'userCount'          => $userCount,
-            'vehicleCount'    => $vehicleCount,
-            'latestUsers'     => $latestUsers,
-            'latestVehicles'  => $latestVehicles,
+            'totalRevenue'       => $paymentModel->getThisMonthRevenue(),
+            'outstandingBalance' => $invoiceModel->getOutstandingBalance(),
+        ];
+    }
 
-            'awaitingAssignmentJobs' => $jobStatusData['Awaiting Assignment'],
-            'awaitingDiagnosisJobs' => $jobStatusData['Awaiting Diagnosis'],
-            'diagnosedJobs' => $jobStatusData['Diagnosis Complete'],
-            'approvedJobs'    => $jobStatusData['Approved'],
-            'inProgressJobs'  => $jobStatusData['In Progress'],
-            'awaitingPartsJobs' => $jobStatusData['Awaiting Parts'],
-            'qualityCheckJobs' => $jobStatusData['Quality Check'],
-            'readyForInvoiceJobs' => $jobStatusData['Ready for Invoice'],
-            'quoteSentJobs'   => $jobStatusData['Quote Sent'],
-            'paidJobs'        => $jobStatusData['Paid'],
-            'completedJobs'   => $jobStatusData['Completed'],
-            'onHoldJobs'      => $jobStatusData['On Hold'],
-            'reworkJobs'      => $jobStatusData['Rework'],
-            'cancelledJobs'   => $jobStatusData['Cancelled'],
-            'activeJobs'      => $jobStatusData['In Progress'] + $jobStatusData['Awaiting Parts'] + $jobStatusData['Quality Check'] + $jobStatusData['Ready for Invoice'],
-            'totalJobs'       => $totalJobsQuery,
-            'jobStatusData'   => json_encode($jobStatusData),
+    private function buildAlertsData(): array
+    {
+        $inventoryModel = new InventoryModel();
+        $lpoModel = new LpoModel();
+        $pettyCashModel = new PettyCashModel();
+        $invoiceModel = new InvoiceModel();
 
-            'recentActivity'  => $recentActivity,
-            'recentJobs'      => $recentJobs,
-            'lowStockItems'   => $lowStockItems,
+        $lowStockItems = $inventoryModel->getLowStock();
+        $pendingLPOs = $lpoModel->where('status', 'Sent')->countAllResults();
+        $pettyCashSummary = $pettyCashModel->getSummary();
+        $overdueInvoiceCount = $invoiceModel->getOverdueCount();
+        $overdueInvoiceTotal = $invoiceModel->getOverdueTotal();
+
+        return [
+            'lowStockItems'      => $lowStockItems,
+            'pendingLPOs'        => $pendingLPOs,
+            'pettyCashBalance'   => $pettyCashSummary['current_balance'] ?? 0,
+            'overdueInvoiceCount' => $overdueInvoiceCount,
+            'overdueInvoiceTotal' => $overdueInvoiceTotal,
+        ];
+    }
+
+    private function buildUpcomingEvents(): array
+    {
+        $calendarModel = new CalendarEventModel();
+        $upcomingEvents = $calendarModel->getUpcoming(5);
+
+        return [
+            'upcomingEvents' => $upcomingEvents ?? [],
+        ];
+    }
+
+    private function buildRecentActivity(): array
+    {
+        $activityLogModel = new ActivityLogModel();
+        $recentLogs = $activityLogModel->getRecent(10);
+
+        $activityIcons = [
+            'status_change'    => 'bi-arrow-left-right',
+            'payment_recorded' => 'bi-cash-coin',
+            'lpo_created'      => 'bi-file-text',
+            'lpo_received'     => 'bi-box-seam',
+            'job_created'      => 'bi-briefcase',
+            'diagnosis_saved'  => 'bi-clipboard-check',
+            'user_created'     => 'bi-person-plus',
+            'petty_cash_entry' => 'bi-wallet2',
         ];
 
-        $mergedData = array_merge($data, ['recentActivity' => $recentActivity]);
+        $recentActivity = [];
+        foreach ($recentLogs as $log) {
+            $recentActivity[] = [
+                'icon'     => $activityIcons[$log['action']] ?? 'bi-circle',
+                'text'     => esc($log['description']),
+                'time'     => timeAgo($log['created_at']),
+                'user'     => esc($log['user_name'] ?? 'System'),
+                'sort_key' => $log['created_at'],
+            ];
+        }
 
-        return view('admin/dashboard', $mergedData);
+        usort($recentActivity, fn($a, $b) => strcmp($b['sort_key'], $a['sort_key']));
+
+        return [
+            'recentActivity' => $recentActivity,
+        ];
     }
 
     public function mechanic()

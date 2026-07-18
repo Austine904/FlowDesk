@@ -31,4 +31,27 @@ class PaymentModel extends Model
             ->orderBy('payments.payment_date', 'ASC')
             ->findAll();
     }
+
+    public function getMonthlyRevenue(int $months = 6): array
+    {
+        $db = \Config\Database::connect();
+        return $db->table('payments')
+            ->select("YEAR(payment_date) as year, MONTH(payment_date) as month, SUM(amount) as total")
+            ->where('payment_date >=', date('Y-m-d', strtotime("-{$months} months")))
+            ->groupBy('YEAR(payment_date), MONTH(payment_date)')
+            ->orderBy('YEAR(payment_date)', 'ASC')
+            ->orderBy('MONTH(payment_date)', 'ASC')
+            ->get()
+            ->getResultArray();
+    }
+
+    public function getThisMonthRevenue(): float
+    {
+        $result = $this->selectSum('amount', 'total')
+            ->where('payment_date >=', date('Y-m-01'))
+            ->where('payment_date <=', date('Y-m-t'))
+            ->get()
+            ->getRowArray();
+        return (float) ($result['total'] ?? 0);
+    }
 }

@@ -6,6 +6,23 @@ use CodeIgniter\Config\BaseConfig;
 
 class JobStatus extends BaseConfig
 {
+    public array $statusColors = [
+        'Awaiting Assignment' => '#6c757d',
+        'Awaiting Diagnosis' => '#007bff',
+        'Diagnosis Complete' => '#ffc107',
+        'Approved' => '#17a2b8',
+        'In Progress' => '#6f42c1',
+        'Awaiting Parts' => '#fd7e14',
+        'Quality Check' => '#20c997',
+        'Ready for Invoice' => '#e83e8c',
+        'Quote Sent' => '#6610f2',
+        'Paid' => '#28a745',
+        'Completed' => '#28a745',
+        'On Hold' => '#343a40',
+        'Rework' => '#6c757d',
+        'Cancelled' => '#dc3545',
+    ];
+
     public array $transitions = [
         'Awaiting Assignment' => [
             'admin'        => ['Awaiting Diagnosis', 'Cancelled'],
