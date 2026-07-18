@@ -168,15 +168,20 @@
                         <?php endforeach; ?>
                     </nav>
                 </div>
-                <div class="relative ml-4 hidden md:block">
+            </div>
+
+            <?php if (str_contains(current_url(), 'admin/dashboard')): ?>
+            <div class="flex-1 flex justify-center px-4">
+                <div class="relative w-full max-w-md">
                     <svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
                     <input id="globalSearch" type="text" placeholder="Search jobs, customers, vehicles..."
-                           class="w-72 pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors">
+                           class="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors">
                     <div id="searchResults" class="hidden absolute top-full left-0 mt-1 w-96 bg-white rounded-xl shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto"></div>
                 </div>
             </div>
+            <?php endif; ?>
 
             <div class="flex items-center gap-4">
                 <div class="relative" id="notificationArea">

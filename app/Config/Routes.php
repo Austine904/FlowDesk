@@ -66,6 +66,9 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->get('/', 'DashboardController::admin');
     $routes->get('dashboard', 'DashboardController::admin');
 
+    // Global search
+    $routes->get('search', 'SearchController::index');
+
     // Users
     $routes->get('users', 'UsersController::index');
     $routes->get('users/add', 'UsersController::add');
