@@ -11,6 +11,12 @@ $routes->post('login/auth', 'LoginController::auth');
 $routes->get('logout', 'LoginController::logout');
 $routes->get('unauthorized', 'DashboardController::unauthorized');
 
+// --- Forgot Password ---
+$routes->get('forgot-password', 'ForgotPasswordController::index');
+$routes->post('forgot-password/send', 'ForgotPasswordController::sendResetLink');
+$routes->get('reset-password/(:any)', 'LoginController::resetPassword/$1');
+$routes->post('reset-password/process', 'LoginController::processResetPassword');
+
 
 
 //Add user routes
@@ -200,6 +206,10 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     
 });
 
+// Profile (accessible by admin, receptionist, mechanic)
+$routes->get('admin/profile', 'ProfileController::index', ['filter' => 'auth:admin,receptionist,mechanic']);
+$routes->post('admin/profile/update', 'ProfileController::update', ['filter' => 'auth:admin,receptionist,mechanic']);
+
 // Receptionist-only
 $routes->group('receptionist', ['filter' => 'auth:receptionist'], function ($routes) {
     $routes->get('/', 'DashboardController::receptionist');
@@ -220,6 +230,9 @@ $routes->group('mechanic', ['filter' => 'auth:mechanic'], function ($routes) {
 
 // Customer-only
 $routes->group('customer', ['filter' => 'auth:customer'], function ($routes) {
-    $routes->get('/', 'DashboardController::customer');
-    $routes->get('dashboard', 'DashboardController::customer');
+    $routes->get('/', 'CustomerPortal::dashboard');
+    $routes->get('dashboard', 'CustomerPortal::dashboard');
+    $routes->get('jobs', 'CustomerPortal::jobs');
+    $routes->get('invoices', 'CustomerPortal::invoices');
+    $routes->get('invoice/(:num)', 'CustomerPortal::invoice/$1');
 });

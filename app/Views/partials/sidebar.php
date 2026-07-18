@@ -110,7 +110,7 @@
                 </span>
             </div>
             <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-white truncate"><?= session()->get('user_name') ?></p>
+                <a href="<?= base_url('admin/profile') ?>" class="text-sm font-medium text-white truncate hover:text-indigo-300 transition-colors"><?= session()->get('user_name') ?></a>
                 <p class="text-xs text-slate-400 capitalize"><?= session()->get('role') ?></p>
             </div>
             <a href="<?= base_url('logout') ?>" class="text-slate-400 hover:text-red-400 transition-colors" title="Logout">
