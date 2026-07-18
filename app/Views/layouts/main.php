@@ -17,9 +17,10 @@
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
-    <!-- DataTables (Tailwind-compatible, no Bootstrap) -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
-    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <!-- DataTables (vendored locally, Tailwind-compatible) -->
+    <link rel="stylesheet" href="<?= base_url('public/assets/vendor/datatables/jquery.dataTables.min.css') ?>">
+    <script src="<?= base_url('public/assets/vendor/datatables/jquery.dataTables.min.js') ?>"></script>
+    <script src="<?= base_url('public/assets/js/datatable-config.js') ?>"></script>
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -120,6 +121,34 @@
     <!-- Main content area -->
     <div class="flex-1 flex flex-col min-h-screen ml-64">
 
+        <?php
+        // Smart page title fallback from URL
+        if (!isset($pageTitle)):
+            $url = current_url();
+            $titleFallback = match(true) {
+                str_contains($url, 'admin/dashboard') => 'Dashboard',
+                str_contains($url, 'admin/users')     => 'Staff',
+                str_contains($url, 'admin/customers') => 'Customers',
+                str_contains($url, 'admin/vehicles')  => 'Vehicles',
+                str_contains($url, 'admin/jobs')      => 'Job Cards',
+                str_contains($url, 'job_intake')      => 'Job Intake',
+                str_contains($url, 'admin/sublets')   => 'Sublets',
+                str_contains($url, 'admin/inventory') => 'Parts & Inventory',
+                str_contains($url, 'admin/suppliers') => 'Suppliers',
+                str_contains($url, 'admin/lpos')      => 'LPOs',
+                str_contains($url, 'admin/invoices')  => 'Invoices',
+                str_contains($url, 'admin/pettycash') => 'Petty Cash',
+                str_contains($url, 'admin/reports')   => 'Reports',
+                str_contains($url, 'admin/calendar')  => 'Calendar',
+                str_contains($url, 'admin/settings')  => 'Settings',
+                str_contains($url, 'mechanic')        => 'Mechanic',
+                str_contains($url, 'receptionist')    => 'Receptionist',
+                str_contains($url, 'customer')        => 'Customer Portal',
+                default => 'FlowDesk'
+            };
+        endif;
+        ?>
+
         <!-- Topbar -->
         <header id="topbar" class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
             <div class="flex items-center gap-3">
@@ -128,16 +157,22 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                     </svg>
                 </button>
-                <h1 class="text-xl font-semibold text-gray-900"><?= $pageTitle ?? 'Dashboard' ?></h1>
+                <div>
+                    <h1 class="text-xl font-semibold text-gray-900"><?= $pageTitle ?? $titleFallback ?></h1>
+                    <nav class="text-xs text-gray-400 mt-0.5 space-x-1">
+                        <?php
+                        $bcSegments = service('uri')->getSegments();
+                        foreach ($bcSegments as $i => $seg):
+                            $label = ucwords(str_replace(['-', '_'], ' ', $seg));
+                            if ($i > 0) echo '<span class="text-gray-300">/</span>';
+                        ?>
+                        <span class="<?= $i === array_key_last($bcSegments) ? 'text-gray-500 font-medium' : '' ?>"><?= $label ?></span>
+                        <?php endforeach; ?>
+                    </nav>
+                </div>
             </div>
 
             <div class="flex items-center gap-4">
-                <button class="relative text-gray-400 hover:text-gray-600">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.437L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                    </svg>
-                </button>
-
                 <div class="relative" id="userDropdown">
                     <button onclick="document.getElementById('userMenu').classList.toggle('hidden')"
                             class="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900">

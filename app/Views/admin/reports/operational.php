@@ -1,105 +1,166 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('content') ?>
-<div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="mb-0">Operational Reports</h3>
-        <div>
-            <a href="<?= base_url('admin/reports/export/operational/csv') ?>" class="btn btn-outline-success btn-sm">
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-900">Operational Reports</h3>
+        <div class="flex items-center gap-2">
+            <a href="<?= base_url('admin/reports/export/operational/csv') ?>" class="bg-white border border-emerald-500 text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-1.5">
                 <i class="bi bi-download"></i> Export CSV
             </a>
-            <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+            <button onclick="window.print()" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-1.5">
                 <i class="bi bi-printer"></i> Print
             </button>
         </div>
     </div>
 
-    <form method="GET" class="row g-3 mb-4 align-items-end">
-        <div class="col-auto">
-            <label class="form-label">Start Date</label>
-            <input type="date" name="start_date" class="form-control" value="<?= $start_date ?>">
+    <form method="GET" class="flex flex-wrap items-end gap-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+            <input type="date" name="start_date" class="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none" value="<?= $start_date ?>">
         </div>
-        <div class="col-auto">
-            <label class="form-label">End Date</label>
-            <input type="date" name="end_date" class="form-control" value="<?= $end_date ?>">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+            <input type="date" name="end_date" class="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none" value="<?= $end_date ?>">
         </div>
-        <div class="col-auto">
-            <button type="submit" class="btn btn-primary">Filter</button>
+        <div>
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">Filter</button>
         </div>
     </form>
 
-    <!-- Summary Cards -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white">
-                <div class="card-body">
-                    <h6>Total Jobs</h6>
-                    <h3><?= $totalJobs ?></h3>
-                </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-indigo-600 text-white rounded-xl shadow-sm p-5">
+            <p class="text-xs font-medium text-indigo-100 uppercase tracking-wider">Total Jobs</p>
+            <p class="text-xl font-bold mt-1"><?= $totalJobs ?></p>
+        </div>
+        <div class="bg-emerald-600 text-white rounded-xl shadow-sm p-5">
+            <p class="text-xs font-medium text-emerald-100 uppercase tracking-wider">Completed</p>
+            <p class="text-xl font-bold mt-1"><?= $totalCompleted ?></p>
+        </div>
+        <div class="bg-cyan-600 text-white rounded-xl shadow-sm p-5">
+            <p class="text-xs font-medium text-cyan-100 uppercase tracking-wider">Avg Turnaround</p>
+            <p class="text-xl font-bold mt-1"><?= round($avgTurnaround, 1) ?> days</p>
+        </div>
+        <div class="bg-red-600 text-white rounded-xl shadow-sm p-5">
+            <p class="text-xs font-medium text-red-100 uppercase tracking-wider">Overdue Jobs</p>
+            <p class="text-xl font-bold mt-1"><?= $totalOverdue ?></p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h4 class="text-sm font-semibold text-gray-900">Jobs by Status</h4>
+            </div>
+            <div class="p-6">
+                <canvas id="statusChart" height="200"></canvas>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-success text-white">
-                <div class="card-body">
-                    <h6>Completed</h6>
-                    <h3><?= $totalCompleted ?></h3>
-                </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h4 class="text-sm font-semibold text-gray-900">Jobs Completed per Month</h4>
             </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-info text-white">
-                <div class="card-body">
-                    <h6>Avg Turnaround</h6>
-                    <h3><?= round($avgTurnaround, 1) ?> days</h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-danger text-white">
-                <div class="card-body">
-                    <h6>Overdue Jobs</h6>
-                    <h3><?= $totalOverdue ?></h3>
-                </div>
+            <div class="p-6">
+                <canvas id="completedChart" height="200"></canvas>
             </div>
         </div>
     </div>
 
-    <!-- Jobs by Status (doughnut) + Completed per month (bar) -->
-    <div class="row g-4 mb-4">
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-header"><strong>Jobs by Status</strong></div>
-                <div class="card-body">
-                    <canvas id="statusChart" height="200"></canvas>
-                </div>
-            </div>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h4 class="text-sm font-semibold text-gray-900">Jobs per Mechanic</h4>
         </div>
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-header"><strong>Jobs Completed per Month</strong></div>
-                <div class="card-body">
-                    <canvas id="completedChart" height="200"></canvas>
-                </div>
-            </div>
+        <div class="overflow-x-auto">
+            <table class="w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mechanic</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Jobs</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Turnaround (days)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <?php foreach ($jobsPerMechanic as $m): ?>
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm text-gray-900"><?= esc($m['first_name'] . ' ' . $m['last_name']) ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-700"><?= (int) $m['total_jobs'] ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-700"><?= round((float) ($m['avg_turnaround'] ?? 0), 1) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php if (empty($jobsPerMechanic)): ?>
+                    <tr><td colspan="3" class="px-4 py-8 text-center text-sm text-gray-400">No mechanic data for this period.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- Jobs per Mechanic -->
-    <div class="card mb-4">
-        <div class="card-header"><strong>Jobs per Mechanic</strong></div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-striped mb-0">
-                    <thead><tr><th>Mechanic</th><th>Total Jobs</th><th>Avg Turnaround (days)</th></tr></thead>
-                    <tbody>
-                        <?php foreach ($jobsPerMechanic as $m): ?>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h4 class="text-sm font-semibold text-gray-900">Overdue Jobs</h4>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job No</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mechanic</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected End</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days Overdue</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <?php foreach ($overdueJobs as $j): ?>
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm text-gray-900"><?= esc($j['job_no']) ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-700"><?= esc($j['customer_name']) ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-700"><?= esc($j['registration_number']) ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-700"><?= esc(($j['first_name'] ?? '') . ' ' . ($j['last_name'] ?? '')) ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-700"><?= $j['end_date'] ?></td>
+                        <td class="px-4 py-3 text-sm text-red-600 font-bold"><?= (int) $j['days_overdue'] ?> days</td>
+                        <td class="px-4 py-3 text-sm"><?= esc($j['job_status']) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php if (empty($overdueJobs)): ?>
+                    <tr><td colspan="7" class="px-4 py-8 text-center text-sm text-gray-400">No overdue jobs.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h4 class="text-sm font-semibold text-gray-900">Jobs by Diagnosis Category</h4>
+            </div>
+            <div class="p-6">
+                <canvas id="categoryChart" height="200"></canvas>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h4 class="text-sm font-semibold text-gray-900">Category Breakdown</h4>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
                         <tr>
-                            <td><?= esc($m['first_name'] . ' ' . $m['last_name']) ?></td>
-                            <td><?= (int) $m['total_jobs'] ?></td>
-                            <td><?= round((float) ($m['avg_turnaround'] ?? 0), 1) ?></td>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <?php foreach ($jobsByCategory as $cat): ?>
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 text-sm text-gray-900"><?= esc($cat['diagnosis_category']) ?></td>
+                            <td class="px-4 py-3 text-sm text-gray-700"><?= (int) $cat['count'] ?></td>
                         </tr>
                         <?php endforeach; ?>
-                        <?php if (empty($jobsPerMechanic)): ?>
-                        <tr><td colspan="3" class="text-muted">No mechanic data for this period.</td></tr>
+                        <?php if (empty($jobsByCategory)): ?>
+                        <tr><td colspan="2" class="px-4 py-8 text-center text-sm text-gray-400">No categorized jobs in this period.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -107,108 +168,49 @@
         </div>
     </div>
 
-    <!-- Overdue Jobs -->
-    <div class="card mb-4">
-        <div class="card-header"><strong>Overdue Jobs</strong></div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-striped mb-0">
-                    <thead><tr><th>Job No</th><th>Customer</th><th>Vehicle</th><th>Mechanic</th><th>Expected End</th><th>Days Overdue</th><th>Status</th></tr></thead>
-                    <tbody>
-                        <?php foreach ($overdueJobs as $j): ?>
-                        <tr>
-                            <td><?= esc($j['job_no']) ?></td>
-                            <td><?= esc($j['customer_name']) ?></td>
-                            <td><?= esc($j['registration_number']) ?></td>
-                            <td><?= esc(($j['first_name'] ?? '') . ' ' . ($j['last_name'] ?? '')) ?></td>
-                            <td><?= $j['end_date'] ?></td>
-                            <td class="text-danger fw-bold"><?= (int) $j['days_overdue'] ?> days</td>
-                            <td><?= esc($j['job_status']) ?></td>
-                        </tr>
-                        <?php endforeach; ?>
-                        <?php if (empty($overdueJobs)): ?>
-                        <tr><td colspan="7" class="text-muted">No overdue jobs.</td></tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h4 class="text-sm font-semibold text-gray-900">Sublet Spend by Supplier</h4>
         </div>
-    </div>
-
-    <!-- Jobs by Diagnosis Category -->
-    <div class="row g-4 mb-4">
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-header"><strong>Jobs by Diagnosis Category</strong></div>
-                <div class="card-body">
-                    <canvas id="categoryChart" height="200"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-header"><strong>Category Breakdown</strong></div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-striped mb-0">
-                            <thead><tr><th>Category</th><th>Count</th></tr></thead>
-                            <tbody>
-                                <?php foreach ($jobsByCategory as $cat): ?>
-                                <tr>
-                                    <td><?= esc($cat['diagnosis_category']) ?></td>
-                                    <td><?= (int) $cat['count'] ?></td>
-                                </tr>
-                                <?php endforeach; ?>
-                                <?php if (empty($jobsByCategory)): ?>
-                                <tr><td colspan="2" class="text-muted">No categorized jobs in this period.</td></tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Sublet Spend by Supplier -->
-    <div class="card mb-4">
-        <div class="card-header"><strong>Sublet Spend by Supplier</strong></div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-striped mb-0">
-                    <thead><tr><th>Supplier</th><th>Count</th><th>Total Cost</th></tr></thead>
-                    <tbody>
-                        <?php foreach ($subletSpend as $s): ?>
-                        <tr>
-                            <td><?= esc($s['name']) ?></td>
-                            <td><?= (int) $s['count'] ?></td>
-                            <td><?= number_format($s['total_cost'], 2) ?></td>
-                        </tr>
-                        <?php endforeach; ?>
-                        <?php if (empty($subletSpend)): ?>
-                        <tr><td colspan="3" class="text-muted">No sublet spend in this period.</td></tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
+        <div class="overflow-x-auto">
+            <table class="w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Cost</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <?php foreach ($subletSpend as $s): ?>
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm text-gray-900"><?= esc($s['name']) ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-700"><?= (int) $s['count'] ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-900"><?= number_format($s['total_cost'], 2) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php if (empty($subletSpend)): ?>
+                    <tr><td colspan="3" class="px-4 py-8 text-center text-sm text-gray-400">No sublet spend in this period.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Jobs by status doughnut
     var statusCtx = document.getElementById('statusChart');
     if (statusCtx) {
         var statusLabels = <?= json_encode(array_column($jobsByStatus, 'job_status')) ?>;
         var statusData = <?= json_encode(array_map(function($s) { return (int) $s['count']; }, $jobsByStatus)) ?>;
         var colorMap = {
-            'Awaiting Assignment': '#6c757d','Awaiting Diagnosis': '#007bff','Diagnosis Complete': '#ffc107',
-            'Approved': '#17a2b8','In Progress': '#6f42c1','Awaiting Parts': '#fd7e14','Quality Check': '#20c997',
-            'Ready for Invoice': '#e83e8c','Quote Sent': '#6610f2','Paid': '#28a745','Completed': '#28a745',
-            'On Hold': '#343a40','Rework': '#6c757d','Cancelled': '#dc3545'
+            'Awaiting Assignment': '#6b7280','Awaiting Diagnosis': '#4f46e5','Diagnosis Complete': '#f59e0b',
+            'Approved': '#06b6d4','In Progress': '#8b5cf6','Awaiting Parts': '#f97316','Quality Check': '#14b8a6',
+            'Ready for Invoice': '#ec4899','Quote Sent': '#a855f7','Paid': '#10b981','Completed': '#10b981',
+            'On Hold': '#374151','Rework': '#6b7280','Cancelled': '#ef4444'
         };
-        var colors = statusLabels.map(function(l) { return colorMap[l] || '#999'; });
+        var colors = statusLabels.map(function(l) { return colorMap[l] || '#9ca3af'; });
         new Chart(statusCtx, {
             type: 'doughnut',
             data: {
@@ -219,7 +221,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Completed per month bar chart
     var completedCtx = document.getElementById('completedChart');
     if (completedCtx) {
         var compLabels = <?= json_encode(array_column($completedPerPeriod, 'period')) ?>;
@@ -232,7 +233,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     datasets: [{
                         label: 'Completed',
                         data: compData,
-                        backgroundColor: '#28a745'
+                        backgroundColor: '#10b981'
                     }]
                 },
                 options: {
@@ -242,11 +243,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         } else {
-            completedCtx.parentElement.innerHTML = '<p class="text-muted text-center">No completed jobs yet.</p>';
+            completedCtx.parentElement.innerHTML = '<p class="text-sm text-gray-400 text-center">No completed jobs yet.</p>';
         }
     }
 
-    // Diagnosis category horizontal bar chart
     var catCtx = document.getElementById('categoryChart');
     if (catCtx) {
         var catLabels = <?= json_encode(array_column($jobsByCategory, 'diagnosis_category')) ?>;
@@ -259,7 +259,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     datasets: [{
                         label: 'Jobs',
                         data: catData,
-                        backgroundColor: '#17a2b8'
+                        backgroundColor: '#06b6d4'
                     }]
                 },
                 options: {
@@ -270,7 +270,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         } else {
-            catCtx.parentElement.innerHTML = '<p class="text-muted text-center">No categorized data for this period.</p>';
+            catCtx.parentElement.innerHTML = '<p class="text-sm text-gray-400 text-center">No categorized data for this period.</p>';
         }
     }
 });

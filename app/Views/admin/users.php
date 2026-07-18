@@ -1,400 +1,298 @@
 <?= $this->extend('layouts/main') ?>
 
 <?= $this->section('content') ?>
-
-<div class="container mt-5">
-    <h3 class="mb-4">User Management</h3>
-
-    <!-- Add User Button -->
-    <button onclick="openModal('<?= base_url('admin/users/add') ?>', 'Add New User')" class="btn btn-outline-primary d-flex align-items-center gap-2">
-        <i class="bi bi-person-plus"></i> Add User
-    </button>
-  
-
-    <!-- User Table -->
-    <form method="POST" action="<?= base_url('admin/users/bulk_action') ?>" id="bulkActionForm">
-        <?= csrf_field() ?>
-        <button type="button" class="btn btn-danger mb-3 mt-5 " id="deleteSelectedBtn">
-            <i class="bi bi-trash me-1"></i> Delete Selected
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-900"><i class="bi bi-people me-2"></i> User Management</h3>
+        <button onclick="openModal('<?= base_url('admin/users/add') ?>', 'Add New User')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2">
+            <i class="bi bi-person-plus"></i> Add User
         </button>
+    </div>
 
-
-        <div class="table-container">
-            <div class="table-responsive rounded">
-                <table id="userTable" class="table table-striped table-bordered" style="width:100%">
-
-                    <thead>
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <button type="button" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors inline-flex items-center gap-1" id="deleteSelectedBtn">
+                    <i class="bi bi-trash"></i> Delete Selected
+                </button>
+                <select id="role-filter" class="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none" onchange="if (window.userTable) { window.userTable.ajax.reload(); }">
+                    <option value="">All Roles</option>
+                    <option value="admin">Admin</option>
+                    <option value="mechanic">Mechanic</option>
+                    <option value="receptionist">Receptionist</option>
+                    <option value="customer">Customer</option>
+                </select>
+            </div>
+        </div>
+        <div class="p-6">
+            <div class="overflow-x-auto rounded-xl border border-gray-200">
+                <table id="userTable" class="w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
                         <tr>
-                            <th><input type="checkbox" id="select_all"></th>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Phone</th>
-                            <th>Role</th>
-                            <th>Actions</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"><input type="checkbox" id="select_all" class="rounded border-gray-300"></th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                 </table>
             </div>
         </div>
-    </form>
+    </div>
 </div>
 
-<div id="actionModal" class="modal fade" tabindex="-1" aria-labelledby="actionModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="actionModalLabel"></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<!-- Action Modal -->
+<div id="actionModal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden" onclick="closeModal('actionModal')"></div>
+<div id="actionModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <h5 class="text-lg font-semibold text-gray-900" id="actionModalLabel"></h5>
+            <button type="button" onclick="closeModal('actionModal')" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="p-6">
+            <div id="modalContent" class="text-center py-5">
+                <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600 mx-auto"></div>
             </div>
-            <div class="modal-body">
-                <div id="modalContent" class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</div>
+
+<!-- User Details Modal -->
+<div id="userDetailsModal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden" onclick="closeModal('userDetailsModal')"></div>
+<div id="userDetailsModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <h5 class="text-lg font-semibold text-gray-900"><i class="bi bi-person-circle me-2"></i> User Details</h5>
+            <button type="button" onclick="closeModal('userDetailsModal')" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="text-center">
+                    <img id="profile_picture" src="https://placehold.co/150x150/cccccc/333333?text=No+Photo" class="w-32 h-32 rounded-full mx-auto object-cover border-2 border-gray-200" alt="User Photo">
+                    <h5 class="mt-3 font-semibold text-gray-900" id="user-fullname"></h5>
+                    <div class="mt-2 text-sm text-gray-500"><span class="font-medium">Company ID:</span> <span id="company_id"></span></div>
+                    <div class="text-sm text-gray-500"><span class="font-medium">Role:</span> <span id="user-role"></span></div>
+                    <div class="text-sm text-gray-500"><span class="font-medium">Phone:</span> <span id="user-phone"></span></div>
+                    <div class="text-sm text-gray-500"><span class="font-medium">Email:</span> <span id="user-email"></span></div>
+                </div>
+                <div class="md:col-span-2">
+                    <div class="border-b border-gray-200 mb-4">
+                        <nav class="flex gap-4">
+                            <button class="tab-link active px-3 py-2 text-sm font-medium text-indigo-600 border-b-2 border-indigo-600" data-tab="personal">Personal Info</button>
+                            <button class="tab-link px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-700" data-tab="employment">Employment</button>
+                            <button class="tab-link px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-700" data-tab="kin">Next of Kin</button>
+                        </nav>
+                    </div>
+                    <div id="tab-personal" class="tab-content space-y-3">
+                        <div class="text-sm"><span class="font-medium text-gray-700">Date of Birth:</span> <span class="text-gray-900" id="dob"></span></div>
+                        <div class="text-sm"><span class="font-medium text-gray-700">National ID:</span> <span class="text-gray-900" id="national_id"></span></div>
+                        <div class="text-sm"><span class="font-medium text-gray-700">Address:</span> <span class="text-gray-900" id="user-address"></span></div>
+                    </div>
+                    <div id="tab-employment" class="tab-content hidden space-y-3">
+                        <div class="text-sm"><span class="font-medium text-gray-700">Employment Date:</span> <span class="text-gray-900" id="date_of_employment"></span></div>
+                        <div class="text-sm"><span class="font-medium text-gray-700">Department:</span> <span class="text-gray-900" id="department">N/A</span></div>
+                    </div>
+                    <div id="tab-kin" class="tab-content hidden space-y-3">
+                        <div class="text-sm"><span class="font-medium text-gray-700">Next of Kin Name:</span> <span class="text-gray-900" id="kin_first_name"></span> <span class="text-gray-900" id="kin_last_name"></span></div>
+                        <div class="text-sm"><span class="font-medium text-gray-700">Next of Kin Phone:</span> <span class="text-gray-900" id="kin_phone_number"></span></div>
+                        <div class="text-sm"><span class="font-medium text-gray-700">Relationship:</span> <span class="text-gray-900" id="kin_relationship"></span></div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-</div>
-
-<div class="modal fade" id="userDetailsModal" tabindex="-1" aria-labelledby="userDetailsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="userDetailsModalLabel">
-                    <i class="bi bi-person-circle me-2"></i> User Details
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="profile-card">
-                            <img id="profile_picture" src="https://placehold.co/150x150/cccccc/333333?text=No+Photo" class="profile-picture" alt="User Photo">
-                            <h5 class="card-title" id="user-fullname"></h5>
-                            <div class="info-item"><span class="info-label">Company ID:</span> <span class="info-value" id="company_id"></span></div>
-                            <div class="info-item"><span class="info-label">Role:</span> <span class="info-value" id="user-role"></span></div>
-                            <div class="info-item"><span class="info-label">Phone:</span> <span class="info-value" id="user-phone"></span></div>
-                            <div class="info-item"><span class="info-label">Email:</span> <span class="info-value" id="user-email"></span></div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-8">
-                        <ul class="nav nav-tabs mb-3" id="userDetailsTab" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button" role="tab" aria-controls="personal" aria-selected="true">Personal Info</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="employment-tab" data-bs-toggle="tab" data-bs-target="#employment" type="button" role="tab" aria-controls="employment" aria-selected="false">Employment</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="kin-tab" data-bs-toggle="tab" data-bs-target="#kin" type="button" role="tab" aria-controls="kin" aria-selected="false">Next of Kin</button>
-                            </li>
-                        </ul>
-                        <div class="tab-content" id="userDetailsTabContent">
-                            <div class="tab-pane fade show active" id="personal" role="tabpanel" aria-labelledby="personal-tab">
-                                <div class="info-item"><span class="info-label">Date of Birth:</span> <span class="info-value" id="dob"></span></div>
-                                <div class="info-item"><span class="info-label">National ID:</span> <span class="info-value" id="national_id"></span></div>
-                                <div class="info-item"><span class="info-label">Address:</span> <span class="info-value" id="user-address"></span></div>
-                            </div>
-                            <div class="tab-pane fade" id="employment" role="tabpanel" aria-labelledby="employment-tab">
-                                <div class="info-item"><span class="info-label">Employment Date:</span> <span class="info-value" id="date_of_employment"></span></div>
-                                <div class="info-item"><span class="info-label">Department:</span> <span class="info-value" id="department">N/A</span></div>
-                            </div>
-                            <div class="tab-pane fade" id="kin" role="tabpanel" aria-labelledby="kin-tab">
-                                <div class="info-item"><span class="info-label">Next of Kin Name:</span> <span class="info-value" id="kin_first_name"></span> <span class="info-value" id="kin_last_name"></span></div>
-                                <div class="info-item"><span class="info-label">Next of Kin Phone:</span> <span class="info-value" id="kin_phone_number"></span></div>
-                                <div class="info-item"><span class="info-label">Relationship:</span> <span class="info-value" id="kin_relationship">N/A</span></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="bi bi-x-circle me-1"></i> Close
-                </button>
-                <button type="button" onclick="openModal('<?= base_url('admin/users/edit/') ?>' + document.getElementById('company_id').innerText, 'Edit User Details')" class="btn btn-primary">
-                    <i class="bi bi-pencil"></i> Edit User
-                </button>
-            </div>
+        <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200">
+            <button type="button" onclick="closeModal('userDetailsModal')" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors">Close</button>
+            <button type="button" onclick="openModal('<?= base_url('admin/users/edit/') ?>' + document.getElementById('company_id').innerText, 'Edit User')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-1"><i class="bi bi-pencil"></i> Edit User</button>
         </div>
     </div>
 </div>
 
-<div class="modal fade custom-confirm-modal" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-sm modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="confirmDeleteModalLabel"><i class="bi bi-exclamation-triangle me-2"></i> Confirm Deletion</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center">
-                Are you sure you want to delete the selected user(s)? This action cannot be undone.
-            </div>
-            <div class="modal-footer justify-content-center">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
-            </div>
+<!-- Confirm Delete Modal -->
+<div id="confirmDeleteModal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden"></div>
+<div id="confirmDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h5 class="text-lg font-semibold text-gray-900"><i class="bi bi-exclamation-triangle text-amber-500 me-2"></i> Confirm Deletion</h5>
+        </div>
+        <div class="p-6 text-center text-sm text-gray-600">
+            Are you sure you want to delete the selected user(s)? This action cannot be undone.
+        </div>
+        <div class="flex items-center justify-center gap-3 px-6 py-4 border-t border-gray-200">
+            <button type="button" onclick="closeModal('confirmDeleteModal')" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors">Cancel</button>
+            <button type="button" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors" id="confirmDeleteBtn">Delete</button>
         </div>
     </div>
 </div>
-
-
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const selectAllCheckbox = document.getElementById('select_all');
-        const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
-        const bulkActionForm = document.getElementById('bulkActionForm');
+function openModal(id) {
+    document.getElementById(id).classList.remove('hidden');
+    var backdrop = document.getElementById(id + '-backdrop');
+    if (backdrop) backdrop.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
 
-        $(document).ready(function() {
-            // Initialize DataTable
+function closeModal(id) {
+    document.getElementById(id).classList.add('hidden');
+    var backdrop = document.getElementById(id + '-backdrop');
+    if (backdrop) backdrop.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
 
-            function ucfirst(str) {
-                return str.charAt(0).toUpperCase() + str.slice(1);
-            }
-
-
-            const userTable = $('#userTable').DataTable({
-                "processing": true,
-                "searching": true,
-                "ajax": {
-                    "url": "<?= base_url('admin/users/fetch') ?>",
-                    "type": "GET",
-                    "data": function(d) {
-                        // Add custom filters to the DataTables request
-                        d.role_filter = $('#role-filter').val(); // Send role filter
-                        // DataTables automatically sends search[value], order, length, start, draw
-                    }
-                },
-                "columns": [{
-
-                        "data": 'id',
-                        "orderable": false,
-                        render: function(data, type, row) {
-                            return `<input type="checkbox" name="users[]" value="${data}">`;
-                        }
-                    },
-                    {
-                        "data": "id"
-                    },
-                    {
-                        "data": "name"
-                    },
-                    {
-                        "data": "phone"
-                    },
-                    {
-                        "data": 'role',
-                        render: function(data, type, row) {
-                            return ucfirst(data);
-                        }
-                    },
-                    {
-                        "data": null,
-                        "render": function(data, type, row) {
-                            return `
-            <div style="display: flex; justify-content: space-around;">
-                <button class="icon-btn text-info" title="Edit" onclick="editVehicle(${data.id})">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="icon-btn text-primary" title="View" onclick="viewVehicleDetails(${data.id})">
-                    <i class="fas fa-eye"></i>
-                </button>
-                <button class="icon-btn text-danger" title="Delete" onclick="deleteVehicle(${data.id})">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
-            </div>
-                        `;
-                        }
-                    }
-                ]
-            });
+window.openModal = function(url, title) {
+    var label = document.getElementById('actionModalLabel');
+    var content = document.getElementById('modalContent');
+    if (label) label.textContent = title || 'Form';
+    if (content) content.innerHTML = '<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600 mx-auto"></div>';
+    openModal('actionModal');
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function(r) { if (!r.ok) throw new Error('Network response was not ok'); return r.text(); })
+        .then(function(data) { if (content) content.innerHTML = data; })
+        .catch(function(error) {
+            if (content) content.innerHTML = '<div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">Error loading content: ' + error.message + '</div>';
         });
+};
 
+$(document).ready(function() {
+    function ucfirst(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    }
 
-        // --- Checkbox Select All for DataTables ---
-        selectAllCheckbox.addEventListener('change', function() {
-            // Get all checkboxes in the current page of DataTables
-            const checkboxes = userTable.rows({
-                page: 'current'
-            }).nodes().to$().find('input[type="checkbox"]');
+    window.userTable = FlowDesk.serverSideTable('#userTable', {
+        ajax: {
+            url: '<?= base_url('admin/users/fetch') ?>',
+            type: 'GET',
+            data: function(d) {
+                d.role_filter = $('#role-filter').val();
+            }
+        },
+        columns: [
+            { data: 'id', orderable: false, render: function(data) { return '<input type="checkbox" name="users[]" value="' + data + '" class="rounded border-gray-300">'; } },
+            { data: 'id' },
+            { data: 'name' },
+            { data: 'phone' },
+            { data: 'role', render: function(data) { return ucfirst(data); } },
+            { data: null, orderable: false, render: function(data) {
+                return '<div class="flex items-center gap-2">' +
+                    '<button onclick="editUser(' + data.id + ')" class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>' +
+                    '<button onclick="viewUserDetails(' + data.id + ')" class="p-1.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="View"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>' +
+                    '<button onclick="deleteUser(' + data.id + ')" class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>' +
+                    '</div>';
+            } }
+        ]
+    });
+
+    var selectAll = document.getElementById('select_all');
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            var checkboxes = window.userTable.rows({ page: 'current' }).nodes().to$().find('input[name="users[]"]');
             checkboxes.prop('checked', this.checked);
         });
+    }
 
-        // --- Custom Confirmation Modal for Delete ---
-        const confirmDeleteModalElement = document.getElementById('confirmDeleteModal');
-        const confirmDeleteModal = new bootstrap.Modal(confirmDeleteModalElement);
-        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-
-        // deleteSelectedBtn.addEventListener('click', function() {
-
-        //     const checkedUsers = userTable.rows().nodes().to$().find('input[name="users[]"]:checked');
-
-        //     if (checkedUsers.length === 0) {
-        //         // Use a custom message box instead of alert
-        //         alert("Please select at least one user to delete."); // Temporary alert for demonstration
-
-        //         // showInfoModal("No Selection", "Please select at least one user to delete.");
-        //         return;
-        //     }
-        //     confirmDeleteModal.show();
-        // });
-
-        deleteSelectedBtn.addEventListener('click', function() {
-            const checkedUsers = userTable.rows().nodes().to$().find('input[name="users[]"]:checked');
-
-            if (checkedUsers.length === 0) {
-                alert("Please select at least one user to delete.");
-                return;
-            }
-
-            const userIds = [];
-            checkedUsers.each(function() {
-                userIds.push($(this).val());
-            });
-
-            // Optional: confirm first
-            if (!confirm("Are you sure you want to delete the selected user(s)?")) {
-                return;
-            }
-
-            // Send AJAX to backend
-            $.post('/users/delete-multiple', {
-                user_ids: userIds
-            }, function(response) {
-                alert(response.message);
-                // Optionally reload the DataTable
-                userTable.ajax.reload();
-            }, 'json');
-        });
-
-
-        confirmDeleteBtn.addEventListener('click', function() {
-            confirmDeleteModal.hide();
-            bulkActionForm.submit(); // Submit the form if confirmed
-        });
-
-        // --- Unified openModal Function for Add/Edit ---
-        const actionModalElement = document.getElementById('actionModal');
-        const actionModal = new bootstrap.Modal(actionModalElement);
-        const actionModalTitle = document.getElementById('actionModalLabel');
-        const modalContentDiv = document.getElementById('modalContent');
-
-        window.openModal = function(url, title = 'Form') { // Added title parameter
-            actionModalTitle.textContent = title;
-            modalContentDiv.innerHTML = `
-                                 <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">Loading...</span>
-                                 </div>`;
-
-            actionModal.show();
-
-            fetch(url, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok ' + response.statusText);
-                    }
-                    return response.text();
-                })
-                .then(data => {
-                    modalContentDiv.innerHTML = data;
-                })
-                .catch(error => {
-                    modalContentDiv.innerHTML = ` < div class = "alert alert-danger"
-                                role = "alert" > Error loading content: $ {
-                                    error.message
-                                }.Please
-                                try again. < /div>`;
-                    console.error('Error loading modal content:', error);
-                });
+    document.getElementById('deleteSelectedBtn').addEventListener('click', function() {
+        var checked = window.userTable.rows().nodes().to$().find('input[name="users[]"]:checked');
+        if (checked.length === 0) {
+            Swal.fire('No Selection', 'Please select at least one user to delete.', 'info');
+            return;
         }
-
-        // --- View User Details Modal ---
-        const userDetailsModalElement = document.getElementById('userDetailsModal');
-        const userDetailsModal = new bootstrap.Modal(userDetailsModalElement);
-
-        // Attach event listener for 'View' buttons using delegation
-        // This is crucial because DataTables dynamically adds/removes rows.
-        $('#userTable tbody').on('click', '.view-user', async function() {
-            const userId = $(this).data('id');
-
-            if (!userId) {
-                console.error('User ID not found for this button.');
-                return;
-            }
-            // Clear previous data and show loading spinner
-            document.getElementById('user-fullname').innerText = 'Loading...';
-            document.getElementById('company_id').innerText = '';
-            document.getElementById('profile_picture').src = 'https://placehold.co/150x150/cccccc/333333?text=Loading...';
-            // Clear other fields as well
-
-            userDetailsModal.show(); // Show modal immediately with loading state
-
-            try {
-                const response = await fetch(`<?= base_url('admin/users/fetch/') ?>${userId}`, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch user details (Status: ${response.status})`);
+        if (!confirm('Are you sure you want to delete the selected user(s)?')) return;
+        var ids = [];
+        checked.each(function() { ids.push($(this).val()); });
+        $.ajax({
+            url: '<?= base_url('admin/users/bulk_action') ?>',
+            type: 'POST',
+            data: { users: ids, action: 'delete' },
+            dataType: 'json',
+            success: function(res) {
+                if (res.status === 'success') {
+                    Swal.fire('Deleted!', res.message, 'success');
+                    window.userTable.ajax.reload();
+                } else {
+                    Swal.fire('Error!', res.message || 'Delete failed.', 'error');
                 }
-
-                const data = await response.json();
-
-                //echo all data
-                    // console.log(data);
-
-                // Populate Basic Details
-                document.getElementById('profile_picture').src = data.profile_picture ? `<?= base_url() ?>/${data.profile_picture}` : 'https://placehold.co/150x150/cccccc/333333?text=No+Photo';
-                document.getElementById('user-fullname').innerText = `${data.first_name || ''} ${data.last_name || ''}`;
-                document.getElementById('company_id').innerText = data.company_id || 'N/A';
-                document.getElementById('user-role').innerText = data.role ? ucfirst(data.role) : 'N/A';
-                document.getElementById('user-phone').innerText = data.phone_number || 'N/A';
-                document.getElementById('user-email').innerText = data.email || 'N/A';
-
-                // Populate Personal Info Tab
-                document.getElementById('dob').innerText = data.dob || 'N/A';
-                document.getElementById('national_id').innerText = data.national_id || 'N/A';
-                document.getElementById('user-address').innerText = data.address || 'N/A';
-
-                // Populate Employment Tab
-                document.getElementById('date_of_employment').innerText = data.date_of_employment || 'N/A';
-                document.getElementById('department').innerText = data.department || 'N/A';
-
-                // Populate Next of Kin Tab
-
-                const kin = data.next_of_kin || {};
-
-                document.getElementById('kin_first_name').innerText = `${kin.kin_first_name || ''} ${kin.kin_last_name || ''}`.trim() || 'N/A';
-                document.getElementById('kin_last_name').innerText = kin.kin_last_name || '';
-                document.getElementById('kin_phone_number').innerText = kin.kin_phone_number || 'N/A';
-                document.getElementById('kin_relationship').innerText = kin.relationship || 'N/A';
-
-            } catch (error) {
-                // Display error message directly in the modal body or a dedicated alert area
-                const modalBody = userDetailsModalElement.querySelector('.modal-body');
-                modalBody.innerHTML = `<div class="alert alert-danger" role="alert">
-                                            <i class="bi bi-exclamation-circle me-2"></i> Failed to load user details: ${error.message}
-                                        </div>`;
-                console.error('Error fetching user details:', error);
-            }
+            },
+            error: function(xhr) { FlowDesk.handleAjaxError(xhr, 'delete'); }
         });
-
-        // --- Helper for ucfirst in JS (if needed for roles) ---
-        function ucfirst(str) {
-            if (typeof str !== 'string' || str.length === 0) {
-                return '';
-            }
-            return str.charAt(0).toUpperCase() + str.slice(1);
-        }
     });
+});
+
+window.editUser = function(id) {
+    window.openModal('<?= base_url('admin/users/edit/') ?>' + id, 'Edit User');
+};
+
+window.viewUserDetails = function(id) {
+    var label = document.getElementById('user-fullname');
+    var companyId = document.getElementById('company_id');
+    var profilePic = document.getElementById('profile_picture');
+    if (label) label.innerText = 'Loading...';
+    if (companyId) companyId.innerText = '';
+    if (profilePic) profilePic.src = 'https://placehold.co/150x150/cccccc/333333?text=Loading...';
+    openModal('userDetailsModal');
+
+    fetch('<?= base_url('admin/users/fetch/') ?>' + id, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function(r) { if (!r.ok) throw new Error('Failed to fetch user details'); return r.json(); })
+        .then(function(data) {
+            document.getElementById('profile_picture').src = data.profile_picture ? '<?= base_url() ?>/' + data.profile_picture : 'https://placehold.co/150x150/cccccc/333333?text=No+Photo';
+            document.getElementById('user-fullname').innerText = (data.first_name || '') + ' ' + (data.last_name || '');
+            document.getElementById('company_id').innerText = data.company_id || 'N/A';
+            document.getElementById('user-role').innerText = ucfirst(data.role || 'N/A');
+            document.getElementById('user-phone').innerText = data.phone_number || 'N/A';
+            document.getElementById('user-email').innerText = data.email || 'N/A';
+            document.getElementById('dob').innerText = data.dob || 'N/A';
+            document.getElementById('national_id').innerText = data.national_id || 'N/A';
+            document.getElementById('user-address').innerText = data.address || 'N/A';
+            document.getElementById('date_of_employment').innerText = data.date_of_employment || 'N/A';
+            document.getElementById('department').innerText = data.department || 'N/A';
+            var kin = data.next_of_kin || {};
+            document.getElementById('kin_first_name').innerText = (kin.kin_first_name || '') + ' ' + (kin.kin_last_name || '');
+            document.getElementById('kin_last_name').innerText = kin.kin_last_name || '';
+            document.getElementById('kin_phone_number').innerText = kin.kin_phone_number || 'N/A';
+            document.getElementById('kin_relationship').innerText = kin.relationship || 'N/A';
+        })
+        .catch(function(error) {
+            var body = document.querySelector('#userDetailsModal .p-6');
+            if (body) body.innerHTML = '<div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">Failed to load user details: ' + error.message + '</div>';
+        });
+};
+
+window.deleteUser = function(id) {
+    if (!confirm('Are you sure you want to delete this user?')) return;
+    $.ajax({
+        url: '<?= base_url('admin/users/delete/') ?>' + id,
+        type: 'GET',
+        success: function(res) {
+            Swal.fire('Deleted!', 'User deleted successfully.', 'success');
+            if (window.userTable) window.userTable.ajax.reload();
+        },
+        error: function(xhr) { FlowDesk.handleAjaxError(xhr, 'delete'); }
+    });
+};
+
+function ucfirst(str) {
+    if (typeof str !== 'string' || str.length === 0) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+document.addEventListener('click', function(e) {
+    var tabBtn = e.target.closest('.tab-link');
+    if (tabBtn) {
+        document.querySelectorAll('.tab-link').forEach(function(t) {
+            t.classList.remove('text-indigo-600', 'border-indigo-600');
+            t.classList.add('text-gray-500');
+        });
+        tabBtn.classList.add('text-indigo-600', 'border-indigo-600');
+        tabBtn.classList.remove('text-gray-500');
+        document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.add('hidden'); });
+        var tab = document.getElementById('tab-' + tabBtn.dataset.tab);
+        if (tab) tab.classList.remove('hidden');
+    }
+});
 </script>
 <?= $this->endSection(); ?>

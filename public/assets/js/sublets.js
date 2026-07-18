@@ -31,16 +31,12 @@ $(document).ready(function () {
         }
     }
 
-    const subletTable = $('#subletTable').DataTable({
-        processing: true,
-        serverSide: true,
+    const subletTable = FlowDesk.serverSideTable('#subletTable', {
         ajax: {
             url: BASE_URL + 'admin/sublets/load',
             type: 'POST',
             data: function (d) {
                 d.status_filter = statusFilter.val();
-                var csrf = getCsrfMeta();
-                d[csrf.name] = csrf.hash;
             }
         },
         columns: [
@@ -57,11 +53,13 @@ $(document).ready(function () {
             { data: 'provider_name' },
             {
                 data: 'cost',
-                render: $.fn.dataTable.render.number(',', '.', 2, 'KES ')
+                render: function(data) {
+                    return 'KES ' + parseFloat(data || 0).toLocaleString('en-US', {minimumFractionDigits: 2});
+                }
             },
             {
                 data: 'status',
-                render: function (data, type, row) {
+                render: function (data) {
                     var badgeClass = getStatusBadgeClass(data);
                     return '<span class="text-xs font-medium px-2.5 py-0.5 rounded-full ' + badgeClass + '">' + data + '</span>';
                 }
@@ -72,15 +70,13 @@ $(document).ready(function () {
                 data: 'id',
                 orderable: false,
                 searchable: false,
-                render: function (data, type, row) {
+                render: function (data) {
                     return '<button type="button" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors view-sublet" data-id="' + data + '"><i class="bi bi-eye"></i> View</button> <button type="button" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors edit-sublet ms-1" data-id="' + data + '"><i class="bi bi-pencil"></i> Edit</button>';
                 }
             }
         ],
-        dom: '<"top d-flex justify-content-between flex-wrap"<"mb-2"l><"mb-2"f>>rt<"bottom d-flex justify-content-between flex-wrap"<"mb-2"i><"mb-2"p>><"clear">',
         language: {
-            search: "",
-            searchPlaceholder: "Search sublets...",
+            searchPlaceholder: "Search sublets..."
         },
         initComplete: function () {
             $('#subletTable_filter').prepend(statusFilter.detach());

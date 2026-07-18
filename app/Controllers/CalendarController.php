@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Controllers\BaseController;
+use App\Models\CalendarEventModel;
 use CodeIgniter\API\ResponseTrait;
 use CodeIgniter\Database\Exceptions\DatabaseException;
 use Exception;
@@ -32,9 +33,47 @@ class CalendarController extends BaseController
         $users_for_notification = $this->db->table('users')->where('deleted_at', null)->get()->getResultArray();
         $loggedInUserId = $this->session->get('user_id');
 
+        // Upcoming custom events
+        $calendarEventModel = new CalendarEventModel();
+        $upcomingEvents = $calendarEventModel->getUpcoming(5);
+
+        // Active jobs (non-terminal statuses)
+        $activeStatuses = ['Awaiting Assignment', 'Awaiting Diagnosis', 'Diagnosis Complete', 'Approved', 'Quote Sent', 'In Progress', 'Awaiting Parts', 'Quality Check', 'Ready for Invoice', 'On Hold', 'Rework'];
+        $upcomingJobs = $this->db->table('job_cards')
+            ->select('job_cards.job_no, job_cards.date_in, job_cards.time_in, job_cards.end_date, job_cards.job_status, vehicles.registration_number, customers.name as customer_name')
+            ->join('vehicles', 'vehicles.id = job_cards.vehicle_id', 'left')
+            ->join('customers', 'customers.id = job_cards.customer_id', 'left')
+            ->whereIn('job_cards.job_status', $activeStatuses)
+            ->orderBy('job_cards.date_in', 'ASC')
+            ->limit(5)
+            ->get()
+            ->getResultArray();
+
+        // Today's event counts
+        $todayStart = date('Y-m-d 00:00:00');
+        $todayEnd = date('Y-m-d 23:59:59');
+
+        $todayEventsCount = $this->db->table('calendar_events')
+            ->where('start_time >=', $todayStart)
+            ->where('start_time <=', $todayEnd)
+            ->countAllResults();
+
+        $todayJobsCount = $this->db->table('job_cards')
+            ->where('date_in', date('Y-m-d'))
+            ->countAllResults();
+
+        $activeJobsCount = $this->db->table('job_cards')
+            ->whereIn('job_status', $activeStatuses)
+            ->countAllResults();
+
         return view('calendar/calendar', [
             'users_for_notification' => $users_for_notification,
             'loggedInUserId' => $loggedInUserId,
+            'upcomingEvents' => $upcomingEvents,
+            'upcomingJobs' => $upcomingJobs,
+            'todayEventsCount' => $todayEventsCount,
+            'todayJobsCount' => $todayJobsCount,
+            'activeJobsCount' => $activeJobsCount,
         ]);
     }
 
@@ -51,40 +90,41 @@ class CalendarController extends BaseController
         }
 
         $request = $this->request;
-        $start_str = $request->getGet('start'); // Start of the viewable range
-        $end_str = $request->getGet('end');   // End of the viewable range
+        $start_str = $request->getGet('start');
+        $end_str = $request->getGet('end');
+
+        if (empty($start_str) || empty($end_str)) {
+            $start_str = date('Y-m-d', strtotime('-1 month'));
+            $end_str = date('Y-m-d', strtotime('+2 months'));
+        }
 
         $events = [];
 
         try {
-            // --- Fetch Job Card Events ---
-            // Fetch jobs that are within the calendar's visible range.
-            // Mechanic details will be fetched when viewing the event modal.
-            $jobs = $this->db->table('job_cards')
+            $jobsBuilder = $this->db->table('job_cards')
                 ->select('
-                                 job_cards.id,
-                                 job_cards.job_no,
-                                 job_cards.diagnosis,
-                                 job_cards.job_status,
-                                 job_cards.date_in,
-                                 job_cards.time_in,
-                                 job_cards.end_date,
-                                 job_cards.job_summary,
-                                 vehicles.registration_number,
-                                 customers.name as customer_name
-                             ')
+                    job_cards.id,
+                    job_cards.job_no,
+                    job_cards.diagnosis,
+                    job_cards.job_status,
+                    job_cards.date_in,
+                    job_cards.time_in,
+                    job_cards.end_date,
+                    job_cards.job_summary,
+                    vehicles.registration_number,
+                    customers.name as customer_name
+                ')
                 ->join('vehicles', 'vehicles.id = job_cards.vehicle_id', 'left')
                 ->join('customers', 'customers.id = job_cards.customer_id', 'left')
+                ->groupStart()
                 ->where('job_cards.date_in >=', $start_str)
                 ->where('job_cards.date_in <=', $end_str)
-
-
+                ->groupEnd()
                 ->orGroupStart()
                 ->where('job_cards.end_date >=', $start_str)
                 ->where('job_cards.end_date <=', $end_str)
-                ->groupEnd()
-                ->get()
-                ->getResultArray();
+                ->groupEnd();
+            $jobs = $jobsBuilder->get()->getResultArray();
 
             foreach ($jobs as $job) {
                 // Event for Job Drop-off

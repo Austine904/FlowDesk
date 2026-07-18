@@ -45,13 +45,13 @@ $routes->get('user/failure', 'UsersController::failure');
 // $routes->post('admin/users/bulk_action', 'UsersController::bulk_action'); // REMOVED: method is commented out
 
 // --- Job Intake routes ---
+
+// Job Intake API (used by admin/jobs modal)
 $routes->group('job_intake', ['filter' => 'auth:admin,receptionist'], function ($routes) {
-    $routes->get('/', 'JobIntake::index');
     $routes->get('search', 'JobIntake::search');
     $routes->post('create_job_card', 'JobIntake::create_job_card');
     $routes->get('create_job_card', 'JobIntake::create_job_card');
 });
-
 
 // Protected routes
 
@@ -133,7 +133,7 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
 
     // Inventory
     $routes->get('inventory', 'InventoryController::index');
-    $routes->get('inventory/load', 'InventoryController::load');
+    $routes->post('inventory/load', 'InventoryController::load');
     $routes->get('inventory/add', 'InventoryController::add');
     $routes->post('inventory/create', 'InventoryController::create');
     $routes->get('inventory/edit/(:num)', 'InventoryController::edit/$1');
@@ -144,7 +144,7 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
 
     // Suppliers
     $routes->get('suppliers', 'SuppliersController::index');
-    $routes->get('suppliers/load', 'SuppliersController::load');
+    $routes->post('suppliers/load', 'SuppliersController::load');
     $routes->get('suppliers/add', 'SuppliersController::add');
     $routes->post('suppliers/create', 'SuppliersController::create');
     $routes->get('suppliers/edit/(:num)', 'SuppliersController::edit/$1');
@@ -169,7 +169,7 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
 
     // LPOs
     $routes->get('lpos', 'LpoController::index');
-    $routes->get('lpos/load', 'LpoController::load');
+    $routes->post('lpos/load', 'LpoController::load');
     $routes->get('lpos/add', 'LpoController::add');
     $routes->post('lpos/create', 'LpoController::create');
     $routes->get('lpos/view/(:num)', 'LpoController::view/$1');
@@ -191,7 +191,7 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
 
     // Petty Cash
     $routes->get('pettycash', 'PettyCashController::index');
-    $routes->get('pettycash/load', 'PettyCashController::load');
+    $routes->post('pettycash/load', 'PettyCashController::load');
     $routes->get('pettycash/add', 'PettyCashController::add');
     $routes->post('pettycash/create', 'PettyCashController::create');
     $routes->get('pettycash/edit/(:num)', 'PettyCashController::edit/$1');

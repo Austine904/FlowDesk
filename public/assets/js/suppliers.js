@@ -34,14 +34,7 @@ $(document).ready(function() {
                     Swal.fire('Error!', res.message || 'Failed to save supplier.', 'error');
                 }
             },
-            error: function(xhr) {
-                var msg = 'Failed to save supplier.';
-                try {
-                    var r = JSON.parse(xhr.responseText);
-                    msg = r.message || msg;
-                } catch(e) {}
-                Swal.fire('Error!', msg, 'error');
-            }
+            error: function(xhr) { FlowDesk.handleAjaxError(xhr, 'save'); }
         });
     });
 
@@ -66,14 +59,7 @@ $(document).ready(function() {
                     Swal.fire('Error!', res.message || 'Failed to update supplier.', 'error');
                 }
             },
-            error: function(xhr) {
-                var msg = 'Failed to update supplier.';
-                try {
-                    var r = JSON.parse(xhr.responseText);
-                    msg = r.message || msg;
-                } catch(e) {}
-                Swal.fire('Error!', msg, 'error');
-            }
+            error: function(xhr) { FlowDesk.handleAjaxError(xhr, 'update'); }
         });
     });
 });

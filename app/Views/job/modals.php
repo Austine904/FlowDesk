@@ -86,6 +86,215 @@
     }
 </style>
 
+<!-- Add Job Modal -->
+<div id="addJobModal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden" onclick="closeModal('addJobModal')"></div>
+<div id="addJobModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <h5 class="text-lg font-semibold text-gray-900">New Job Intake</h5>
+            <button type="button" onclick="closeModal('addJobModal')" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="p-6">
+            <form id="jobIntakeForm" method="POST" action="<?= base_url('job_intake/create_job_card') ?>" enctype="multipart/form-data">
+                <?= csrf_field() ?>
+
+                <!-- Customer/Vehicle Search -->
+                <div class="mb-4">
+                    <label for="search_input" class="block text-sm font-medium text-gray-700 mb-1">Search Existing Customer or Vehicle</label>
+                    <input type="text" id="search_input" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none" placeholder="Search by phone, name, or registration number..." autocomplete="off">
+                    <div id="search_results" class="search-results-dropdown hidden"></div>
+                    <div id="error_search_input" class="error-message"></div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Customer Section -->
+                    <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h6 class="text-sm font-semibold text-gray-700">Customer</h6>
+                            <span id="customer_status" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">New</span>
+                        </div>
+                        <input type="hidden" id="customer_id" name="customer_id" value="new">
+                        <div class="space-y-3">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label for="new_customer_first_name" class="block text-xs font-medium text-gray-600 mb-1">First Name</label>
+                                    <input type="text" id="new_customer_first_name" name="new_customer_first_name" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                                    <div id="error_new_customer_first_name" class="error-message"></div>
+                                </div>
+                                <div>
+                                    <label for="new_customer_last_name" class="block text-xs font-medium text-gray-600 mb-1">Last Name</label>
+                                    <input type="text" id="new_customer_last_name" name="new_customer_last_name" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                                    <div id="error_new_customer_last_name" class="error-message"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="new_customer_phone_number" class="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+                                <input type="text" id="new_customer_phone_number" name="new_customer_phone_number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                                <div id="error_new_customer_phone_number" class="error-message"></div>
+                            </div>
+                            <div>
+                                <label for="new_customer_email" class="block text-xs font-medium text-gray-600 mb-1">Email</label>
+                                <input type="email" id="new_customer_email" name="new_customer_email" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                                <div id="error_new_customer_email" class="error-message"></div>
+                            </div>
+                            <div>
+                                <label for="new_customer_address" class="block text-xs font-medium text-gray-600 mb-1">Address</label>
+                                <textarea id="new_customer_address" name="new_customer_address" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"></textarea>
+                                <div id="error_new_customer_address" class="error-message"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vehicle Section -->
+                    <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h6 class="text-sm font-semibold text-gray-700">Vehicle</h6>
+                            <span id="vehicle_status" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">New</span>
+                        </div>
+                        <input type="hidden" id="vehicle_id" name="vehicle_id" value="new">
+                        <div class="space-y-3">
+                            <div>
+                                <label for="new_vehicle_license_plate" class="block text-xs font-medium text-gray-600 mb-1">Registration No.</label>
+                                <input type="text" id="new_vehicle_license_plate" name="new_vehicle_license_plate" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                                <div id="error_new_vehicle_license_plate" class="error-message"></div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label for="new_vehicle_make" class="block text-xs font-medium text-gray-600 mb-1">Make</label>
+                                    <input type="text" id="new_vehicle_make" name="new_vehicle_make" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                                    <div id="error_new_vehicle_make" class="error-message"></div>
+                                </div>
+                                <div>
+                                    <label for="new_vehicle_model" class="block text-xs font-medium text-gray-600 mb-1">Model</label>
+                                    <input type="text" id="new_vehicle_model" name="new_vehicle_model" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                                    <div id="error_new_vehicle_model" class="error-message"></div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label for="new_vehicle_year" class="block text-xs font-medium text-gray-600 mb-1">Year</label>
+                                    <input type="text" id="new_vehicle_year" name="new_vehicle_year" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                                    <div id="error_new_vehicle_year" class="error-message"></div>
+                                </div>
+                                <div>
+                                    <label for="new_vehicle_color" class="block text-xs font-medium text-gray-600 mb-1">Color</label>
+                                    <input type="text" id="new_vehicle_color" name="new_vehicle_color" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                                    <div id="error_new_vehicle_color" class="error-message"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="new_vehicle_vin" class="block text-xs font-medium text-gray-600 mb-1">VIN</label>
+                                <input type="text" id="new_vehicle_vin" name="new_vehicle_vin" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                                <div id="error_new_vehicle_vin" class="error-message"></div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label for="new_vehicle_engine_number" class="block text-xs font-medium text-gray-600 mb-1">Engine No.</label>
+                                    <input type="text" id="new_vehicle_engine_number" name="new_vehicle_engine_number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                                    <div id="error_new_vehicle_engine_number" class="error-message"></div>
+                                </div>
+                                <div>
+                                    <label for="new_vehicle_chassis_number" class="block text-xs font-medium text-gray-600 mb-1">Chassis No.</label>
+                                    <input type="text" id="new_vehicle_chassis_number" name="new_vehicle_chassis_number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                                    <div id="error_new_vehicle_chassis_number" class="error-message"></div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label for="new_vehicle_fuel_type" class="block text-xs font-medium text-gray-600 mb-1">Fuel Type</label>
+                                    <select id="new_vehicle_fuel_type" name="new_vehicle_fuel_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white">
+                                        <option value="">Select</option>
+                                        <option value="Petrol">Petrol</option>
+                                        <option value="Diesel">Diesel</option>
+                                        <option value="Electric">Electric</option>
+                                        <option value="Hybrid">Hybrid</option>
+                                    </select>
+                                    <div id="error_new_vehicle_fuel_type" class="error-message"></div>
+                                </div>
+                                <div>
+                                    <label for="new_vehicle_transmission" class="block text-xs font-medium text-gray-600 mb-1">Transmission</label>
+                                    <select id="new_vehicle_transmission" name="new_vehicle_transmission" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white">
+                                        <option value="">Select</option>
+                                        <option value="Manual">Manual</option>
+                                        <option value="Automatic">Automatic</option>
+                                        <option value="CVT">CVT</option>
+                                        <option value="Semi-Automatic">Semi-Automatic</option>
+                                    </select>
+                                    <div id="error_new_vehicle_transmission" class="error-message"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Job Details -->
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mt-4">
+                    <h6 class="text-sm font-semibold text-gray-700 mb-3">Job Details</h6>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <div>
+                            <label for="date_in" class="block text-xs font-medium text-gray-600 mb-1">Date In</label>
+                            <input type="date" id="date_in" name="date_in" value="<?= date('Y-m-d') ?>" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                            <div id="error_date_in" class="error-message"></div>
+                        </div>
+                        <div>
+                            <label for="time_in" class="block text-xs font-medium text-gray-600 mb-1">Time In</label>
+                            <input type="time" id="time_in" name="time_in" value="<?= date('H:i') ?>" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                            <div id="error_time_in" class="error-message"></div>
+                        </div>
+                        <div>
+                            <label for="mileage_in" class="block text-xs font-medium text-gray-600 mb-1">Mileage In</label>
+                            <input type="number" id="mileage_in" name="mileage_in" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                            <div id="error_mileage_in" class="error-message"></div>
+                        </div>
+                        <div>
+                            <label for="fuel_level" class="block text-xs font-medium text-gray-600 mb-1">Fuel Level</label>
+                            <select id="fuel_level" name="fuel_level" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white">
+                                <option value="">Select</option>
+                                <option value="Empty">Empty</option>
+                                <option value="1/4">1/4</option>
+                                <option value="1/2">1/2</option>
+                                <option value="3/4">3/4</option>
+                                <option value="Full">Full</option>
+                            </select>
+                            <div id="error_fuel_level" class="error-message"></div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label for="reported_problem" class="block text-xs font-medium text-gray-600 mb-1">Reported Problem</label>
+                        <input type="text" id="reported_problem" name="reported_problem" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                        <div id="error_reported_problem" class="error-message"></div>
+                    </div>
+                    <div class="mt-3">
+                        <label for="initial_damage_notes" class="block text-xs font-medium text-gray-600 mb-1">Initial Damage Notes</label>
+                        <textarea id="initial_damage_notes" name="initial_damage_notes" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"></textarea>
+                        <div id="error_initial_damage_notes" class="error-message"></div>
+                    </div>
+                </div>
+
+                <!-- Photo Upload -->
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mt-4">
+                    <h6 class="text-sm font-semibold text-gray-700 mb-3">Job Card Photos</h6>
+                    <input type="file" id="job_card_photos" name="job_card_photos[]" multiple accept="image/*" class="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                    <div id="photo_preview_container" class="photo-preview-container empty-state mt-2"></div>
+                    <div id="error_job_card_photos" class="error-message"></div>
+                </div>
+
+                <!-- Submit -->
+                <div class="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+                    <button type="button" onclick="closeModal('addJobModal')" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors">Cancel</button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2">
+                        <i class="bi bi-plus-circle"></i> Create Job Card
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Job details modal -->
 <div id="jobDetailsModal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden" onclick="closeModal('jobDetailsModal')"></div>
 <div id="jobDetailsModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
@@ -380,7 +589,7 @@
         }
         setupModalCloseObserver();
 
-        $('#jobsTable tbody').on('click', '.view-job', async function() {
+        $('#JobTable tbody').on('click', '.view-job', async function() {
             const jobId = $(this).data('id');
 
             // Clear previous data and show loading spinners/placeholders

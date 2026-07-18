@@ -264,7 +264,7 @@ class ReportsController extends BaseController
 
         // Total inventory value
         $totalValue = $db->table('inventory')
-            ->selectSum('quantity_in_hand * unit_price', 'total_value')
+            ->select('SUM(quantity_in_hand * unit_price) as total_value', false)
             ->where('is_stocked', 1)
             ->get()
             ->getRowArray()['total_value'] ?? 0;

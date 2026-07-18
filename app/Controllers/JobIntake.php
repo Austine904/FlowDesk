@@ -34,25 +34,6 @@ class JobIntake extends BaseController
         $this->validation = \Config\Services::validation();
     }
 
-    public function index()
-    {
-        if (!$this->session->get('isLoggedIn')) {
-            return redirect()->to('auth/login');
-        }
-
-        $user_role = $this->session->get('role');
-        if ($user_role !== 'admin' && $user_role !== 'receptionist') {
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('You are not authorized to access this page.');
-        }
-
-        $userModel = new UserModel();
-        $service_advisors = $userModel->whereIn('role', ['admin', 'receptionist'])->findAll();
-        $mechanics = $userModel->getByRole('mechanic');
-        $data['service_advisors'] = $service_advisors;
-        $data['mechanics'] = $mechanics;
-        return view('job_intake_form', $data);
-    }
-
     public function search()
     {
         if (!$this->session->get('isLoggedIn')) {

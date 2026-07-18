@@ -210,5 +210,13 @@
     </div>
 </div>
 
+<script>
+window.openModal = function(id) {
+    document.getElementById(id).classList.remove('hidden');
+    var backdrop = document.getElementById(id + '-backdrop');
+    if (backdrop) backdrop.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+};
+</script>
 <?php include('modals.php'); ?>
 <?= $this->endSection() ?>
