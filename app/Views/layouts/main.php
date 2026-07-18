@@ -10,19 +10,12 @@
 
     <!-- Inter Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
-
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
     <!-- DataTables (vendored locally, Tailwind-compatible) -->
     <link rel="stylesheet" href="<?= base_url('public/assets/vendor/datatables/jquery.dataTables.min.css') ?>">
-    <script src="<?= base_url('public/assets/vendor/datatables/jquery.dataTables.min.js') ?>"></script>
     <script src="<?= base_url('public/assets/js/datatable-config.js') ?>"></script>
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>   
 
     <!-- Font Awesome -->
@@ -103,6 +96,7 @@
         }
 
         #sidebar { transition: width 0.2s ease; }
+        #notificationDropdown { transition: opacity 0.15s ease; }
 
         .flash-message { animation: slideDown 0.3s ease; }
         @keyframes slideDown {
@@ -173,9 +167,33 @@
                         <?php endforeach; ?>
                     </nav>
                 </div>
+                <div class="relative ml-4 hidden md:block">
+                    <svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <input id="globalSearch" type="text" placeholder="Search jobs, customers, vehicles..."
+                           class="w-72 pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors">
+                    <div id="searchResults" class="hidden absolute top-full left-0 mt-1 w-96 bg-white rounded-xl shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto"></div>
+                </div>
             </div>
 
             <div class="flex items-center gap-4">
+                <div class="relative" id="notificationArea">
+                    <button onclick="toggleNotifications()" class="relative p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                        <span id="notificationBadge" class="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">0</span>
+                    </button>
+                    <div id="notificationDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
+                        <div class="px-4 py-3 border-b border-gray-100">
+                            <p class="text-sm font-semibold text-gray-900">Notifications</p>
+                        </div>
+                        <div class="max-h-64 overflow-y-auto">
+                            <div class="px-4 py-6 text-center text-sm text-gray-400">No new notifications</div>
+                        </div>
+                    </div>
+                </div>
                 <div class="relative" id="userDropdown">
                     <button onclick="document.getElementById('userMenu').classList.toggle('hidden')"
                             class="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900">
@@ -264,6 +282,21 @@
             };
         }
 
+        function loadChartJS() {
+            return new Promise(function(resolve, reject) {
+                if (window.Chart) { resolve(window.Chart); return; }
+                var s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                s.onload = function() { resolve(window.Chart); };
+                s.onerror = reject;
+                document.head.appendChild(s);
+            });
+        }
+
+        function toggleNotifications() {
+            document.getElementById('notificationDropdown').classList.toggle('hidden');
+        }
+
         $.ajaxSetup({
             beforeSend: function(xhr, settings) {
                 if (['POST','PUT','DELETE'].includes(settings.type?.toUpperCase())) {
@@ -288,8 +321,15 @@
             if (!document.getElementById('userDropdown')?.contains(e.target)) {
                 document.getElementById('userMenu')?.classList.add('hidden');
             }
+            if (!document.getElementById('notificationArea')?.contains(e.target)) {
+                document.getElementById('notificationDropdown')?.classList.add('hidden');
+            }
         });
     </script>
+
+    <script src="<?= base_url('public/assets/js/dashboard-refresh.js') ?>"></script>
+    <script src="<?= base_url('public/assets/js/notifications.js') ?>"></script>
+    <script src="<?= base_url('public/assets/js/global-search.js') ?>"></script>
 
     <?= $this->renderSection('scripts') ?>
 </body>

@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Models\UserModel;
+use App\Models\CustomerModel;
 
 class LoginController extends BaseController
 {
@@ -65,5 +66,53 @@ class LoginController extends BaseController
     {
         session()->destroy();
         return redirect()->to('/login');
+    }
+
+    public function resetPassword($token)
+    {
+        $companyId = base64_decode($token);
+
+        $userModel = new UserModel();
+        $user = $userModel->getByCompanyId($companyId);
+
+        if (!$user) {
+            return redirect()->to('/login')->with('error', 'Invalid or expired reset link.');
+        }
+
+        return view('reset_password', ['token' => $token]);
+    }
+
+    public function processResetPassword()
+    {
+        $token = $this->request->getPost('token');
+        $password = $this->request->getPost('password');
+        $confirmPassword = $this->request->getPost('confirm_password');
+
+        if (empty($token) || empty($password) || empty($confirmPassword)) {
+            return redirect()->back()->with('error', 'All fields are required.');
+        }
+
+        if ($password !== $confirmPassword) {
+            return redirect()->back()->with('error', 'Passwords do not match.');
+        }
+
+        if (strlen($password) < 6) {
+            return redirect()->back()->with('error', 'Password must be at least 6 characters.');
+        }
+
+        $companyId = base64_decode($token);
+
+        $userModel = new UserModel();
+        $user = $userModel->getByCompanyId($companyId);
+
+        if (!$user) {
+            return redirect()->to('/login')->with('error', 'Invalid or expired reset link.');
+        }
+
+        $userModel->update($user['id'], [
+            'password' => password_hash($password, PASSWORD_DEFAULT),
+        ]);
+
+        return redirect()->to('/login')->with('success', 'Password reset successful. Please sign in with your new password.');
     }
 }
