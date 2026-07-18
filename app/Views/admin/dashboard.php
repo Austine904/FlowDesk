@@ -229,10 +229,10 @@ $tooltipJobBreakdown = !empty($tooltipParts) ? implode(', ', $tooltipParts) : 'N
             </div>
             <div class="flex-1 min-w-0">
                 <p class="text-sm text-gray-900">
-                    <span class="font-medium"><?= esc($activity['user_name'] ?? 'System') ?></span>
-                    <?= esc($activity['description'] ?? '') ?>
+                    <span class="font-medium"><?= esc($activity['user'] ?? 'System') ?></span>
+                    <?= esc($activity['text'] ?? '') ?>
                 </p>
-                <p class="text-xs text-gray-400 mt-0.5"><?= !empty($activity['created_at']) ? timeAgo($activity['created_at']) : '' ?></p>
+                <p class="text-xs text-gray-400 mt-0.5"><?= esc($activity['time'] ?? '') ?></p>
             </div>
         </div>
         <?php endforeach; ?>
@@ -380,68 +380,70 @@ $tooltipJobBreakdown = !empty($tooltipParts) ? implode(', ', $tooltipParts) : 'N
 
 <?= $this->section('scripts') ?>
 <script>
+loadChartJS().then(function(Chart) {
 <?php if ($hasRevenue): ?>
-const revenueCtx = document.getElementById('revenueChart').getContext('2d');
-new Chart(revenueCtx, {
-    type: 'line',
-    data: {
-        labels: <?= $revenueLabels ?? '["Jan","Feb","Mar","Apr","May","Jun"]' ?>,
-        datasets: [{
-            label: 'Revenue (<?= org_setting('currency_symbol', 'KSh') ?>)',
-            data: <?= $revenueByMonth ?? '[0,0,0,0,0,0]' ?>,
-            borderColor: '#4f46e5',
-            backgroundColor: 'rgba(79,70,229,0.08)',
-            borderWidth: 2,
-            fill: true,
-            tension: 0.4,
-            pointBackgroundColor: '#4f46e5',
-            pointRadius: 4
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: {
-            y: {
-                beginAtZero: true,
-                grid: { color: '#f3f4f6' },
-                ticks: { callback: function(v) { return '<?= org_setting('currency_symbol', 'KSh') ?> ' + v.toLocaleString(); } }
-            },
-            x: { grid: { display: false } }
-        }
-    }
-});
-<?php endif; ?>
-
-const statusCtx = document.getElementById('jobStatusChart');
-if (statusCtx) {
-    const ctx = statusCtx.getContext('2d');
-    const jobStatusData = <?= $jobStatusData ?? '{}' ?>;
-    const statusLabels = Object.keys(jobStatusData).filter(function(k) { return jobStatusData[k] > 0; });
-    const statusCounts = statusLabels.map(function(k) { return jobStatusData[k]; });
-    const colors = <?= json_encode($jobStatusColors ?? []) ?>;
-    const bgColors = statusLabels.map(function(k) { return colors[k] || '#6b7280'; });
-    new Chart(ctx, {
-        type: 'doughnut',
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(revenueCtx, {
+        type: 'line',
         data: {
-            labels: statusLabels,
+            labels: <?= $revenueLabels ?? '["Jan","Feb","Mar","Apr","May","Jun"]' ?>,
             datasets: [{
-                data: statusCounts,
-                backgroundColor: bgColors,
-                borderWidth: 0
+                label: 'Revenue (<?= org_setting('currency_symbol', 'KSh') ?>)',
+                data: <?= $revenueByMonthJson ?? $revenueByMonth ?? '[0,0,0,0,0,0]' ?>,
+                borderColor: '#4f46e5',
+                backgroundColor: 'rgba(79,70,229,0.08)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#4f46e5',
+                pointRadius: 4
             }]
         },
         options: {
             responsive: true,
-            cutout: '70%',
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { font: { size: 11 }, padding: 12 }
-                }
+            plugins: { legend: { display: false } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#f3f4f6' },
+                    ticks: { callback: function(v) { return '<?= org_setting('currency_symbol', 'KSh') ?> ' + v.toLocaleString(); } }
+                },
+                x: { grid: { display: false } }
             }
         }
     });
-}
+<?php endif; ?>
+
+    const statusCtx = document.getElementById('jobStatusChart');
+    if (statusCtx) {
+        const ctx = statusCtx.getContext('2d');
+        const jobStatusData = <?= $jobStatusData ?? '{}' ?>;
+        const statusLabels = Object.keys(jobStatusData).filter(function(k) { return jobStatusData[k] > 0; });
+        const statusCounts = statusLabels.map(function(k) { return jobStatusData[k]; });
+        const colors = <?= json_encode($jobStatusColors ?? []) ?>;
+        const bgColors = statusLabels.map(function(k) { return colors[k] || '#6b7280'; });
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: statusLabels,
+                datasets: [{
+                    data: statusCounts,
+                    backgroundColor: bgColors,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { font: { size: 11 }, padding: 12 }
+                    }
+                }
+            }
+        });
+    }
+});
 </script>
 <?= $this->endSection() ?>

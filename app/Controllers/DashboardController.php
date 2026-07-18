@@ -151,7 +151,8 @@ class DashboardController extends BaseController
         $revenueByMonthNumeric = array_values($revenueByMonth);
 
         return [
-            'revenueByMonth'     => json_encode($revenueByMonthNumeric),
+            'revenueByMonth'     => $revenueByMonthNumeric,
+            'revenueByMonthJson' => json_encode($revenueByMonthNumeric),
             'revenueLabels'      => json_encode($revenueLabels),
             'totalRevenue'       => $paymentModel->getThisMonthRevenue(),
             'outstandingBalance' => $invoiceModel->getOutstandingBalance(),
