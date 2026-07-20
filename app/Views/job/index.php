@@ -307,7 +307,7 @@
         if (d.valid_transitions && d.valid_transitions.length) {
             var html = '<span class="text-xs text-gray-500 mr-1">Update:</span>';
             d.valid_transitions.forEach(function(ts) {
-                html += '<button onclick="updateJobStatus(' + d.id + ', \'' + ts + '\')" class="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">' + ts + '</button>';
+                    html += '<button onclick="updateJobStatus(' + d.id + ', \'' + ts + '\')" class="border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">' + ts + '</button>';
             });
             actionsDiv.innerHTML = html;
         } else {
@@ -496,7 +496,7 @@
         var select = document.getElementById('assignMechanicSelect');
         select.innerHTML = '<option value="">Loading mechanics...</option>';
 
-        fetch("<?= base_url('admin/users/fetch') ?>", {
+        fetch("<?= base_url('admin/users/fetch') ?>?length=1000", {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
         .then(function(r) { return r.json(); })

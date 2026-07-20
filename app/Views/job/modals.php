@@ -531,6 +531,35 @@
     </div>
 </div>
 
+<!-- Assign Mechanic Modal -->
+<div id="assignMechanicModal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden" onclick="closeModal('assignMechanicModal')"></div>
+<div id="assignMechanicModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <h5 class="text-lg font-semibold text-gray-900">Assign Mechanic</h5>
+            <button type="button" onclick="closeModal('assignMechanicModal')" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="p-6">
+            <p class="text-sm text-gray-500 mb-4">Assign a mechanic to job <span id="assignMechanicJobNo" class="font-medium text-gray-900"></span></p>
+            <input type="hidden" id="assignMechanicJobId">
+            <div class="mb-4">
+                <label for="assignMechanicSelect" class="block text-sm font-medium text-gray-700 mb-1">Select Mechanic</label>
+                <select id="assignMechanicSelect" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <option value="">Loading mechanics...</option>
+                </select>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeModal('assignMechanicModal')" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg px-4 py-2 text-sm font-medium transition-colors">Cancel</button>
+                <button type="button" onclick="submitAssignMechanic()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors">Assign</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 $(document).ready(function () {
 

@@ -138,6 +138,15 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->post('invoices/record_payment/(:num)', 'InvoicesController::recordPayment/$1');
     $routes->get('invoices/mark_overdue', 'InvoicesController::markOverdue');
 
+    // Receipts
+    $routes->get('invoices/receipt/(:num)', 'InvoicesController::printReceipt/$1');
+    $routes->get('invoices/generate_receipt/(:num)', 'InvoicesController::generateReceipt/$1');
+
+    // Payments
+    $routes->get('payments', 'PaymentsController::index');
+    $routes->post('payments/load', 'PaymentsController::load');
+    $routes->post('payments/filter', 'PaymentsController::filter');
+
     // Inventory
     $routes->get('inventory', 'InventoryController::index');
     $routes->post('inventory/load', 'InventoryController::load');

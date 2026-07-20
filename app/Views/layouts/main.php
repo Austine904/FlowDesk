@@ -105,6 +105,12 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        /* SweetAlert2 button overrides — Tailwind preflight resets button bg/color */
+        .swal2-popup .swal2-styled.swal2-confirm { background-color: #4f46e5 !important; color: #fff !important; }
+        .swal2-popup .swal2-styled.swal2-cancel { background-color: #6b7280 !important; color: #fff !important; }
+        .swal2-popup .swal2-title,
+        .swal2-popup .swal2-html-container { color: #111827 !important; }
+
         @media print {
             #sidebar, #topbar, .no-print { display: none !important; }
             #main-content { margin: 0 !important; padding: 0 !important; }

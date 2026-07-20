@@ -77,7 +77,10 @@ class InvoicesController extends BaseController
             ->get()
             ->getResultArray();
 
-        return view('admin/invoices/view', compact('invoice', 'payments', 'parts', 'tasks', 'sublets'));
+        $receiptModel = new \App\Models\ReceiptModel();
+        $receipts = $receiptModel->getByInvoice((int) $id);
+
+        return view('admin/invoices/view', compact('invoice', 'payments', 'parts', 'tasks', 'sublets', 'receipts'));
     }
 
     public function recordPayment($invoice_id)
@@ -117,6 +120,7 @@ class InvoicesController extends BaseController
             'received_by'   => (int) session()->get('user_id'),
             'notes'         => $this->request->getPost('notes'),
         ]);
+        $paymentId = $paymentModel->getInsertID();
 
         $invoiceModel->updateAmountPaid((int) $invoice_id);
 
@@ -125,12 +129,18 @@ class InvoicesController extends BaseController
             return redirect()->to('/admin/invoices/view/' . $invoice_id)->with('error', 'Transaction failed.');
         }
 
+        // Auto-generate receipt
+        $receiptModel = new \App\Models\ReceiptModel();
+        $receipt_id = $receiptModel->generateFromPayment((int) $paymentId, (int) session()->get('user_id'));
+
         $amount = $this->request->getPost('amount');
         $payment_method = $this->request->getPost('payment_method');
         log_activity('payment_recorded', 'invoice', (int) $invoice_id, "Payment of {$amount} recorded via {$payment_method}");
+        log_activity('receipt_generated', 'receipt', $receipt_id, 'Receipt generated for payment of ' . $amount);
 
         return redirect()->to('/admin/invoices/view/' . $invoice_id)
-            ->with('success', 'Payment recorded successfully.');
+            ->with('success', 'Payment recorded successfully.')
+            ->with('receipt_id', $receipt_id);
     }
 
     public function load()
@@ -197,5 +207,35 @@ class InvoicesController extends BaseController
             ->update();
 
         return redirect()->to('/admin/invoices')->with('success', 'Overdue invoices updated.');
+    }
+
+    public function printReceipt($receipt_id)
+    {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
+            return redirect()->to('/login');
+        }
+
+        $receiptModel = new \App\Models\ReceiptModel();
+        $receipt = $receiptModel->getWithDetails((int) $receipt_id);
+
+        if (empty($receipt)) {
+            return redirect()->to('/admin/invoices')->with('error', 'Receipt not found.');
+        }
+
+        return view('admin/invoices/receipt', ['receipt' => $receipt]);
+    }
+
+    public function generateReceipt($payment_id)
+    {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
+            return redirect()->to('/login');
+        }
+
+        $receiptModel = new \App\Models\ReceiptModel();
+        $receipt_id = $receiptModel->generateFromPayment((int) $payment_id, (int) session()->get('user_id'));
+
+        log_activity('receipt_generated', 'receipt', $receipt_id, 'Receipt generated on demand for payment #' . $payment_id);
+
+        return redirect()->to('/admin/invoices/receipt/' . $receipt_id);
     }
 }

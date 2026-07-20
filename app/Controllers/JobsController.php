@@ -54,16 +54,117 @@ class JobsController extends BaseController
             return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
 
-        $jobCardModel = new JobCardModel();
-        $result = $jobCardModel->select('job_cards.id, job_cards.job_no, job_cards.diagnosis, job_cards.job_status, job_cards.date_in, job_cards.start_date, job_cards.end_date, job_cards.created_at, job_cards.updated_at, vehicles.registration_number')
-            ->join('vehicles', 'vehicles.id = job_cards.vehicle_id')
-            ->findAll();
+        $request = \Config\Services::request();
+        $draw = (int) $request->getGet('draw');
+        $start = (int) $request->getGet('start');
+        $length = (int) $request->getGet('length');
+        $searchValue = $request->getGet('search')['value'] ?? '';
+        $orderColumn = (int) ($request->getGet('order')[0]['column'] ?? 1);
+        $orderDir = $request->getGet('order')[0]['dir'] ?? 'desc';
+        $statusFilter = $request->getGet('status');
+        $dateFrom = $request->getGet('date_from');
+        $dateTo = $request->getGet('date_to');
+
+        $columnMap = [
+            0 => null, // checkbox
+            1 => 'job_cards.job_no',
+            2 => 'customers.name',
+            3 => 'vehicles.registration_number',
+            4 => 'job_cards.date_in',
+            5 => 'job_cards.diagnosis',
+            6 => 'job_cards.job_status',
+            7 => null, // progress
+            8 => null, // actions
+        ];
+
+        $db = \Config\Database::connect();
+        $builder = $db->table('job_cards')
+            ->select('
+                job_cards.id,
+                job_cards.job_no,
+                job_cards.diagnosis,
+                job_cards.job_status,
+                job_cards.date_in,
+                job_cards.start_date,
+                job_cards.end_date,
+                job_cards.created_at,
+                job_cards.updated_at,
+                job_cards.fuel_level,
+                job_cards.mileage_in,
+                vehicles.registration_number,
+                customers.name as customer_name,
+                customers.phone as customer_phone
+            ')
+            ->join('vehicles', 'vehicles.id = job_cards.vehicle_id', 'left')
+            ->join('customers', 'customers.id = job_cards.customer_id', 'left');
+
+        // Total records before filtering
+        $recordsTotal = $builder->countAllResults(false);
+
+        // Apply status filter
+        if (!empty($statusFilter)) {
+            $builder->where('job_cards.job_status', $statusFilter);
+        }
+
+        // Apply date range filter
+        if (!empty($dateFrom)) {
+            $builder->where('job_cards.date_in >=', $dateFrom);
+        }
+        if (!empty($dateTo)) {
+            $builder->where('job_cards.date_in <=', $dateTo);
+        }
+
+        // Apply search filter
+        if (!empty($searchValue)) {
+            $builder->groupStart()
+                ->like('job_cards.job_no', $searchValue)
+                ->orLike('customers.name', $searchValue)
+                ->orLike('customers.phone', $searchValue)
+                ->orLike('vehicles.registration_number', $searchValue)
+                ->orLike('job_cards.diagnosis', $searchValue)
+                ->groupEnd();
+        }
+
+        $recordsFiltered = $builder->countAllResults(false);
+
+        // Apply ordering
+        if (isset($columnMap[$orderColumn])) {
+            $builder->orderBy($columnMap[$orderColumn], $orderDir);
+        } else {
+            $builder->orderBy('job_cards.date_in', 'DESC');
+        }
+
+        // Apply pagination
+        if ($length > 0) {
+            $builder->limit($length, $start);
+        }
+
+        $result = $builder->get()->getResultArray();
+
+        $progressMap = [
+            'Awaiting Assignment' => 0,
+            'Awaiting Diagnosis' => 5,
+            'Diagnosis Complete' => 10,
+            'Quote Sent' => 15,
+            'Approved' => 20,
+            'In Progress' => 40,
+            'Awaiting Parts' => 45,
+            'Quality Check' => 70,
+            'Ready for Invoice' => 85,
+            'On Hold' => -1,
+            'Rework' => -1,
+            'Paid' => 95,
+            'Completed' => 100,
+            'Cancelled' => -1,
+        ];
 
         $jobs = [];
         foreach ($result as $row) {
             $jobs[] = [
                 'id' => $row['id'],
                 'job_no' => $row['job_no'],
+                'customer_name' => $row['customer_name'],
+                'customer_phone' => $row['customer_phone'],
                 'registration_number' => $row['registration_number'],
                 'diagnosis' => $row['diagnosis'],
                 'job_status' => $row['job_status'],
@@ -71,11 +172,17 @@ class JobsController extends BaseController
                 'start_date' => $row['start_date'],
                 'end_date' => $row['end_date'],
                 'created_at' => $row['created_at'],
-                'updated_at' => $row['updated_at']
+                'updated_at' => $row['updated_at'],
+                'progress' => $progressMap[$row['job_status']] ?? 0,
             ];
         }
 
-        return $this->response->setJSON(['data' => $jobs]);
+        return $this->response->setJSON([
+            'draw' => $draw,
+            'recordsTotal' => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data' => $jobs,
+        ]);
     }
 
     public function add()

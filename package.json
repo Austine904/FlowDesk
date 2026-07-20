@@ -1,0 +1,9 @@
+{
+    "name": "flowdesk",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "build:css": ".\\tailwindcss.exe -i public\\assets\\css\\input.css -o public\\assets\\css\\tailwind.css --minify",
+        "watch:css": ".\\tailwindcss.exe -i public\\assets\\css\\input.css -o public\\assets\\css\\tailwind.css --minify --watch"
+    }
+}

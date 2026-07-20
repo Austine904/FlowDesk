@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function updateEventDate(id, start, end) {
-        fetch(`${BASE_URL}admin/calendar/updateEventDate`, {
+        return fetch(`${BASE_URL}admin/calendar/updateEventDate`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -76,11 +76,11 @@ document.addEventListener('DOMContentLoaded', function () {
         })
             .then(response => response.json())
             .then(result => {
-                if (!result.success) throw new Error(result.message);
+                return result;
             })
             .catch(error => {
                 console.error('Error updating event:', error);
-                Swal.fire('Update Failed', 'Could not update event. Please try again.', 'error');
+                throw error;
             });
     }
 
@@ -118,6 +118,32 @@ document.addEventListener('DOMContentLoaded', function () {
                     const { status, type } = info.event.extendedProps;
                     if (status) info.el.setAttribute('data-status', status);
                     if (type) info.el.setAttribute('data-type', type);
+                },
+
+                eventDrop: function (info) {
+                    const eventId = info.event.id;
+                    const newStart = info.event.startStr;
+                    const newEnd = info.event.end ? info.event.endStr : null;
+
+                    Swal.fire({
+                        title: 'Updating event...',
+                        allowOutsideClick: false,
+                        didOpen: () => Swal.showLoading()
+                    });
+
+                    updateEventDate(eventId, newStart, newEnd).then(result => {
+                        Swal.close();
+                        if (result && result.success) {
+                            Swal.fire('Updated', result.message || 'Event date updated successfully.', 'success');
+                        } else {
+                            info.revert();
+                            Swal.fire('Update Failed', 'Could not update event date.', 'error');
+                        }
+                    }).catch(() => {
+                        info.revert();
+                        Swal.close();
+                        Swal.fire('Update Failed', 'Could not update event date.', 'error');
+                    });
                 },
 
                 eventClick: function (info) {

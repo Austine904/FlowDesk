@@ -240,6 +240,84 @@ class CalendarController extends BaseController
         }
     }
 
+    public function updateEventDate()
+    {
+        if (!$this->session->get('isLoggedIn')) {
+            return $this->failUnauthorized('Unauthorized');
+        }
+
+        $input = $this->request->getJSON(true);
+        if (empty($input['id']) || empty($input['start'])) {
+            return $this->failValidationErrors('Missing required fields: id, start');
+        }
+
+        $id = $input['id'];
+        $start = $input['start'];
+        $end = $input['end'] ?? null;
+
+        $db = \Config\Database::connect();
+
+        try {
+            // Calendar event (cal-{id})
+            if (strpos($id, 'cal-') === 0) {
+                $eventId = (int) substr($id, 4);
+                $updateData = ['start_time' => $start];
+                if ($end !== null) {
+                    $updateData['end_time'] = $end;
+                }
+                $db->table('calendar_events')->update($updateData, ['id' => $eventId]);
+                if ($db->affectedRows() === 0) {
+                    return $this->failNotFound('Calendar event not found');
+                }
+                log_activity('event_date_updated', 'calendar_event', $eventId, "Event date updated");
+                return $this->respond(['success' => true, 'message' => 'Event date updated']);
+            }
+
+            // Job event (job-in-{id}, job-est-{id}, job-comp-{id})
+            if (strpos($id, 'job-in-') === 0) {
+                $jobId = (int) substr($id, 7);
+                $dateOnly = substr($start, 0, 10);
+                $timeOnly = null;
+                if (strpos($start, 'T') !== false) {
+                    $parts = explode('T', $start);
+                    $dateOnly = $parts[0];
+                    $timeOnly = substr($parts[1], 0, 8);
+                }
+                $updateData = ['date_in' => $dateOnly];
+                if ($timeOnly !== null) {
+                    $updateData['time_in'] = $timeOnly;
+                }
+                $db->table('job_cards')->update($updateData, ['id' => $jobId]);
+                if ($db->affectedRows() === 0) {
+                    return $this->failNotFound('Job card not found');
+                }
+                log_activity('job_date_updated', 'job_card', $jobId, "Drop-off date updated via calendar");
+                return $this->respond(['success' => true, 'message' => 'Job drop-off date updated']);
+            }
+
+            if (strpos($id, 'job-est-') === 0 || strpos($id, 'job-comp-') === 0) {
+                $prefix = strpos($id, 'job-est-') === 0 ? 'job-est-' : 'job-comp-';
+                $jobId = (int) substr($id, strlen($prefix));
+                $dateOnly = substr($start, 0, 10);
+                $db->table('job_cards')->update(['end_date' => $dateOnly], ['id' => $jobId]);
+                if ($db->affectedRows() === 0) {
+                    return $this->failNotFound('Job card not found');
+                }
+                $eventType = $prefix === 'job-est-' ? 'Estimated completion' : 'Completion';
+                log_activity('job_date_updated', 'job_card', $jobId, "{$eventType} date updated via calendar");
+                return $this->respond(['success' => true, 'message' => 'Job date updated']);
+            }
+
+            return $this->failNotFound('Unknown event type');
+        } catch (DatabaseException $e) {
+            log_message('error', 'Database error updating event date: ' . $e->getMessage());
+            return $this->failServerError('Database error updating event date');
+        } catch (Exception $e) {
+            log_message('error', 'Error updating event date: ' . $e->getMessage());
+            return $this->failServerError('An unexpected error occurred');
+        }
+    }
+
     public function addEvent()
     {
         if (!$this->session->get('isLoggedIn') || ($this->session->get('role') !== 'admin' && $this->session->get('role') !== 'receptionist')) {

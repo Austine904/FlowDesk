@@ -21,7 +21,16 @@
     </div>
 
     <?php if (session()->getFlashdata('success')): ?>
-        <div class="no-print flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg mb-6"><?= esc(session()->getFlashdata('success')) ?></div>
+        <div class="no-print flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg mb-6">
+            <span><?= esc(session()->getFlashdata('success')) ?></span>
+            <?php if (session()->getFlashdata('receipt_id')): ?>
+                <a href="<?= base_url('admin/invoices/receipt/' . session()->getFlashdata('receipt_id')) ?>"
+                   target="_blank"
+                   class="ml-auto bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+                    Print Receipt
+                </a>
+            <?php endif; ?>
+        </div>
     <?php endif; ?>
     <?php if (session()->getFlashdata('error')): ?>
         <div class="no-print flex items-center gap-3 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6"><?= esc(session()->getFlashdata('error')) ?></div>
@@ -235,16 +244,39 @@
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Received By</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receipt</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
                             <?php foreach ($payments as $payment): ?>
+                                <?php
+                                    $receiptForPayment = null;
+                                    foreach ($receipts as $r) {
+                                        if ($r['payment_id'] == $payment['id']) {
+                                            $receiptForPayment = $r;
+                                            break;
+                                        }
+                                    }
+                                ?>
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-4 py-3 text-sm text-gray-900"><?= esc($payment['payment_date']) ?></td>
                                     <td class="px-4 py-3 text-sm text-gray-900"><?= esc($payment['payment_method']) ?></td>
                                     <td class="px-4 py-3 text-sm text-gray-900"><?= esc($payment['reference_no'] ?? '-') ?></td>
                                     <td class="px-4 py-3 text-sm text-gray-900"><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($payment['amount'], 2) ?></td>
                                     <td class="px-4 py-3 text-sm text-gray-900"><?= esc($payment['received_by_name'] ?? 'N/A') ?></td>
+                                    <td class="px-4 py-3 text-sm">
+                                        <?php if ($receiptForPayment): ?>
+                                            <a href="<?= base_url('admin/invoices/receipt/' . $receiptForPayment['id']) ?>" target="_blank"
+                                               class="inline-flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg text-xs font-medium transition-colors">
+                                                <i class="bi bi-printer"></i> Print
+                                            </a>
+                                        <?php else: ?>
+                                            <a href="<?= base_url('admin/invoices/generate_receipt/' . $payment['id']) ?>"
+                                               class="inline-flex items-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-600 px-2 py-1 rounded-lg text-xs font-medium transition-colors">
+                                                Generate
+                                            </a>
+                                        <?php endif; ?>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
