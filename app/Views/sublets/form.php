@@ -17,7 +17,7 @@ $date_returned = $is_edit && $sublet['date_returned'] ? esc($sublet['date_return
 $notes = $is_edit ? esc($sublet['notes']) : '';
 ?>
 
-<form id="subletForm">
+<form id="subletForm" action="<?= base_url('admin/sublets/save') ?>" method="POST">
     <?= csrf_field() ?>
     <?php if ($is_edit): ?>
         <input type="hidden" name="id" value="<?= $id ?>">
@@ -111,7 +111,7 @@ $notes = $is_edit ? esc($sublet['notes']) : '';
 </form>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    (function() {
         const subletForm = document.getElementById('subletForm');
         const submitBtn = subletForm.querySelector('button[type="submit"]');
         const spinner = document.getElementById('formSpinner');
@@ -199,5 +199,5 @@ $notes = $is_edit ? esc($sublet['notes']) : '';
                 submitBtn.querySelector('.button-text').classList.remove('invisible');
             }
         });
-    });
+    })();
 </script>

@@ -92,7 +92,7 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
     var categorySelect = document.getElementById('category');
     var otherWrap = document.getElementById('otherCategoryWrap');
     var otherInput = document.getElementById('other_category');
@@ -111,6 +111,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     categorySelect.addEventListener('change', toggleOther);
     toggleOther();
-});
+})();
 </script>
 <?= $this->endSection() ?>

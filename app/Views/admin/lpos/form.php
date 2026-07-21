@@ -78,28 +78,30 @@
                     </thead>
                     <tbody class="divide-y divide-gray-200">
                         <?php if (isset($items) && !empty($items)): ?>
+                            <?php $ri = 0; ?>
                             <?php foreach ($items as $item): ?>
-                            <tr>
+                            <tr data-row-id="<?= $ri ?>">
                                 <td class="px-4 py-3 relative">
-                                    <input type="hidden" name="items[][inventory_id]" value="<?= $item['inventory_id'] ?>">
+                                    <input type="hidden" name="items[<?= $ri ?>][inventory_id]" value="<?= $item['inventory_id'] ?>">
                                     <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none item-search" data-inventory-id="<?= $item['inventory_id'] ?>" value="<?= esc(($item['name'] ?? '') . ' (' . ($item['part_number'] ?? '') . ')') ?>" required>
                                 </td>
                                 <td class="px-4 py-3"><input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-500 item-unit" value="<?= esc($item['unit'] ?? 'piece') ?>" readonly></td>
-                                <td class="px-4 py-3"><input type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none item-qty" name="items[][quantity_ordered]" value="<?= $item['quantity_ordered'] ?? 1 ?>" min="0.01" step="0.01" required></td>
-                                <td class="px-4 py-3"><input type="number" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none item-price" name="items[][unit_price]" value="<?= $item['unit_price'] ?? 0 ?>" min="0" required></td>
+                                <td class="px-4 py-3"><input type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none item-qty" name="items[<?= $ri ?>][quantity_ordered]" value="<?= $item['quantity_ordered'] ?? 1 ?>" min="0.01" step="0.01" required></td>
+                                <td class="px-4 py-3"><input type="number" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none item-price" name="items[<?= $ri ?>][unit_price]" value="<?= $item['unit_price'] ?? 0 ?>" min="0" required></td>
                                 <td class="px-4 py-3"><input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-500 item-line-total" value="<?= (($item['quantity_ordered'] ?? 1) * ($item['unit_price'] ?? 0)) ?>" readonly></td>
                                 <td class="px-4 py-3"><button type="button" class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded-lg text-xs font-medium transition-colors remove-row"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button></td>
                             </tr>
+                            <?php $ri++; ?>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            <tr>
+                            <tr data-row-id="0">
                                 <td class="px-4 py-3 relative">
-                                    <input type="hidden" name="items[][inventory_id]" value="">
+                                    <input type="hidden" name="items[0][inventory_id]" value="">
                                     <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none item-search" data-inventory-id="" placeholder="Search inventory..." required>
                                 </td>
                                 <td class="px-4 py-3"><input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-500 item-unit" value="" readonly></td>
-                                <td class="px-4 py-3"><input type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none item-qty" name="items[][quantity_ordered]" value="1" min="0.01" step="0.01" required></td>
-                                <td class="px-4 py-3"><input type="number" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none item-price" name="items[][unit_price]" value="0" min="0" required></td>
+                                <td class="px-4 py-3"><input type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none item-qty" name="items[0][quantity_ordered]" value="1" min="0.01" step="0.01" required></td>
+                                <td class="px-4 py-3"><input type="number" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none item-price" name="items[0][unit_price]" value="0" min="0" required></td>
                                 <td class="px-4 py-3"><input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-500 item-line-total" value="0" readonly></td>
                                 <td class="px-4 py-3"><button type="button" class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded-lg text-xs font-medium transition-colors remove-row"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button></td>
                             </tr>
@@ -157,8 +159,21 @@
 </style>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
     var inventoryData = <?= json_encode($inventory) ?>;
+    var rowCounter = document.querySelectorAll('#itemsTable tbody tr').length;
+
+    function getRowId(tr) {
+        return parseInt(tr.getAttribute('data-row-id'), 10);
+    }
+
+    function setRowId(tr, id) {
+        tr.setAttribute('data-row-id', id);
+        var inputs = tr.querySelectorAll('input[name^="items["]');
+        inputs.forEach(function(inp) {
+            inp.name = inp.name.replace(/^items\[\d+\]/, 'items[' + id + ']');
+        });
+    }
 
     function recalcRow(tr) {
         var qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
@@ -177,15 +192,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('addItemRow').addEventListener('click', function() {
         var tbody = document.querySelector('#itemsTable tbody');
+        var rid = rowCounter++;
         var row = document.createElement('tr');
+        row.setAttribute('data-row-id', rid);
         row.innerHTML = `
             <td class="px-4 py-3 relative">
-                <input type="hidden" name="items[][inventory_id]" value="">
+                <input type="hidden" name="items[${rid}][inventory_id]" value="">
                 <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none item-search" data-inventory-id="" placeholder="Search inventory...">
             </td>
             <td class="px-4 py-3"><input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-500 item-unit" value="" readonly></td>
-            <td class="px-4 py-3"><input type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none item-qty" name="items[][quantity_ordered]" value="1" min="0.01" step="0.01" required></td>
-            <td class="px-4 py-3"><input type="number" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none item-price" name="items[][unit_price]" value="0" min="0" required></td>
+            <td class="px-4 py-3"><input type="number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none item-qty" name="items[${rid}][quantity_ordered]" value="1" min="0.01" step="0.01" required></td>
+            <td class="px-4 py-3"><input type="number" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none item-price" name="items[${rid}][unit_price]" value="0" min="0" required></td>
             <td class="px-4 py-3"><input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-500 item-line-total" value="0" readonly></td>
             <td class="px-4 py-3"><button type="button" class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded-lg text-xs font-medium transition-colors remove-row"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button></td>
         `;
@@ -260,9 +277,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         item.addEventListener('click', function() {
                             var tr = input.closest('tr');
+                            var rid = getRowId(tr);
                             tr.querySelector('.item-search').value = this.dataset.name + ' (' + this.dataset.partNumber + ')';
                             tr.querySelector('.item-search').dataset.inventoryId = this.dataset.id;
-                            tr.querySelector('input[name$="[inventory_id]"]').value = this.dataset.id;
+                            tr.querySelector('input[name="items[' + rid + '][inventory_id]"]').value = this.dataset.id;
                             tr.querySelector('.item-unit').value = this.dataset.unit;
                             tr.querySelector('.item-price').value = parseFloat(this.dataset.unitPrice).toFixed(2);
                             recalcRow(tr);
@@ -282,6 +300,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.search-inv-dropdown').forEach(function(el) { el.remove(); });
         }
     });
-});
+})();
 </script>
 <?= $this->endSection() ?>

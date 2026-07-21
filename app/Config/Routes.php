@@ -69,6 +69,9 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     // Global search
     $routes->get('search', 'SearchController::index');
 
+    // Notifications
+    $routes->get('notifications', 'NotificationsController::index');
+
     // Users
     $routes->get('users', 'UsersController::index');
     $routes->get('users/add', 'UsersController::add');
@@ -135,8 +138,13 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->get('invoices/load', 'InvoicesController::load');
     $routes->get('invoices/view/(:num)', 'InvoicesController::view/$1');
     $routes->get('invoices/generate/(:num)', 'InvoicesController::generate/$1');
+    $routes->post('invoices/regenerate/(:num)', 'InvoicesController::regenerate/$1');
     $routes->post('invoices/record_payment/(:num)', 'InvoicesController::recordPayment/$1');
     $routes->get('invoices/mark_overdue', 'InvoicesController::markOverdue');
+    $routes->get('invoices/pdf/(:num)', 'InvoicesController::downloadInvoicePdf/$1');
+    $routes->get('invoices/receipt_pdf/(:num)', 'InvoicesController::downloadReceiptPdf/$1');
+    $routes->get('invoices/email/(:num)', 'InvoicesController::sendInvoiceEmail/$1');
+    $routes->get('invoices/email_receipt/(:num)', 'InvoicesController::sendReceiptEmail/$1');
 
     // Receipts
     $routes->get('invoices/receipt/(:num)', 'InvoicesController::printReceipt/$1');
@@ -215,6 +223,16 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->post('pettycash/delete/(:num)', 'PettyCashController::delete/$1');
     $routes->get('pettycash/ledger', 'PettyCashController::ledger');
     $routes->post('pettycash/filter', 'PettyCashController::filter');
+
+    // Supplier Payments
+    $routes->get('supplier_payments', 'SupplierPaymentsController::index');
+    $routes->match(['get', 'post'], 'supplier_payments/load', 'SupplierPaymentsController::load');
+    $routes->get('supplier_payments/raise/(:num)', 'SupplierPaymentsController::raise/$1');
+    $routes->post('supplier_payments/store', 'SupplierPaymentsController::store');
+    $routes->post('supplier_payments/approve/(:num)', 'SupplierPaymentsController::approve/$1');
+    $routes->post('supplier_payments/reject/(:num)', 'SupplierPaymentsController::reject/$1');
+    $routes->post('supplier_payments/mark_paid/(:num)', 'SupplierPaymentsController::markPaid/$1');
+    $routes->get('supplier_payments/view/(:num)', 'SupplierPaymentsController::view/$1');
     
 });
 

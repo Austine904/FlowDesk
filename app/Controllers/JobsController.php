@@ -457,8 +457,11 @@ class JobsController extends BaseController
 
             // Auto-generate invoice when job reaches Ready for Invoice
             if ($newStatus === 'Ready for Invoice') {
+                $discount = (float) ($this->request->getPost('discount') ?? 0);
+                $otherCharges = (float) ($this->request->getPost('other_charges') ?? 0);
+                $otherChargesDesc = $this->request->getPost('other_charges_description') ?? '';
                 $invoiceModel = new InvoiceModel();
-                $invoiceModel->generateFromJobCard($id, $userId, 0);
+                $invoiceModel->generateFromJobCard($id, $userId, $discount, $otherCharges, $otherChargesDesc);
             }
 
             $db->transCommit();

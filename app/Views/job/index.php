@@ -363,41 +363,99 @@
     }
 
     window.updateJobStatus = function(jobId, newStatus) {
-        Swal.fire({
-            title: 'Change status?',
-            text: 'Move to "' + newStatus + '"?',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#4f46e5',
-            confirmButtonText: 'Yes, update'
-        }).then(function(result) {
-            if (!result.isConfirmed) return;
-            var data = { new_status: newStatus };
-            var token = document.querySelector('meta[name="csrf-token"]');
-            var name = document.querySelector('meta[name="csrf-name"]');
-            if (token && name) {
-                data[name.getAttribute('content')] = token.getAttribute('content');
-            }
-            $.ajax({
-                url: "<?= base_url('admin/jobs/update_status/') ?>" + jobId,
-                method: 'POST',
-                data: data,
-                dataType: 'json',
-                success: function(res) {
-                    if (res.status === 'success') {
-                        Swal.fire('Updated!', 'Status changed to ' + res.new_status, 'success');
-                        viewJob(jobId);
-                        $('#JobTable').DataTable().ajax.reload(null, false);
-                    } else {
-                        Swal.fire('Error', res.message || 'Failed to update status.', 'error');
-                    }
-                },
-                error: function(xhr) {
-                    var res = xhr.responseJSON;
-                    Swal.fire('Error', (res && res.message) || 'Failed to update status.', 'error');
+        if (newStatus === 'Ready for Invoice') {
+            Swal.fire({
+                title: 'Ready for Invoice',
+                html:
+                    '<div class="text-left">' +
+                    '<label class="block text-sm font-medium text-gray-700 mb-1">Discount</label>' +
+                    '<input id="swal-discount" type="number" step="0.01" min="0" value="0" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-3">' +
+                    '<label class="block text-sm font-medium text-gray-700 mb-1">Other Charges</label>' +
+                    '<input id="swal-other-charges" type="number" step="0.01" min="0" value="0" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-3">' +
+                    '<label class="block text-sm font-medium text-gray-700 mb-1">Other Charges Description</label>' +
+                    '<input id="swal-other-charges-desc" type="text" maxlength="255" placeholder="e.g. Admin fee, disposal fee" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">' +
+                    '</div>',
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonColor: '#4f46e5',
+                confirmButtonText: 'Generate Invoice',
+                preConfirm: function() {
+                    return {
+                        discount: parseFloat(document.getElementById('swal-discount').value) || 0,
+                        other_charges: parseFloat(document.getElementById('swal-other-charges').value) || 0,
+                        other_charges_description: document.getElementById('swal-other-charges-desc').value || ''
+                    };
                 }
+            }).then(function(result) {
+                if (!result.isConfirmed) return;
+                var data = {
+                    new_status: newStatus,
+                    discount: result.value.discount,
+                    other_charges: result.value.other_charges,
+                    other_charges_description: result.value.other_charges_description
+                };
+                var token = document.querySelector('meta[name="csrf-token"]');
+                var name = document.querySelector('meta[name="csrf-name"]');
+                if (token && name) {
+                    data[name.getAttribute('content')] = token.getAttribute('content');
+                }
+                $.ajax({
+                    url: "<?= base_url('admin/jobs/update_status/') ?>" + jobId,
+                    method: 'POST',
+                    data: data,
+                    dataType: 'json',
+                    success: function(res) {
+                        if (res.status === 'success') {
+                            Swal.fire('Updated!', res.message || 'Status changed to ' + res.new_status, 'success');
+                            viewJob(jobId);
+                            $('#JobTable').DataTable().ajax.reload(null, false);
+                        } else {
+                            Swal.fire('Error', res.message || 'Failed to update status.', 'error');
+                        }
+                    },
+                    error: function(xhr) {
+                        var res = xhr.responseJSON;
+                        Swal.fire('Error', (res && res.message) || 'Failed to update status.', 'error');
+                    }
+                });
             });
-        });
+        } else {
+            Swal.fire({
+                title: 'Change status?',
+                text: 'Move to "' + newStatus + '"?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#4f46e5',
+                confirmButtonText: 'Yes, update'
+            }).then(function(result) {
+                if (!result.isConfirmed) return;
+                var data = { new_status: newStatus };
+                var token = document.querySelector('meta[name="csrf-token"]');
+                var name = document.querySelector('meta[name="csrf-name"]');
+                if (token && name) {
+                    data[name.getAttribute('content')] = token.getAttribute('content');
+                }
+                $.ajax({
+                    url: "<?= base_url('admin/jobs/update_status/') ?>" + jobId,
+                    method: 'POST',
+                    data: data,
+                    dataType: 'json',
+                    success: function(res) {
+                        if (res.status === 'success') {
+                            Swal.fire('Updated!', res.message || 'Status changed to ' + res.new_status, 'success');
+                            viewJob(jobId);
+                            $('#JobTable').DataTable().ajax.reload(null, false);
+                        } else {
+                            Swal.fire('Error', res.message || 'Failed to update status.', 'error');
+                        }
+                    },
+                    error: function(xhr) {
+                        var res = xhr.responseJSON;
+                        Swal.fire('Error', (res && res.message) || 'Failed to update status.', 'error');
+                    }
+                });
+            });
+        }
     }
 
     window.switchJobTab = function(tabId, btn) {

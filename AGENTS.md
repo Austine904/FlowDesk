@@ -1229,3 +1229,195 @@ Record Payment → Receipt Auto-Generated → Print Receipt
 3. **Unique constraint on payment_id** — the `uk_receipt_payment` unique key enforces one receipt per payment. This is enforced at the DB level.
 4. **Standalone receipt view** — `admin/invoices/receipt.php` is a standalone HTML page (no `$this->extend('layouts/main')` wrapper) — it has its own `<html>`, `<head>`, and `<body>` tags optimized for `@media print`.
 5. **balance_after calculation** — calculated as `invoice.grand_total - invoice.amount_paid` at the moment of receipt generation. This represents the remaining balance after the current payment is applied.
+
+---
+
+## 17. CLIENT INVOICE DELIVERY — PDF + EMAIL + PRINT
+
+### Dompdf Installation
+- Installed via `composer require dompdf/domdpf` (v3.1.6)
+- Vendor path: `vendor/dompdf/dompdf/`
+- Zip PHP extension was required; enabled via `php.ini`
+
+### PdfService (`app/Services/PdfService.php`)
+- `generateFromHtml(string $html, string $filename, bool $download): void` — generate and stream PDF from raw HTML
+- `generateFromView(string $view, array $data, string $filename, bool $download): void` — generate from a CI4 view file
+- `generateFromViewOutput(string $view, array $data): string` — generate PDF and return content as string (used for email attachment)
+- Uses Dompdf with `DejaVu Sans` font, A4 portrait, HTML5 parser enabled, remote content enabled, chroot set to `FCPATH`
+- The download parameter controls whether the PDF is downloaded (true) or displayed inline (false)
+
+### EmailService (`app/Services/EmailService.php`)
+- `sendInvoice(array $invoice, array $parts, array $tasks, array $sublets, array $settings): bool` — generates PDF from invoices/pdf view, attaches to email, sends to customer
+- `sendReceipt(array $receipt, array $settings): bool` — sends receipt by email (no PDF attachment)
+- `getDebugMessage(): string` — returns email debugger output on failure
+- Uses CodeIgniter's `Config\Services::email()` for email dispatch
+- Requires SMTP configuration in `.env` (see below)
+- SMTP config uses CodeIgniter 4's `.env` convention with `email.*` keys
+
+### SMTP Configuration (.env)
+```
+email.protocol = smtp
+email.SMTPHost = smtp.gmail.com
+email.SMTPUser = your-email@gmail.com
+email.SMTPPass = your-app-password
+email.SMTPPort = 587
+email.SMTPCrypto = tls
+email.mailType = html
+email.charset = UTF-8
+email.fromEmail = your-email@gmail.com
+email.fromName = FlowDesk
+```
+Values are placeholders — the client must fill in real SMTP credentials.
+
+### New Routes (admin group)
+```
+GET  admin/invoices/pdf/(:num)           -> InvoicesController::downloadInvoicePdf/$1
+GET  admin/invoices/receipt_pdf/(:num)   -> InvoicesController::downloadReceiptPdf/$1
+GET  admin/invoices/email/(:num)         -> InvoicesController::sendInvoiceEmail/$1
+GET  admin/invoices/email_receipt/(:num) -> InvoicesController::sendReceiptEmail/$1
+```
+
+### New Views
+- `admin/invoices/pdf.php` — Standalone HTML (no layout wrapper), inline CSS only (Dompdf compatible), A4 portrait, professional invoice layout with org header, bill-to, parts/labor/sublets tables, totals, and footer
+- `emails/invoice.php` — HTML email template, inline CSS, centered card layout with invoice summary table
+- `emails/receipt.php` — HTML email template, inline CSS, centered card layout with receipt summary
+
+### InvoicesController Additions
+- `__construct()` — instantiates PdfService
+- `downloadInvoicePdf($id)` — fetches full invoice data (parts, tasks, sublets, payments, org settings), streams PDF download
+- `downloadReceiptPdf($receipt_id)` — fetches receipt details + org settings, streams PDF download
+- `sendInvoiceEmail($id)` — sends invoice as PDF attachment via email; validates customer email exists and SMTP is configured; logs activity as `invoice_emailed`
+- `sendReceiptEmail($receipt_id)` — sends receipt email; logs activity as `receipt_emailed`
+
+### Invoice View Updates (`admin/invoices/view.php`)
+- Header now has "Download PDF" button and "Send by Email" button (disabled with tooltip if no customer email)
+- Payment history table now has PDF download icon and email icon buttons alongside the Print Receipt button
+
+---
+
+## 18. SUPPLIER PAYMENT FLOW
+
+### New Table: `supplier_payments`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | int(10) unsigned | PK, auto_increment |
+| payment_ref | varchar(30) | NOT NULL, UNIQUE, format: SPY-YYYYMM-001 |
+| lpo_id | int(10) unsigned | FK → lpos.id |
+| supplier_id | int(10) unsigned | FK → suppliers.id |
+| amount | decimal(12,2) | NOT NULL |
+| payment_method | enum('Cash','M-Pesa','Bank Transfer','Cheque','Other') | NOT NULL |
+| account_id | int(10) unsigned | NULL, reserved for Phase B accounts |
+| reference_no | varchar(100) | NULL |
+| payment_date | date | NULL |
+| status | enum('Pending Approval','Approved','Paid','Rejected') | NOT NULL, default 'Pending Approval' |
+| notes | text | NULL |
+| raised_by | int(10) unsigned | FK → users.id |
+| approved_by | int(10) unsigned | NULL, FK → users.id |
+| approved_at | datetime | NULL |
+| rejection_reason | text | NULL |
+| created_at | datetime | NOT NULL, DEFAULT current_timestamp() |
+| updated_at | datetime | NULL, on update current_timestamp() |
+
+**FKs:** fk_sp_lpo, fk_sp_supplier, fk_sp_raised_by, fk_sp_approved_by
+
+### Supplier Payment Pipeline
+```
+LPO Received → Raise Payment → Pending Approval → Admin Approves → Approved → Mark as Paid → Paid
+                                                      ↓
+                                                 Rejected (with reason)
+```
+
+### SupplierPaymentModel (`app/Models/SupplierPaymentModel.php`)
+- `generatePaymentRef(): string` — next SPY-YYYYMM-NNN
+- `getWithDetails($id = null): array` — payment(s) joined with supplier, LPO, raised_by, approved_by
+- `getPendingApprovals(): array` — all pending with supplier/LPO details, ordered by created_at ASC
+- `getByLpo(int $lpo_id): array` — all payments for a specific LPO
+- `getTotalPaidForLpo(int $lpo_id): float` — SUM(amount) WHERE status = 'Paid'
+
+### SupplierPaymentsController (`app/Controllers/SupplierPaymentsController.php`)
+| Method | Route | Description |
+|--------|-------|-------------|
+| index() | GET admin/supplier_payments | List page with summary cards (paid this month, pending count/amount, total paid all time) |
+| load() | GET admin/supplier_payments/load | DataTables server-side AJAX endpoint |
+| raise($lpo_id) | GET admin/supplier_payments/raise/(:num) | Show form with LPO cross-reference, validation gates: LPO exists → LPO Received → no existing pending |
+| store() | POST admin/supplier_payments/store | Create payment with status 'Pending Approval'; validates amount ≤ balance due; logs activity |
+| approve($id) | POST admin/supplier_payments/approve/(:num) | Admin-only: set status=Approved, approved_by, approved_at; logs activity |
+| reject($id) | POST admin/supplier_payments/reject/(:num) | Admin-only: set status=Rejected with rejection_reason; logs activity |
+| markPaid($id) | POST admin/supplier_payments/mark_paid/(:num) | Admin-only: requires payment_date and optional reference_no; status must be 'Approved'; logs activity |
+| view($id) | GET admin/supplier_payments/view/(:num) | Full payment detail with approval timeline visualization and LPO items |
+
+### New Routes (admin group)
+```
+GET  admin/supplier_payments                    -> SupplierPaymentsController::index
+GET  admin/supplier_payments/load               -> SupplierPaymentsController::load
+GET  admin/supplier_payments/raise/(:num)       -> SupplierPaymentsController::raise/$1
+POST admin/supplier_payments/store              -> SupplierPaymentsController::store
+POST admin/supplier_payments/approve/(:num)     -> SupplierPaymentsController::approve/$1
+POST admin/supplier_payments/reject/(:num)      -> SupplierPaymentsController::reject/$1
+POST admin/supplier_payments/mark_paid/(:num)   -> SupplierPaymentsController::markPaid/$1
+GET  admin/supplier_payments/view/(:num)        -> SupplierPaymentsController::view/$1
+```
+
+### New Views (supplier_payments/)
+- `index.php` — Summary cards, pending alert banner, DataTable with status badges and action buttons (Approve/Reject for Pending, Mark Paid for Approved)
+- `raise.php` — LPO cross-reference summary with balance due calculation, line items table, payment form
+- `view.php` — Payment details grid, approval timeline with visual step indicators, LPO line items
+
+### LPO View Integration (`admin/lpos/view.php`)
+- New "Supplier Payments" section showing existing payments table with total paid
+- "Raise Payment" button appears when LPO is Received and no pending/approved payment exists
+- Info message displayed when LPO is not yet received
+
+### Dashboard Integration
+- `DashboardController::admin()` now calls `buildSupplierPaymentAlerts()` to fetch pending approvals count and amount
+- Dashboard Alerts section shows pending supplier payments with "Review now →" link
+- Sidebar now has "Supplier Payments" link in Finance section between Payments and Petty Cash
+
+### Activity Log Actions Added
+- `supplier_payment_raised` — when a supplier payment is submitted for approval
+- `supplier_payment_approved` — when admin approves a payment
+- `supplier_payment_rejected` — when admin rejects with reason
+- `supplier_payment_paid` — when admin marks approved payment as paid
+- `invoice_emailed` — when invoice is emailed to customer
+- `receipt_emailed` — when receipt is emailed to customer
+
+### Supplementary SQL
+The `supplier_payments` table DDL is in `writable/create_supplier_payments.sql` (deleted after execution). To recreate:
+```sql
+CREATE TABLE IF NOT EXISTS `supplier_payments` (
+    `id`                INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `payment_ref`       VARCHAR(30) NOT NULL,
+    `lpo_id`            INT UNSIGNED NOT NULL,
+    `supplier_id`       INT UNSIGNED NOT NULL,
+    `amount`            DECIMAL(12,2) NOT NULL,
+    `payment_method`    ENUM('Cash','M-Pesa','Bank Transfer','Cheque','Other') NOT NULL,
+    `account_id`        INT UNSIGNED DEFAULT NULL,
+    `reference_no`      VARCHAR(100) DEFAULT NULL,
+    `payment_date`      DATE DEFAULT NULL,
+    `status`            ENUM('Pending Approval','Approved','Paid','Rejected') NOT NULL DEFAULT 'Pending Approval',
+    `notes`             TEXT DEFAULT NULL,
+    `raised_by`         INT UNSIGNED NOT NULL,
+    `approved_by`       INT UNSIGNED DEFAULT NULL,
+    `approved_at`       DATETIME DEFAULT NULL,
+    `rejection_reason`  TEXT DEFAULT NULL,
+    `created_at`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`        DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_payment_ref` (`payment_ref`),
+    INDEX `idx_sp_lpo` (`lpo_id`),
+    INDEX `idx_sp_supplier` (`supplier_id`),
+    INDEX `idx_sp_status` (`status`),
+    CONSTRAINT `fk_sp_lpo` FOREIGN KEY (`lpo_id`) REFERENCES `lpos` (`id`) ON UPDATE CASCADE,
+    CONSTRAINT `fk_sp_supplier` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON UPDATE CASCADE,
+    CONSTRAINT `fk_sp_raised_by` FOREIGN KEY (`raised_by`) REFERENCES `users` (`id`) ON UPDATE CASCADE,
+    CONSTRAINT `fk_sp_approved_by` FOREIGN KEY (`approved_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+### Gotchas (Supplier Payments)
+1. **Three validation gates in raise()** — must verify LPO exists, LPO status = 'Received', and no existing Pending/Approved payment for the same LPO
+2. **Only admin can approve/reject/mark paid** — role check in each method; non-admin receives 403
+3. **Approval timeline is visual only** — status transitions track raised_by, approved_by, approved_at; the view renders a step indicator
+4. **Org settings not snapshotted in supplier_payments** — unlike receipts, supplier payments don't snapshot org info
+5. **getWithDetails() concatenates first_name + last_name** — uses separate joined columns to avoid MySQL CONCAT issues
+6. **Dompdf requires inline CSS only** — the pdf.php view uses `<style>` blocks with inline CSS; no external CSS or Tailwind CDN

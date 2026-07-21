@@ -7,6 +7,7 @@ use App\Models\LpoItemModel;
 use App\Models\InventoryModel;
 use App\Models\SupplierModel;
 use App\Models\JobCardModel;
+use App\Models\SupplierPaymentModel;
 use CodeIgniter\API\ResponseTrait;
 
 class LpoController extends BaseController
@@ -179,7 +180,15 @@ class LpoController extends BaseController
 
         $items = $lpoItemModel->getByLpo($id);
 
-        return view('admin/lpos/view', compact('lpo', 'items'));
+        $supplierPaymentModel = new SupplierPaymentModel();
+        $supplierPayments = $supplierPaymentModel->getByLpo($id);
+        $totalPaid = $supplierPaymentModel->getTotalPaidForLpo($id);
+        $canRaisePayment = ($lpo['status'] === 'Received') &&
+            !$supplierPaymentModel->where('lpo_id', $id)
+                                  ->whereIn('status', ['Pending Approval', 'Approved'])
+                                  ->countAllResults();
+
+        return view('admin/lpos/view', compact('lpo', 'items', 'supplierPayments', 'totalPaid', 'canRaisePayment'));
     }
 
     public function edit($id)
@@ -401,6 +410,27 @@ class LpoController extends BaseController
             $invItem = $inventoryModel->find($item['inventory_id']);
             if ($invItem && $invItem['is_stocked']) {
                 $inventoryModel->incrementStock($item['inventory_id'], $qtyNow);
+            }
+
+            // Sync LPO items to job_card_parts_required if LPO is linked to a job card
+            if (!empty($lpo['job_card_id'])) {
+                $jobCardPartModel = new \App\Models\JobCardPartModel();
+                $existing = $jobCardPartModel->where('job_card_id', $lpo['job_card_id'])
+                    ->where('inventory_id', $item['inventory_id'])
+                    ->first();
+                if ($existing) {
+                    $jobCardPartModel->update($existing['id'], [
+                        'quantity_required'     => $existing['quantity_required'] + $qtyNow,
+                        'unit_price_at_estimate' => (float) $item['unit_price'],
+                    ]);
+                } else {
+                    $jobCardPartModel->insert([
+                        'job_card_id'           => $lpo['job_card_id'],
+                        'inventory_id'          => $item['inventory_id'],
+                        'quantity_required'     => $qtyNow,
+                        'unit_price_at_estimate' => (float) $item['unit_price'],
+                    ]);
+                }
             }
         }
 

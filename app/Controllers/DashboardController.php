@@ -12,6 +12,7 @@ use App\Models\InvoiceModel;
 use App\Models\PaymentModel;
 use App\Models\ActivityLogModel;
 use App\Models\CalendarEventModel;
+use App\Models\SupplierPaymentModel;
 use Config\JobStatus;
 
 class DashboardController extends BaseController
@@ -46,7 +47,8 @@ class DashboardController extends BaseController
             $this->buildRevenueData(),
             $this->buildAlertsData(),
             $this->buildUpcomingEvents(),
-            $this->buildRecentActivity()
+            $this->buildRecentActivity(),
+            $this->buildSupplierPaymentAlerts()
         );
 
         return view('admin/dashboard', $data);
@@ -286,6 +288,19 @@ class DashboardController extends BaseController
     public function customer()
     {
         return $this->restrictTo('customer', 'customer_dashboard');
+    }
+
+    private function buildSupplierPaymentAlerts(): array
+    {
+        $supplierPaymentModel = new SupplierPaymentModel();
+        $pendingSupplierPayments = $supplierPaymentModel->getPendingApprovals();
+        $pendingSupplierPaymentsCount = count($pendingSupplierPayments);
+        $pendingSupplierPaymentsAmount = array_sum(array_column($pendingSupplierPayments, 'amount'));
+
+        return [
+            'pendingSupplierPaymentsCount' => $pendingSupplierPaymentsCount,
+            'pendingSupplierPaymentsAmount' => $pendingSupplierPaymentsAmount,
+        ];
     }
 
     public function unauthorized()

@@ -17,7 +17,33 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
     <div class="no-print flex items-center justify-between mb-6">
         <a href="<?= base_url('admin/invoices') ?>" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2">&larr; Back to Invoices</a>
-        <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2"><i class="bi bi-printer"></i> Print Invoice</button>
+        <div class="flex items-center gap-2">
+            <a href="<?= base_url('admin/invoices/pdf/' . $invoice['id']) ?>"
+               class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Download PDF
+            </a>
+            <?php if (!empty($invoice['customer_email'])): ?>
+                <a href="<?= base_url('admin/invoices/email/' . $invoice['id']) ?>"
+                   class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                    Send by Email
+                </a>
+            <?php else: ?>
+                <span class="bg-gray-100 text-gray-400 px-4 py-2 rounded-lg text-sm font-medium inline-flex items-center gap-2 cursor-not-allowed" title="Customer has no email address">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                    No Email
+                </span>
+            <?php endif; ?>
+            <?php if ($invoice['status'] === 'Draft' || $invoice['status'] === 'Sent'): ?>
+                <button onclick="showRegenerateForm()"
+                    class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Recalculate
+                </button>
+            <?php endif; ?>
+            <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2"><i class="bi bi-printer"></i> Print Invoice</button>
+        </div>
     </div>
 
     <?php if (session()->getFlashdata('success')): ?>
@@ -194,6 +220,12 @@
                                     <td class="px-4 py-2 text-sm text-gray-700">Sublets Total</td>
                                     <td class="px-4 py-2 text-sm text-gray-900 text-right"><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($invoice['sublet_total'], 2) ?></td>
                                 </tr>
+                                <?php if ((float)($invoice['lpo_parts_total'] ?? 0) > 0): ?>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-2 text-sm text-gray-700">LPO Parts Total</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 text-right"><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($invoice['lpo_parts_total'], 2) ?></td>
+                                </tr>
+                                <?php endif; ?>
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-4 py-2 text-sm text-gray-700">Subtotal</td>
                                     <td class="px-4 py-2 text-sm text-gray-900 text-right"><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($invoice['subtotal'], 2) ?></td>
@@ -202,6 +234,12 @@
                                     <td class="px-4 py-2 text-sm text-gray-700">VAT (<?= number_format($invoice['vat_rate'], 2) ?>%)</td>
                                     <td class="px-4 py-2 text-sm text-gray-900 text-right"><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($invoice['vat_amount'], 2) ?></td>
                                 </tr>
+                                <?php if ((float)($invoice['other_charges'] ?? 0) > 0): ?>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-2 text-sm text-gray-700">Other Charges <?= !empty($invoice['other_charges_description']) ? '(' . esc($invoice['other_charges_description']) . ')' : '' ?></td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 text-right"><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($invoice['other_charges'], 2) ?></td>
+                                </tr>
+                                <?php endif; ?>
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-4 py-2 text-sm text-gray-700">Discount</td>
                                     <td class="px-4 py-2 text-sm text-gray-900 text-right">- <?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($invoice['discount'], 2) ?></td>
@@ -266,10 +304,20 @@
                                     <td class="px-4 py-3 text-sm text-gray-900"><?= esc($payment['received_by_name'] ?? 'N/A') ?></td>
                                     <td class="px-4 py-3 text-sm">
                                         <?php if ($receiptForPayment): ?>
-                                            <a href="<?= base_url('admin/invoices/receipt/' . $receiptForPayment['id']) ?>" target="_blank"
-                                               class="inline-flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg text-xs font-medium transition-colors">
-                                                <i class="bi bi-printer"></i> Print
-                                            </a>
+                                            <div class="flex items-center gap-1">
+                                                <a href="<?= base_url('admin/invoices/receipt/' . $receiptForPayment['id']) ?>" target="_blank"
+                                                   class="inline-flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg text-xs font-medium transition-colors">
+                                                    <i class="bi bi-printer"></i> Print
+                                                </a>
+                                                <a href="<?= base_url('admin/invoices/receipt_pdf/' . $receiptForPayment['id']) ?>"
+                                                   class="inline-flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg text-xs font-medium transition-colors" title="Download PDF">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                                </a>
+                                                <a href="<?= base_url('admin/invoices/email_receipt/' . $receiptForPayment['id']) ?>"
+                                                   class="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 px-2 py-1 rounded-lg text-xs font-medium transition-colors" title="Email Receipt">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                                </a>
+                                            </div>
                                         <?php else: ?>
                                             <a href="<?= base_url('admin/invoices/generate_receipt/' . $payment['id']) ?>"
                                                class="inline-flex items-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-600 px-2 py-1 rounded-lg text-xs font-medium transition-colors">
@@ -333,4 +381,68 @@
         </div>
     </div>
 </div>
+
+<?= $this->section('scripts') ?>
+<script>
+window.showRegenerateForm = function() {
+    Swal.fire({
+        title: 'Recalculate Invoice',
+        text: 'This will update totals from the latest job card data.',
+        icon: 'question',
+        html:
+            '<div class="text-left">' +
+            '<p class="text-sm text-gray-500 mb-3">Current totals will be replaced with real-time job card data.</p>' +
+            '<label class="block text-sm font-medium text-gray-700 mb-1">Discount</label>' +
+            '<input id="swal-discount" type="number" step="0.01" min="0" value="<?= esc($invoice['discount']) ?>" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-3">' +
+            '<label class="block text-sm font-medium text-gray-700 mb-1">Other Charges</label>' +
+            '<input id="swal-other-charges" type="number" step="0.01" min="0" value="<?= esc($invoice['other_charges'] ?? 0) ?>" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-3">' +
+            '<label class="block text-sm font-medium text-gray-700 mb-1">Other Charges Description</label>' +
+            '<input id="swal-other-charges-desc" type="text" maxlength="255" value="<?= esc($invoice['other_charges_description'] ?? '') ?>" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent">' +
+            '</div>',
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonColor: '#d97706',
+        confirmButtonText: 'Recalculate',
+        preConfirm: function() {
+            return {
+                discount: parseFloat(document.getElementById('swal-discount').value) || 0,
+                other_charges: parseFloat(document.getElementById('swal-other-charges').value) || 0,
+                other_charges_description: document.getElementById('swal-other-charges-desc').value || ''
+            };
+        }
+    }).then(function(result) {
+        if (!result.isConfirmed) return;
+        var data = result.value;
+        var token = document.querySelector('meta[name="csrf-token"]');
+        var name = document.querySelector('meta[name="csrf-name"]');
+        if (token && name) {
+            data[name.getAttribute('content')] = token.getAttribute('content');
+        }
+        $.ajax({
+            url: '<?= base_url('admin/invoices/regenerate/' . $invoice['id']) ?>',
+            method: 'POST',
+            data: data,
+            dataType: 'json',
+            success: function(res) {
+                if (res.status === 'success') {
+                    Swal.fire('Done!', res.message, 'success').then(function() {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire('Error', res.message || 'Failed to recalculate.', 'error');
+                }
+            },
+            error: function(xhr) {
+                var res = xhr.responseJSON;
+                if (xhr.status === 302) {
+                    location.reload();
+                    return;
+                }
+                Swal.fire('Error', (res && res.message) || 'Failed to recalculate.', 'error');
+            }
+        });
+    });
+};
+</script>
+<?= $this->endSection() ?>
 <?= $this->endSection() ?>

@@ -11,6 +11,14 @@ class InvoicesController extends BaseController
 {
     use \CodeIgniter\API\ResponseTrait;
 
+    protected $pdfService;
+    protected $emailService;
+
+    public function __construct()
+    {
+        $this->pdfService = new \App\Services\PdfService();
+    }
+
     public function index()
     {
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
@@ -30,12 +38,34 @@ class InvoicesController extends BaseController
         }
 
         $discount = (float) ($this->request->getPost('discount') ?? 0);
+        $otherCharges = (float) ($this->request->getPost('other_charges') ?? 0);
+        $otherChargesDesc = $this->request->getPost('other_charges_description') ?? '';
 
         $invoiceModel = new InvoiceModel();
-        $invoice = $invoiceModel->generateFromJobCard((int) $job_card_id, (int) session()->get('user_id'), $discount);
+        $invoice = $invoiceModel->generateFromJobCard((int) $job_card_id, (int) session()->get('user_id'), $discount, $otherCharges, $otherChargesDesc);
 
         return redirect()->to('/admin/invoices/view/' . $invoice['id'])
             ->with('success', 'Invoice generated successfully.');
+    }
+
+    public function regenerate($id)
+    {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
+            return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        $discount = (float) ($this->request->getPost('discount') ?? 0);
+        $otherCharges = (float) ($this->request->getPost('other_charges') ?? 0);
+        $otherChargesDesc = $this->request->getPost('other_charges_description') ?? '';
+
+        $invoiceModel = new InvoiceModel();
+        $invoice = $invoiceModel->regenerateFromJobCard((int) $id, $discount, $otherCharges, $otherChargesDesc);
+
+        if (empty($invoice)) {
+            return $this->respond(['status' => 'error', 'message' => 'Invoice not found.'], 404);
+        }
+
+        return $this->respond(['status' => 'success', 'message' => 'Invoice totals recalculated successfully.']);
     }
 
     public function view($id)
@@ -237,5 +267,164 @@ class InvoicesController extends BaseController
         log_activity('receipt_generated', 'receipt', $receipt_id, 'Receipt generated on demand for payment #' . $payment_id);
 
         return redirect()->to('/admin/invoices/receipt/' . $receipt_id);
+    }
+
+    // --- PDF Download ---
+
+    public function downloadInvoicePdf($id)
+    {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
+            return redirect()->to('/login');
+        }
+
+        $invoiceModel = new InvoiceModel();
+        $invoice = $invoiceModel->getWithDetails((int) $id);
+
+        if (empty($invoice)) {
+            return redirect()->to('/admin/invoices')->with('error', 'Invoice not found.');
+        }
+
+        $db = \Config\Database::connect();
+        $parts = $db->table('job_card_parts_required')
+            ->select('job_card_parts_required.*, inventory.name, inventory.part_number')
+            ->join('inventory', 'inventory.id = job_card_parts_required.inventory_id', 'left')
+            ->where('job_card_parts_required.job_card_id', $invoice['job_card_id'])
+            ->get()->getResultArray();
+
+        $tasks = $db->table('job_card_labor_tasks')
+            ->where('job_card_id', $invoice['job_card_id'])
+            ->get()->getResultArray();
+
+        $sublets = $db->table('sublets')
+            ->select('sublets.*, suppliers.name AS provider_name')
+            ->join('suppliers', 'suppliers.id = sublets.sublet_provider_id', 'left')
+            ->where('sublets.job_card_id', $invoice['job_card_id'])
+            ->where('sublets.status !=', 'Cancelled')
+            ->get()->getResultArray();
+
+        $payments = (new PaymentModel())->getByInvoice((int) $id);
+
+        $orgSettingsModel = new \App\Models\OrgSettingsModel();
+        $settings = $orgSettingsModel->getSettings();
+
+        $this->pdfService->generateFromView(
+            'admin/invoices/pdf',
+            compact('invoice', 'parts', 'tasks', 'sublets', 'payments', 'settings'),
+            'Invoice-' . $invoice['invoice_no'] . '.pdf',
+            true
+        );
+    }
+
+    public function downloadReceiptPdf($receipt_id)
+    {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
+            return redirect()->to('/login');
+        }
+
+        $receiptModel = new \App\Models\ReceiptModel();
+        $receipt = $receiptModel->getWithDetails((int) $receipt_id);
+
+        if (empty($receipt)) {
+            return redirect()->to('/admin/invoices')->with('error', 'Receipt not found.');
+        }
+
+        $orgSettingsModel = new \App\Models\OrgSettingsModel();
+        $settings = $orgSettingsModel->getSettings();
+
+        $this->pdfService->generateFromView(
+            'admin/invoices/receipt',
+            compact('receipt', 'settings'),
+            'Receipt-' . $receipt['receipt_no'] . '.pdf',
+            true
+        );
+    }
+
+    // --- Email Delivery ---
+
+    public function sendInvoiceEmail($id)
+    {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
+            return redirect()->to('/login');
+        }
+
+        $invoiceModel = new InvoiceModel();
+        $invoice = $invoiceModel->getWithDetails((int) $id);
+
+        if (empty($invoice)) {
+            return redirect()->to('/admin/invoices')->with('error', 'Invoice not found.');
+        }
+
+        if (empty($invoice['customer_email'])) {
+            return redirect()->to('/admin/invoices/view/' . $id)
+                ->with('error', 'Customer has no email address on file.');
+        }
+
+        $emailConfig = config('Email');
+        if (empty($emailConfig->SMTPHost)) {
+            return redirect()->to('/admin/invoices/view/' . $id)
+                ->with('error', 'Email not configured. Please set up SMTP in .env.');
+        }
+
+        $db = \Config\Database::connect();
+        $parts = $db->table('job_card_parts_required')
+            ->select('job_card_parts_required.*, inventory.name, inventory.part_number')
+            ->join('inventory', 'inventory.id = job_card_parts_required.inventory_id', 'left')
+            ->where('job_card_parts_required.job_card_id', $invoice['job_card_id'])
+            ->get()->getResultArray();
+
+        $tasks = $db->table('job_card_labor_tasks')
+            ->where('job_card_id', $invoice['job_card_id'])
+            ->get()->getResultArray();
+
+        $sublets = $db->table('sublets')
+            ->select('sublets.*, suppliers.name AS provider_name')
+            ->join('suppliers', 'suppliers.id = sublets.sublet_provider_id', 'left')
+            ->where('sublets.job_card_id', $invoice['job_card_id'])
+            ->where('sublets.status !=', 'Cancelled')
+            ->get()->getResultArray();
+
+        $orgSettingsModel = new \App\Models\OrgSettingsModel();
+        $settings = $orgSettingsModel->getSettings();
+
+        $emailService = new \App\Services\EmailService();
+        $sent = $emailService->sendInvoice($invoice, $parts, $tasks, $sublets, $settings);
+
+        if ($sent) {
+            log_activity('invoice_emailed', 'invoice', (int) $id,
+                'Invoice ' . $invoice['invoice_no'] . ' emailed to ' . $invoice['customer_email']);
+            return redirect()->to('/admin/invoices/view/' . $id)
+                ->with('success', 'Invoice sent successfully to ' . $invoice['customer_email']);
+        }
+
+        return redirect()->to('/admin/invoices/view/' . $id)
+            ->with('error', 'Failed to send email. ' . $emailService->getDebugMessage());
+    }
+
+    public function sendReceiptEmail($receipt_id)
+    {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
+            return redirect()->to('/login');
+        }
+
+        $receiptModel = new \App\Models\ReceiptModel();
+        $receipt = $receiptModel->getWithDetails((int) $receipt_id);
+
+        if (empty($receipt)) {
+            return redirect()->to('/admin/invoices')->with('error', 'Receipt not found.');
+        }
+
+        $orgSettingsModel = new \App\Models\OrgSettingsModel();
+        $settings = $orgSettingsModel->getSettings();
+
+        $emailService = new \App\Services\EmailService();
+        $sent = $emailService->sendReceipt($receipt, $settings);
+
+        if ($sent) {
+            log_activity('receipt_emailed', 'receipt', (int) $receipt_id,
+                'Receipt ' . $receipt['receipt_no'] . ' emailed');
+            return redirect()->back()->with('success', 'Receipt sent successfully.');
+        }
+
+        return redirect()->back()->with('error', 'Failed to send email. ' . $emailService->getDebugMessage());
     }
 }

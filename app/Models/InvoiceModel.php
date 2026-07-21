@@ -24,10 +24,13 @@ class InvoiceModel extends Model
         'parts_total',
         'labor_total',
         'sublet_total',
+        'lpo_parts_total',
         'subtotal',
         'vat_rate',
         'vat_amount',
         'discount',
+        'other_charges',
+        'other_charges_description',
         'grand_total',
         'amount_paid',
         'status',
@@ -55,17 +58,12 @@ class InvoiceModel extends Model
         return $like . str_pad((string) $suffix, 3, '0', STR_PAD_LEFT);
     }
 
-    public function generateFromJobCard(int $job_card_id, int $created_by, float $discount = 0.00): array
+    protected function computeJobCardTotals(int $job_card_id): array
     {
-        $existing = $this->where('job_card_id', $job_card_id)->first();
-        if ($existing) {
-            return $existing;
-        }
-
         $db = \Config\Database::connect();
 
         $partsRow = $db->table('job_card_parts_required')
-            ->selectSum('quantity_required * unit_price_at_estimate', 'parts_total')
+            ->select('SUM(quantity_required * unit_price_at_estimate) AS parts_total', false)
             ->where('job_card_id', $job_card_id)
             ->get()
             ->getRowArray();
@@ -83,15 +81,36 @@ class InvoiceModel extends Model
             ->get()
             ->getRowArray();
 
-        $partsTotal  = (float) ($partsRow['parts_total'] ?? 0);
-        $laborTotal  = (float) ($laborRow['labor_total'] ?? 0);
-        $subletTotal = (float) ($subletRow['sublet_total'] ?? 0);
-        $subtotal    = $partsTotal + $laborTotal + $subletTotal;
+        $lpoRow = $db->table('lpo_items')
+            ->select('SUM(line_total) AS lpo_pt', false)
+            ->join('lpos', 'lpos.id = lpo_items.lpo_id')
+            ->where('lpos.job_card_id', $job_card_id)
+            ->whereIn('lpos.status', ['Received', 'Partially Received'])
+            ->get()
+            ->getRowArray();
+
+        return [
+            'parts_total'     => (float) ($partsRow['parts_total'] ?? 0),
+            'labor_total'     => (float) ($laborRow['labor_total'] ?? 0),
+            'sublet_total'    => (float) ($subletRow['sublet_total'] ?? 0),
+            'lpo_parts_total' => (float) ($lpoRow['lpo_pt'] ?? 0),
+        ];
+    }
+
+    public function generateFromJobCard(int $job_card_id, int $created_by, float $discount = 0.00, float $otherCharges = 0.00, string $otherChargesDesc = ''): array
+    {
+        $existing = $this->where('job_card_id', $job_card_id)->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        $totals = $this->computeJobCardTotals($job_card_id);
+        $subtotal    = $totals['parts_total'] + $totals['labor_total'] + $totals['sublet_total'] + $totals['lpo_parts_total'];
         $vatRate     = (float) org_setting('vat_rate', 16);
         $vatAmount   = $subtotal * ($vatRate / 100);
-        $grandTotal  = $subtotal + $vatAmount - $discount;
+        $grandTotal  = $subtotal + $vatAmount + $otherCharges - $discount;
 
-        $job = $db->table('job_cards')
+        $job = \Config\Database::connect()->table('job_cards')
             ->select('customer_id')
             ->where('id', $job_card_id)
             ->get()
@@ -100,32 +119,71 @@ class InvoiceModel extends Model
         $invoiceDate = date('Y-m-d');
         $dueDays     = (int) org_setting('invoice_due_days', 14);
         $dueDate     = date('Y-m-d', strtotime("+{$dueDays} days"));
-
         $invoiceNo   = $this->generateInvoiceNo();
 
         $data = [
-            'invoice_no'    => $invoiceNo,
-            'job_card_id'   => $job_card_id,
-            'customer_id'   => $job['customer_id'],
-            'invoice_date'  => $invoiceDate,
-            'due_date'      => $dueDate,
-            'parts_total'   => $partsTotal,
-            'labor_total'   => $laborTotal,
-            'sublet_total'  => $subletTotal,
-            'subtotal'      => $subtotal,
-            'vat_rate'      => $vatRate,
-            'vat_amount'    => $vatAmount,
-            'discount'      => $discount,
-            'grand_total'   => $grandTotal,
-            'amount_paid'   => 0.00,
-            'status'        => 'Draft',
-            'created_by'    => $created_by,
+            'invoice_no'              => $invoiceNo,
+            'job_card_id'             => $job_card_id,
+            'customer_id'             => $job['customer_id'],
+            'invoice_date'            => $invoiceDate,
+            'due_date'                => $dueDate,
+            'parts_total'             => $totals['parts_total'],
+            'labor_total'             => $totals['labor_total'],
+            'sublet_total'            => $totals['sublet_total'],
+            'lpo_parts_total'         => $totals['lpo_parts_total'],
+            'subtotal'                => $subtotal,
+            'vat_rate'                => $vatRate,
+            'vat_amount'              => $vatAmount,
+            'discount'                => $discount,
+            'other_charges'           => $otherCharges,
+            'other_charges_description' => $otherChargesDesc,
+            'grand_total'             => $grandTotal,
+            'amount_paid'             => 0.00,
+            'status'                  => 'Draft',
+            'created_by'              => $created_by,
         ];
 
         $this->insert($data);
         $data['id'] = $this->getInsertID();
 
         return $data;
+    }
+
+    public function regenerateFromJobCard(int $invoice_id, float $discount = 0.00, float $otherCharges = 0.00, string $otherChargesDesc = ''): array
+    {
+        $invoice = $this->find($invoice_id);
+        if (!$invoice) {
+            return [];
+        }
+
+        $totals = $this->computeJobCardTotals($invoice['job_card_id']);
+        $subtotal    = $totals['parts_total'] + $totals['labor_total'] + $totals['sublet_total'] + $totals['lpo_parts_total'];
+        $vatRate     = (float) org_setting('vat_rate', 16);
+        $vatAmount   = $subtotal * ($vatRate / 100);
+        $grandTotal  = $subtotal + $vatAmount + $otherCharges - $discount;
+
+        $updateData = [
+            'parts_total'               => $totals['parts_total'],
+            'labor_total'               => $totals['labor_total'],
+            'sublet_total'              => $totals['sublet_total'],
+            'lpo_parts_total'           => $totals['lpo_parts_total'],
+            'subtotal'                  => $subtotal,
+            'vat_rate'                  => $vatRate,
+            'vat_amount'                => $vatAmount,
+            'discount'                  => $discount,
+            'other_charges'             => $otherCharges,
+            'other_charges_description' => $otherChargesDesc,
+            'grand_total'               => $grandTotal,
+        ];
+
+        if ($invoice['status'] === 'Paid' || $invoice['status'] === 'Cancelled') {
+            return $invoice;
+        }
+
+        $this->update($invoice_id, $updateData);
+        $invoice = $this->find($invoice_id);
+
+        return $invoice;
     }
 
     public function getOverdueCount(): int

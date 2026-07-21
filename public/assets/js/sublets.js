@@ -5,19 +5,19 @@ $(document).ready(function () {
     const statusFilter = $('#status-filter');
     const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
 
-    function openModalFn(name) {
+    window.openModalFn = function(name) {
         document.getElementById(name).classList.remove('hidden');
         var backdrop = document.getElementById(name + '-backdrop');
         if (backdrop) backdrop.classList.remove('hidden');
         document.body.classList.add('overflow-hidden');
-    }
+    };
 
-    function closeModalFn(name) {
+    window.closeModalFn = function(name) {
         document.getElementById(name).classList.add('hidden');
         var backdrop = document.getElementById(name + '-backdrop');
         if (backdrop) backdrop.classList.add('hidden');
         document.body.classList.remove('overflow-hidden');
-    }
+    };
 
     function getStatusBadgeClass(status) {
         switch (status) {

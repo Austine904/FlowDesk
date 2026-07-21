@@ -69,7 +69,7 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
     var stockToggle = document.getElementById('is_stocked');
     var stockFields = document.getElementById('stockFields');
     if (stockToggle) {
@@ -77,6 +77,6 @@ document.addEventListener('DOMContentLoaded', function() {
             stockFields.style.display = this.checked ? '' : 'none';
         });
     }
-});
+})();
 </script>
 <?= $this->endSection() ?>

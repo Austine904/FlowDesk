@@ -56,7 +56,7 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
-        <form id="addSubletForm">
+        <form id="addSubletForm" method="POST" action="<?= base_url('admin/sublets/save') ?>">
             <?= csrf_field() ?>
             <input type="hidden" name="id" value="">
             <div class="p-6 space-y-4">
@@ -138,7 +138,7 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
-        <form id="editSubletForm">
+        <form id="editSubletForm" method="POST" action="<?= base_url('admin/sublets/save') ?>">
             <?= csrf_field() ?>
             <input type="hidden" id="edit_sublet_id" name="id" value="">
             <div class="p-6 space-y-4">
@@ -219,4 +219,8 @@ window.openModal = function(id) {
 };
 </script>
 <?php include('modals.php'); ?>
+<?= $this->endSection() ?>
+
+<?= $this->section('scripts') ?>
+<script src="<?= base_url('public/assets/js/sublets.js') ?>?v=2"></script>
 <?= $this->endSection() ?>
