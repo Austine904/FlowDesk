@@ -563,7 +563,7 @@
             var html = '<option value="">Select Mechanic</option>';
             users.forEach(function(u) {
                 if (u.role === 'mechanic') {
-                    html += '<option value="' + u.id + '">' + escHtml(u.first_name + ' ' + u.last_name) + ' (' + escHtml(u.company_id) + ')</option>';
+                    html += '<option value="' + u.id + '">' + escHtml(u.name) + ' (' + escHtml(u.company_id) + ')</option>';
                 }
             });
             select.innerHTML = html;

@@ -168,8 +168,8 @@ $(document).ready(function () {
                 data.invoices.forEach(function(invoice) {
                     invoicesList.append('<tr>' +
                         '<td class="px-3 py-2 text-sm text-gray-900">' + (invoice.invoice_no || 'N/A') + '</td>' +
-                        '<td class="px-3 py-2 text-sm text-gray-900">' + (invoice.date || 'N/A') + '</td>' +
-                        '<td class="px-3 py-2 text-sm text-gray-900">Ksh ' + parseFloat(invoice.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) + '</td>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">' + (invoice.invoice_date || 'N/A') + '</td>' +
+                        '<td class="px-3 py-2 text-sm text-gray-900">Ksh ' + parseFloat(invoice.grand_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) + '</td>' +
                         '<td class="px-3 py-2 text-sm text-gray-900">' + (invoice.status || 'N/A') + '</td>' +
                         '</tr>');
                 });

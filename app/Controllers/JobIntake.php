@@ -417,7 +417,7 @@ class JobIntake extends BaseController
             $update_data = [
                 'diagnosis' => $this->request->getVar('diagnosis', FILTER_SANITIZE_SPECIAL_CHARS),
                 'diagnosis_category' => !empty($diagnosisCategory) ? $diagnosisCategory : null,
-                'estimated_labor_hours' => $this->request->getVar('estimated_labor_hours', FILTER_SANITIZE_NUMBER_FLOAT),
+                'estimated_labor_hours' => filter_var($this->request->getVar('estimated_labor_hours'), FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION),
                 'job_status' => 'Diagnosis Complete'
             ];
             $jobCardModel->update($job_id, $update_data);
@@ -440,7 +440,7 @@ class JobIntake extends BaseController
                         'job_card_id' => $job_id,
                         'inventory_id' => (int)($part['inventory_id'] ?? 0),
                         'quantity_required' => (int)($part['quantity_required'] ?? 0),
-                        'unit_price_at_estimate' => (float)($part['unit_price'] ?? 0.00)
+                        'unit_price_at_estimate' => (float)($part['unit_price'] ?? 0.00),
                     ];
                 }
                 if (!empty($batchInsertParts)) {

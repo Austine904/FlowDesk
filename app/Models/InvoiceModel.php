@@ -60,28 +60,26 @@ class InvoiceModel extends Model
 
     protected function computeJobCardTotals(int $job_card_id): array
     {
-        $db = \Config\Database::connect();
-
-        $partsRow = $db->table('job_card_parts_required')
+        $partsRow = $this->db->table('job_card_parts_required')
             ->select('SUM(quantity_required * unit_price_at_estimate) AS parts_total', false)
             ->where('job_card_id', $job_card_id)
             ->get()
             ->getRowArray();
 
-        $laborRow = $db->table('job_card_labor_tasks')
+        $laborRow = $this->db->table('job_card_labor_tasks')
             ->selectSum('labor_cost', 'labor_total')
             ->where('job_card_id', $job_card_id)
             ->get()
             ->getRowArray();
 
-        $subletRow = $db->table('sublets')
+        $subletRow = $this->db->table('sublets')
             ->selectSum('cost', 'sublet_total')
             ->where('job_card_id', $job_card_id)
             ->where('status !=', 'Cancelled')
             ->get()
             ->getRowArray();
 
-        $lpoRow = $db->table('lpo_items')
+        $lpoRow = $this->db->table('lpo_items')
             ->select('SUM(line_total) AS lpo_pt', false)
             ->join('lpos', 'lpos.id = lpo_items.lpo_id')
             ->where('lpos.job_card_id', $job_card_id)
@@ -110,7 +108,7 @@ class InvoiceModel extends Model
         $vatAmount   = $subtotal * ($vatRate / 100);
         $grandTotal  = $subtotal + $vatAmount + $otherCharges - $discount;
 
-        $job = \Config\Database::connect()->table('job_cards')
+        $job = $this->db->table('job_cards')
             ->select('customer_id')
             ->where('id', $job_card_id)
             ->get()
@@ -211,7 +209,7 @@ class InvoiceModel extends Model
 
     public function getWithDetails(int $id = null): array
     {
-        $builder = $this->select('invoices.*, customers.name AS customer_name, customers.phone AS customer_phone, job_cards.job_no, CONCAT(users.first_name, " ", users.last_name) AS created_by_name')
+        $builder = $this->select('invoices.*, customers.name AS customer_name, customers.phone AS customer_phone, customers.email AS customer_email, job_cards.job_no, CONCAT(users.first_name, " ", users.last_name) AS created_by_name')
             ->join('customers', 'customers.id = invoices.customer_id', 'left')
             ->join('job_cards', 'job_cards.id = invoices.job_card_id', 'left')
             ->join('users', 'users.id = invoices.created_by', 'left');
@@ -226,9 +224,7 @@ class InvoiceModel extends Model
 
     public function updateAmountPaid(int $invoice_id): void
     {
-        $db = \Config\Database::connect();
-
-        $paymentRow = $db->table('payments')
+        $paymentRow = $this->db->table('payments')
             ->selectSum('amount', 'total_paid')
             ->where('invoice_id', $invoice_id)
             ->get()
@@ -254,18 +250,18 @@ class InvoiceModel extends Model
 
         // Auto-update job status when invoice becomes Paid
         if ($status === 'Paid' && !empty($invoice['job_card_id'])) {
-            $job = $db->table('job_cards')
+            $job = $this->db->table('job_cards')
                 ->where('id', $invoice['job_card_id'])
                 ->get()
                 ->getRowArray();
 
             if ($job && $job['job_status'] !== 'Paid') {
                 $currentStatus = $job['job_status'];
-                $db->table('job_cards')
+                $this->db->table('job_cards')
                     ->where('id', $invoice['job_card_id'])
                     ->update(['job_status' => 'Paid']);
 
-                $db->table('job_status_history')->insert([
+                $this->db->table('job_status_history')->insert([
                     'job_card_id' => $invoice['job_card_id'],
                     'from_status' => $currentStatus,
                     'to_status'   => 'Paid',
