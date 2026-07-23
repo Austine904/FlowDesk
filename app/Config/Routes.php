@@ -29,10 +29,10 @@ $routes->post('user/add_step2', 'UsersController::add_step2');
 
 $routes->get('user/add_step3', 'UsersController::addStep3');
 $routes->post('user/add_step3', 'UsersController::addUserStep3');
-$routes->post('user/addUserStep3', 'UsersController::addUserStep3');
+$routes->post('user/final_submit', 'UsersController::saveUserFromAdmin');
 
 $routes->get('user/preview', 'UsersController::preview');
-$routes->get('user/saveUser', 'UsersController::saveUser');
+$routes->post('user/saveUser', 'UsersController::saveUser');
 
 // $routes->post('/save-step-data/(:num)', 'UsersController::saveStepData/$1'); // REMOVED: method does not exist
 
@@ -40,8 +40,6 @@ $routes->get('user/saveUser', 'UsersController::saveUser');
 
 // $routes->get('user/getLastId/(:any)', 'UsersController::getLastId/$1');
 $routes->get('user/getLastId', 'UsersController::getLastId');
-
-$routes->get('user/preview', 'UsersController::preview');
 
 // $routes->post('user/submit', 'UsersController::submit'); // REMOVED: method does not exist
 
@@ -78,10 +76,11 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->get('users/(:num)', 'UsersController::details/$1');
     $routes->get('users/edit/(:num)', 'UsersController::edit/$1');
     $routes->post('users/update/(:num)', 'UsersController::update/$1');
-    $routes->get('users/delete/(:num)', 'UsersController::delete/$1');
+    $routes->post('users/delete/(:num)', 'UsersController::delete/$1');
+    $routes->post('users/restore/(:num)', 'UsersController::restore/$1');
     $routes->post('users/bulk_action', 'UsersController::bulk_action');
-    $routes->get('users/fetch/(:num)', 'UsersController::details/$1');
     $routes->get('users/fetch', 'UsersController::fetchUsers');
+    $routes->get('users/fetch/(:num)', 'UsersController::details/$1');
 
     // Vehicles
     $routes->get('vehicles', 'VehicleController::index');
@@ -185,11 +184,7 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->get('sublets/details/(:num)', 'SubletsController::details/$1');
     $routes->post('sublets/delete/(:num)', 'SubletsController::delete/$1');
     $routes->post('sublets/bulkAction', 'SubletsController::bulkAction');
-    $routes->get('sublets/fetch', 'SubletsController::fetchSublets');
-    $routes->get('sublets/fetch/(:num)', 'SubletsController::fetchSublets/$1');
     $routes->get('sublets/(:num)', 'SubletsController::details/$1');
-    $routes->get('sublets/(:num)/edit', 'SubletsController::edit/$1');
-    $routes->post('sublets/(:num)/update', 'SubletsController::update/$1');
 
     // LPOs
     $routes->get('lpos', 'LpoController::index');
@@ -224,15 +219,16 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->get('pettycash/ledger', 'PettyCashController::ledger');
     $routes->post('pettycash/filter', 'PettyCashController::filter');
 
-    // Supplier Payments
-    $routes->get('supplier_payments', 'SupplierPaymentsController::index');
-    $routes->match(['get', 'post'], 'supplier_payments/load', 'SupplierPaymentsController::load');
-    $routes->get('supplier_payments/raise/(:num)', 'SupplierPaymentsController::raise/$1');
-    $routes->post('supplier_payments/store', 'SupplierPaymentsController::store');
-    $routes->post('supplier_payments/approve/(:num)', 'SupplierPaymentsController::approve/$1');
-    $routes->post('supplier_payments/reject/(:num)', 'SupplierPaymentsController::reject/$1');
-    $routes->post('supplier_payments/mark_paid/(:num)', 'SupplierPaymentsController::markPaid/$1');
-    $routes->get('supplier_payments/view/(:num)', 'SupplierPaymentsController::view/$1');
+    // Outgoing Payments
+    $routes->get('outgoing_payments', 'OutgoingPaymentsController::index');
+    $routes->match(['get', 'post'], 'outgoing_payments/load', 'OutgoingPaymentsController::load');
+    $routes->get('outgoing_payments/raise', 'OutgoingPaymentsController::raise');
+    $routes->get('outgoing_payments/raise/(:any)', 'OutgoingPaymentsController::raiseForm/$1');
+    $routes->post('outgoing_payments/store', 'OutgoingPaymentsController::store');
+    $routes->post('outgoing_payments/approve/(:num)', 'OutgoingPaymentsController::approve/$1');
+    $routes->post('outgoing_payments/reject/(:num)', 'OutgoingPaymentsController::reject/$1');
+    $routes->post('outgoing_payments/mark_paid/(:num)', 'OutgoingPaymentsController::markPaid/$1');
+    $routes->get('outgoing_payments/view/(:num)', 'OutgoingPaymentsController::view/$1');
     
 });
 

@@ -7,7 +7,7 @@ use App\Models\LpoItemModel;
 use App\Models\InventoryModel;
 use App\Models\SupplierModel;
 use App\Models\JobCardModel;
-use App\Models\SupplierPaymentModel;
+use App\Models\OutgoingPaymentModel;
 use CodeIgniter\API\ResponseTrait;
 
 class LpoController extends BaseController
@@ -180,15 +180,16 @@ class LpoController extends BaseController
 
         $items = $lpoItemModel->getByLpo($id);
 
-        $supplierPaymentModel = new SupplierPaymentModel();
-        $supplierPayments = $supplierPaymentModel->getByLpo($id);
-        $totalPaid = $supplierPaymentModel->getTotalPaidForLpo($id);
+        $paymentModel = new OutgoingPaymentModel();
+        $outgoingPayments = $paymentModel->getBySource('lpos', $id);
+        $totalPaid = $paymentModel->getTotalPaidForSource('lpos', $id);
         $canRaisePayment = ($lpo['status'] === 'Received') &&
-            !$supplierPaymentModel->where('lpo_id', $id)
-                                  ->whereIn('status', ['Pending Approval', 'Approved'])
-                                  ->countAllResults();
+            !$paymentModel->where('source_type', 'lpos')
+                          ->where('source_id', $id)
+                          ->whereIn('status', ['Pending Approval', 'Approved'])
+                          ->countAllResults();
 
-        return view('admin/lpos/view', compact('lpo', 'items', 'supplierPayments', 'totalPaid', 'canRaisePayment'));
+        return view('admin/lpos/view', compact('lpo', 'items', 'outgoingPayments', 'totalPaid', 'canRaisePayment'));
     }
 
     public function edit($id)

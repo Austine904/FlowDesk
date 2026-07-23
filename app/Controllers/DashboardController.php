@@ -12,7 +12,7 @@ use App\Models\InvoiceModel;
 use App\Models\PaymentModel;
 use App\Models\ActivityLogModel;
 use App\Models\CalendarEventModel;
-use App\Models\SupplierPaymentModel;
+use App\Models\OutgoingPaymentModel;
 use Config\JobStatus;
 
 class DashboardController extends BaseController
@@ -292,14 +292,14 @@ class DashboardController extends BaseController
 
     private function buildSupplierPaymentAlerts(): array
     {
-        $supplierPaymentModel = new SupplierPaymentModel();
-        $pendingSupplierPayments = $supplierPaymentModel->getPendingApprovals();
-        $pendingSupplierPaymentsCount = count($pendingSupplierPayments);
-        $pendingSupplierPaymentsAmount = array_sum(array_column($pendingSupplierPayments, 'amount'));
+        $paymentModel = new OutgoingPaymentModel();
+        $pending = $paymentModel->getPendingApprovals();
+        $pendingCount = count($pending);
+        $pendingAmount = array_sum(array_column($pending, 'amount'));
 
         return [
-            'pendingSupplierPaymentsCount' => $pendingSupplierPaymentsCount,
-            'pendingSupplierPaymentsAmount' => $pendingSupplierPaymentsAmount,
+            'pendingSupplierPaymentsCount' => $pendingCount,
+            'pendingSupplierPaymentsAmount' => $pendingAmount,
         ];
     }
 

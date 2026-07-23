@@ -34,6 +34,17 @@ class JobIntake extends BaseController
         $this->validation = \Config\Services::validation();
     }
 
+    public function index()
+    {
+        $userModel = new \App\Models\UserModel();
+        $serviceAdvisors = $userModel->whereIn('role', ['admin', 'receptionist'])->findAll();
+        $mechanics = $userModel->where('role', 'mechanic')->findAll();
+        return view('job_intake_form', [
+            'service_advisors' => $serviceAdvisors,
+            'mechanics' => $mechanics,
+        ]);
+    }
+
     public function search()
     {
         if (!$this->session->get('isLoggedIn')) {

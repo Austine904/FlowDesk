@@ -372,8 +372,8 @@ $tooltipJobBreakdown = !empty($tooltipParts) ? implode(', ', $tooltipParts) : 'N
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <div>
-                        <p class="text-xs font-medium text-amber-800"><?= $pendingSupplierPaymentsCount ?> supplier payment<?= $pendingSupplierPaymentsCount > 1 ? 's' : '' ?> pending approval (<?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($pendingSupplierPaymentsAmount ?? 0, 2) ?>)</p>
-                        <a href="<?= base_url('admin/supplier_payments') ?>" class="text-xs text-amber-600 hover:underline">Review now →</a>
+                        <p class="text-xs font-medium text-amber-800"><?= $pendingSupplierPaymentsCount ?> outgoing payment<?= $pendingSupplierPaymentsCount > 1 ? 's' : '' ?> pending approval (<?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($pendingSupplierPaymentsAmount ?? 0, 2) ?>)</p>
+                        <a href="<?= base_url('admin/outgoing_payments') ?>" class="text-xs text-amber-600 hover:underline">Review now →</a>
                     </div>
                 </div>
                 <?php endif; ?>

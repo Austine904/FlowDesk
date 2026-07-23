@@ -70,8 +70,13 @@ $(document).ready(function () {
                 data: 'id',
                 orderable: false,
                 searchable: false,
-                render: function (data) {
-                    return '<button type="button" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors view-sublet" data-id="' + data + '"><i class="bi bi-eye"></i> View</button> <button type="button" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors edit-sublet ms-1" data-id="' + data + '"><i class="bi bi-pencil"></i> Edit</button>';
+                render: function (data, type, row) {
+                    var btn = '<button type="button" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors view-sublet" data-id="' + data + '"><i class="bi bi-eye"></i> View</button>';
+                    btn += ' <button type="button" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors edit-sublet ms-1" data-id="' + data + '"><i class="bi bi-pencil"></i> Edit</button>';
+                    if (row.status === 'Completed') {
+                        btn += ' <a href="' + BASE_URL + 'admin/outgoing_payments/raise/sublet?source_id=' + data + '" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors inline-flex items-center gap-1 ms-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg> Pay</a>';
+                    }
+                    return btn;
                 }
             }
         ],

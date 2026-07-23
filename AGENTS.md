@@ -61,7 +61,7 @@ C:\xampp\htdocs\FlowDesk\
 │       ├── mechanic/      # jobs (Bootstrap)
 │       ├── partials/      # sidebar
 │       ├── sublets/       # index, form, _details, modals
-│       ├── user/          # add_step1/2/3, preview, success, getLastId, failure (Bootstrap)
+│       ├── user/          # add_step1/2/3, preview, success, getLastId, failure (Tailwind, full-page wizard)
 │       ├── vehicles/      # index, add (Bootstrap), edit (Bootstrap), modals
 │       ├── customer/      # layout, dashboard, jobs, invoices, invoice_view
 │       └── *.php          # login, dashboard variants, welcome_message, job_intake_form (Bootstrap), mechanic_diagnosis_form (Bootstrap), forgot_password, reset_password
@@ -508,10 +508,10 @@ All models are in `app/Models/`. All extend `CodeIgniter\Model`.
 - **Key functionality:** Admin dashboard with summary cards (total jobs, monthly revenue, outstanding balance, petty cash balance), job status doughnut chart (Chart.js, lazy-loaded), revenue line chart (last 6 months, real data from `payments` table), recent activity feed (from `activity_log` table), recent jobs list, upcoming events, alerts (low stock, pending LPOs, overdue invoices), quick action buttons, auto-refresh every 30s via JS. Controller refactored into private methods (`buildStatsData`, `buildJobStatusChartData`, `buildRevenueData`, `buildAlertsData`, `buildUpcomingEvents`, `buildRecentActivity`).
 
 ### Users
-- **Status:** Complete — Tailwind (list); Bootstrap (registration wizard)
+- **Status:** Complete — Tailwind (list + wizard)
 - **Controller:** `UsersController`
 - **Routes:** `/admin/users/*`, public registration wizard `/user/*`
-- **Views:** `admin/users.php` (Tailwind), `admin/add_user.php` (Tailwind), `admin/edit_user.php` (Tailwind), `admin/users/user_list.php` (Tailwind), `user/add_step1.php` (Bootstrap), `user/add_step2.php` (Bootstrap), `user/add_step3.php` (Bootstrap), `user/preview.php` (Bootstrap), `user/success.php` (Bootstrap), `user/failure.php` (Bootstrap), `user/getLastId.php`
+- **Views:** `admin/users.php` (Tailwind), `admin/edit_user.php` (Tailwind), `admin/users/user_list.php` (Tailwind), `user/add_step1.php` (Tailwind, full-page wizard), `user/add_step2.php` (Tailwind), `user/add_step3.php` (Tailwind), `user/preview.php` (Tailwind), `user/success.php` (Tailwind), `user/failure.php` (Tailwind), `user/getLastId.php`
 - **Key functionality:** DataTable listing with AJAX fetch, role filter, multi-step registration wizard (public, no auth), add/edit (Tailwind), soft delete, bulk action (AJAX). Generates `company_id` prefix-based auto-increment. Password hashing on create/update.
 
 ### Vehicles
@@ -771,7 +771,7 @@ GET  /reset-password/(:any)        -> LoginController::resetPassword/$1
 POST /reset-password/process       -> LoginController::processResetPassword
 ```
 
-### User Registration Wizard (no auth)
+### User Registration Wizard (admin/receptionist auth enforced by controller)
 ```
 GET  /user/add_step1               -> UsersController::addStep1
 POST /user/add_step1               -> UsersController::add_step1
@@ -779,9 +779,9 @@ GET  /user/add_step2               -> UsersController::addStep2
 POST /user/add_step2               -> UsersController::add_step2
 GET  /user/add_step3               -> UsersController::addStep3
 POST /user/add_step3               -> UsersController::addUserStep3
-POST /user/addUserStep3            -> UsersController::addUserStep3
+POST /user/final_submit            -> UsersController::saveUserFromAdmin
 GET  /user/preview                 -> UsersController::preview
-GET  /user/saveUser                -> UsersController::saveUser
+POST /user/saveUser                -> UsersController::saveUser
 GET  /user/getLastId               -> UsersController::getLastId
 GET  /user/success                 -> UsersController::success
 GET  /user/failure                 -> UsersController::failure
@@ -1003,7 +1003,7 @@ All views are now Tailwind. No Bootstrap CSS/JS is loaded from any view.
 - `admin/settings/index.php` — Tailwind
 - `admin/reports/*` — Tailwind (6 files)
 - `admin/profile.php` — Tailwind
-- `admin/users.php` + `admin/add_user.php` + `admin/edit_user.php` + `admin/users/user_list.php` — Tailwind
+- `admin/users.php` + `admin/edit_user.php` + `admin/users/user_list.php` — Tailwind
 - `admin/jobs/jobs_list.php` — Tailwind DataTable markup
 - `calendar/*` — Tailwind
 - `forgot_password.php`, `reset_password.php` — Tailwind
@@ -1016,6 +1016,8 @@ All views are now Tailwind. No Bootstrap CSS/JS is loaded from any view.
 
 No Bootstrap views remain. 14 previously Bootstrap views converted to Tailwind:
 `user/add_step1.php`, `user/add_step2.php`, `user/add_step3.php`, `user/preview.php`, `user/success.php`, `user/failure.php`, `user/getLastId.php`, `job_intake_form.php`, `vehicles/add.php`, `vehicles/edit.php`, `jobs/add.php`, `admin/jobs/jobs_list.php`, `pagination/bootstrap_pagination.php` (rewritten to Tailwind), and `jobs/edit.php` (did not exist — route/controller method never created).
+
+`admin/add_user.php` was deleted (broken modal form, replaced by full-page wizard).
 
 ---
 
@@ -1295,18 +1297,21 @@ GET  admin/invoices/email_receipt/(:num) -> InvoicesController::sendReceiptEmail
 
 ---
 
-## 18. SUPPLIER PAYMENT FLOW
+## 18. OUTGOING PAYMENT FLOW
 
-### New Table: `supplier_payments`
+### Table: `outgoing_payments`
 | Column | Type | Notes |
 |--------|------|-------|
 | id | int(10) unsigned | PK, auto_increment |
-| payment_ref | varchar(30) | NOT NULL, UNIQUE, format: SPY-YYYYMM-001 |
-| lpo_id | int(10) unsigned | FK → lpos.id |
-| supplier_id | int(10) unsigned | FK → suppliers.id |
+| payment_ref | varchar(30) | NOT NULL, UNIQUE, format: OPY-YYYYMM-001 |
+| payment_type | varchar(30) | NOT NULL — 'LPO', 'Sublet', 'Expense', 'Staff Reimbursement', 'Ad-hoc' |
+| source_type | varchar(30) | NULL — 'lpos', 'sublets', or null for ad-hoc |
+| source_id | int(10) unsigned | NULL — FK to lpos.id or sublets.id |
+| supplier_id | int(10) unsigned | NULL, FK → suppliers.id |
+| payee_id | int(10) unsigned | NULL, FK → users.id (for staff reimbursement) |
+| payee_type | varchar(20) | NULL — 'Supplier', 'Staff', 'Other' |
 | amount | decimal(12,2) | NOT NULL |
 | payment_method | enum('Cash','M-Pesa','Bank Transfer','Cheque','Other') | NOT NULL |
-| account_id | int(10) unsigned | NULL, reserved for Phase B accounts |
 | reference_no | varchar(100) | NULL |
 | payment_date | date | NULL |
 | status | enum('Pending Approval','Approved','Paid','Rejected') | NOT NULL, default 'Pending Approval' |
@@ -1318,80 +1323,106 @@ GET  admin/invoices/email_receipt/(:num) -> InvoicesController::sendReceiptEmail
 | created_at | datetime | NOT NULL, DEFAULT current_timestamp() |
 | updated_at | datetime | NULL, on update current_timestamp() |
 
-**FKs:** fk_sp_lpo, fk_sp_supplier, fk_sp_raised_by, fk_sp_approved_by
+**FKs:** fk_op_lpo (source_type=lpos → lpos.id SET NULL), fk_op_sublet (source_type=sublets → sublets.id SET NULL), fk_op_supplier (suppliers.id SET NULL), fk_op_payee (users.id SET NULL), fk_op_raised_by, fk_op_approved_by
 
-### Supplier Payment Pipeline
+### Migration
+- `supplier_payments` table was migrated to `outgoing_payments` (2 records copied, verified counts matched, supplier_payments dropped)
+- `payment_ref` format changed from SPY- to OPY- prefix
+- All supplier_payments files (model, controller, views) deleted after successful migration
+
+### Outgoing Payment Pipeline
 ```
-LPO Received → Raise Payment → Pending Approval → Admin Approves → Approved → Mark as Paid → Paid
+LPO Received → Raise LPO Payment → Pending Approval → Admin Approves → Approved → Mark as Paid → Paid
+Sublet Completed → Raise Sublet Payment → Pending Approval → ...
+Ad-hoc (no source doc) → Direct raise → ...
                                                       ↓
                                                  Rejected (with reason)
 ```
 
-### SupplierPaymentModel (`app/Models/SupplierPaymentModel.php`)
-- `generatePaymentRef(): string` — next SPY-YYYYMM-NNN
-- `getWithDetails($id = null): array` — payment(s) joined with supplier, LPO, raised_by, approved_by
-- `getPendingApprovals(): array` — all pending with supplier/LPO details, ordered by created_at ASC
-- `getByLpo(int $lpo_id): array` — all payments for a specific LPO
-- `getTotalPaidForLpo(int $lpo_id): float` — SUM(amount) WHERE status = 'Paid'
+### Payment Types
+| Type | Source Doc | Validation Gate | Future |
+|------|-----------|-----------------|--------|
+| LPO | lpos.id | Must be Received, no existing pending | Active |
+| Sublet | sublets.id | Must be Completed, no existing pending | Active |
+| Ad-hoc | None | Admin-only, no source validation | Active |
+| Expense | None | Coming soon — use Petty Cash | Pending |
+| Staff Reimbursement | None | Coming soon | Pending |
 
-### SupplierPaymentsController (`app/Controllers/SupplierPaymentsController.php`)
+### OutgoingPaymentModel (`app/Models/OutgoingPaymentModel.php`)
+- `generatePaymentRef(): string` — next OPY-YYYYMM-NNN
+- `getWithDetails($id = null): array` — payment(s) joined with supplier, enriched with names and source ref
+- `getPendingApprovals(): array` — all pending, ordered by created_at ASC
+- `getBySource(string $source_type, int $source_id): array` — all payments for a source doc
+- `getTotalPaidForSource(string $source_type, int $source_id): float` — SUM(amount) WHERE status = 'Paid'
+- `validateGate(string $payment_type, ?string $source_type, ?int $source_id): array` — returns `['valid' => bool, 'message' => string]`
+- `enrichWithNames(array $row): array` — adds raised_by_name, approved_by_name, payee_name
+- `enrichWithSourceRef(array $row): array` — adds source_ref (lpo_no or sublet description)
+
+### OutgoingPaymentsController (`app/Controllers/OutgoingPaymentsController.php`)
 | Method | Route | Description |
 |--------|-------|-------------|
-| index() | GET admin/supplier_payments | List page with summary cards (paid this month, pending count/amount, total paid all time) |
-| load() | GET admin/supplier_payments/load | DataTables server-side AJAX endpoint |
-| raise($lpo_id) | GET admin/supplier_payments/raise/(:num) | Show form with LPO cross-reference, validation gates: LPO exists → LPO Received → no existing pending |
-| store() | POST admin/supplier_payments/store | Create payment with status 'Pending Approval'; validates amount ≤ balance due; logs activity |
-| approve($id) | POST admin/supplier_payments/approve/(:num) | Admin-only: set status=Approved, approved_by, approved_at; logs activity |
-| reject($id) | POST admin/supplier_payments/reject/(:num) | Admin-only: set status=Rejected with rejection_reason; logs activity |
-| markPaid($id) | POST admin/supplier_payments/mark_paid/(:num) | Admin-only: requires payment_date and optional reference_no; status must be 'Approved'; logs activity |
-| view($id) | GET admin/supplier_payments/view/(:num) | Full payment detail with approval timeline visualization and LPO items |
+| index() | GET admin/outgoing_payments | List page with summary cards (paid this month, pending count/amount, total paid all time) |
+| load() | GET admin/outgoing_payments/load | DataTables server-side AJAX endpoint |
+| raise() | GET admin/outgoing_payments/raise | Show raise_select view (choose payment type) |
+| raiseForm($type) | GET admin/outgoing_payments/raise/(:any) | Show type-specific form (lpo, sublet, adhoc); validates via validateGate |
+| store() | POST admin/outgoing_payments/store | Create payment; validates amount ≤ balance due; logs activity |
+| approve($id) | POST admin/outgoing_payments/approve/(:num) | Admin-only: set status=Approved, approved_by, approved_at |
+| reject($id) | POST admin/outgoing_payments/reject/(:num) | Admin-only: set status=Rejected with rejection_reason |
+| markPaid($id) | POST admin/outgoing_payments/mark_paid/(:num) | Admin-only: requires payment_date and optional reference_no |
+| view($id) | GET admin/outgoing_payments/view/(:num) | Full payment detail with approval timeline |
 
-### New Routes (admin group)
+### Routes (admin group)
 ```
-GET  admin/supplier_payments                    -> SupplierPaymentsController::index
-GET  admin/supplier_payments/load               -> SupplierPaymentsController::load
-GET  admin/supplier_payments/raise/(:num)       -> SupplierPaymentsController::raise/$1
-POST admin/supplier_payments/store              -> SupplierPaymentsController::store
-POST admin/supplier_payments/approve/(:num)     -> SupplierPaymentsController::approve/$1
-POST admin/supplier_payments/reject/(:num)      -> SupplierPaymentsController::reject/$1
-POST admin/supplier_payments/mark_paid/(:num)   -> SupplierPaymentsController::markPaid/$1
-GET  admin/supplier_payments/view/(:num)        -> SupplierPaymentsController::view/$1
+GET  admin/outgoing_payments                    -> OutgoingPaymentsController::index
+GET  admin/outgoing_payments/load               -> OutgoingPaymentsController::load
+GET  admin/outgoing_payments/raise              -> OutgoingPaymentsController::raise
+GET  admin/outgoing_payments/raise/(:any)       -> OutgoingPaymentsController::raiseForm/$1
+POST admin/outgoing_payments/store              -> OutgoingPaymentsController::store
+POST admin/outgoing_payments/approve/(:num)     -> OutgoingPaymentsController::approve/$1
+POST admin/outgoing_payments/reject/(:num)      -> OutgoingPaymentsController::reject/$1
+POST admin/outgoing_payments/mark_paid/(:num)   -> OutgoingPaymentsController::markPaid/$1
+GET  admin/outgoing_payments/view/(:num)        -> OutgoingPaymentsController::view/$1
 ```
 
-### New Views (supplier_payments/)
-- `index.php` — Summary cards, pending alert banner, DataTable with status badges and action buttons (Approve/Reject for Pending, Mark Paid for Approved)
-- `raise.php` — LPO cross-reference summary with balance due calculation, line items table, payment form
-- `view.php` — Payment details grid, approval timeline with visual step indicators, LPO line items
+### Views (`app/Views/admin/outgoing_payments/`)
+- `index.php` — Summary cards, DataTable with payment type badge, status badges, action buttons
+- `raise_select.php` — Card grid to choose payment type (LPO, Sublet, Ad-hoc, Expense/Staff as disabled)
+- `raise_lpo.php` — LPO cross-reference summary, line items table, payment form
+- `raise_sublet.php` — Sublet cross-reference, payment form
+- `raise_adhoc.php` — Blank form for ad-hoc payment (supplier/staff dropdowns)
+- `view.php` — Payment details grid, approval timeline with visual step indicators
 
 ### LPO View Integration (`admin/lpos/view.php`)
-- New "Supplier Payments" section showing existing payments table with total paid
-- "Raise Payment" button appears when LPO is Received and no pending/approved payment exists
-- Info message displayed when LPO is not yet received
+- "Outgoing Payments" section showing existing payments table with total paid
+- "Raise Payment" button links to `admin/outgoing_payments/raise/lpo?source_id=...` when LPO is Received and no pending/approved payment exists
+
+### Sublet Integration (`sublets/index.php`)
+- DataTable actions column shows a "Pay" button for Completed sublets linking to `admin/outgoing_payments/raise/sublet?source_id=...`
 
 ### Dashboard Integration
-- `DashboardController::admin()` now calls `buildSupplierPaymentAlerts()` to fetch pending approvals count and amount
-- Dashboard Alerts section shows pending supplier payments with "Review now →" link
-- Sidebar now has "Supplier Payments" link in Finance section between Payments and Petty Cash
+- `DashboardController::admin()` calls `buildSupplierPaymentAlerts()` (internal name kept for simplicity) which uses `OutgoingPaymentModel::getPendingApprovals()`
+- Dashboard Alerts section shows pending outgoing payments with "Review now →" link
+- Sidebar has "Outgoing Payments" link in Finance section between Payments and Petty Cash
 
 ### Activity Log Actions Added
-- `supplier_payment_raised` — when a supplier payment is submitted for approval
-- `supplier_payment_approved` — when admin approves a payment
-- `supplier_payment_rejected` — when admin rejects with reason
-- `supplier_payment_paid` — when admin marks approved payment as paid
-- `invoice_emailed` — when invoice is emailed to customer
-- `receipt_emailed` — when receipt is emailed to customer
+- `outgoing_payment_raised` — when an outgoing payment is submitted for approval
+- `outgoing_payment_approved` — when admin approves a payment
+- `outgoing_payment_rejected` — when admin rejects with reason
+- `outgoing_payment_paid` — when admin marks approved payment as paid
 
 ### Supplementary SQL
-The `supplier_payments` table DDL is in `writable/create_supplier_payments.sql` (deleted after execution). To recreate:
 ```sql
-CREATE TABLE IF NOT EXISTS `supplier_payments` (
+CREATE TABLE IF NOT EXISTS `outgoing_payments` (
     `id`                INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `payment_ref`       VARCHAR(30) NOT NULL,
-    `lpo_id`            INT UNSIGNED NOT NULL,
-    `supplier_id`       INT UNSIGNED NOT NULL,
+    `payment_type`      VARCHAR(30) NOT NULL,
+    `source_type`       VARCHAR(30) DEFAULT NULL,
+    `source_id`         INT UNSIGNED DEFAULT NULL,
+    `supplier_id`       INT UNSIGNED DEFAULT NULL,
+    `payee_id`          INT UNSIGNED DEFAULT NULL,
+    `payee_type`        VARCHAR(20) DEFAULT NULL,
     `amount`            DECIMAL(12,2) NOT NULL,
     `payment_method`    ENUM('Cash','M-Pesa','Bank Transfer','Cheque','Other') NOT NULL,
-    `account_id`        INT UNSIGNED DEFAULT NULL,
     `reference_no`      VARCHAR(100) DEFAULT NULL,
     `payment_date`      DATE DEFAULT NULL,
     `status`            ENUM('Pending Approval','Approved','Paid','Rejected') NOT NULL DEFAULT 'Pending Approval',
@@ -1403,21 +1434,75 @@ CREATE TABLE IF NOT EXISTS `supplier_payments` (
     `created_at`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at`        DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_payment_ref` (`payment_ref`),
-    INDEX `idx_sp_lpo` (`lpo_id`),
-    INDEX `idx_sp_supplier` (`supplier_id`),
-    INDEX `idx_sp_status` (`status`),
-    CONSTRAINT `fk_sp_lpo` FOREIGN KEY (`lpo_id`) REFERENCES `lpos` (`id`) ON UPDATE CASCADE,
-    CONSTRAINT `fk_sp_supplier` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON UPDATE CASCADE,
-    CONSTRAINT `fk_sp_raised_by` FOREIGN KEY (`raised_by`) REFERENCES `users` (`id`) ON UPDATE CASCADE,
-    CONSTRAINT `fk_sp_approved_by` FOREIGN KEY (`approved_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+    UNIQUE KEY `uk_op_payment_ref` (`payment_ref`),
+    INDEX `idx_op_source` (`source_type`, `source_id`),
+    INDEX `idx_op_status` (`status`),
+    CONSTRAINT `fk_op_lpo` FOREIGN KEY (`source_id`) REFERENCES `lpos` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT `fk_op_sublet` FOREIGN KEY (`source_id`) REFERENCES `sublets` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT `fk_op_supplier` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT `fk_op_payee` FOREIGN KEY (`payee_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT `fk_op_raised_by` FOREIGN KEY (`raised_by`) REFERENCES `users` (`id`) ON UPDATE CASCADE,
+    CONSTRAINT `fk_op_approved_by` FOREIGN KEY (`approved_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 ```
 
-### Gotchas (Supplier Payments)
-1. **Three validation gates in raise()** — must verify LPO exists, LPO status = 'Received', and no existing Pending/Approved payment for the same LPO
+### Gotchas (Outgoing Payments)
+1. **Four validation gates in raiseForm()** — each payment type has its own gate: LPOs check Received status + no pending duplicate; Sublets check Completed + no duplicate; Expenses/Staff Reimbursement return "coming soon"; Ad-hoc has no source validation
 2. **Only admin can approve/reject/mark paid** — role check in each method; non-admin receives 403
 3. **Approval timeline is visual only** — status transitions track raised_by, approved_by, approved_at; the view renders a step indicator
-4. **Org settings not snapshotted in supplier_payments** — unlike receipts, supplier payments don't snapshot org info
-5. **getWithDetails() concatenates first_name + last_name** — uses separate joined columns to avoid MySQL CONCAT issues
-6. **Dompdf requires inline CSS only** — the pdf.php view uses `<style>` blocks with inline CSS; no external CSS or Tailwind CDN
+4. **enrichWithNames() resolves user names via separate queries** — uses CONCAT(first_name, ' ', last_name)
+5. **enrichWithSourceRef() resolves source_ref from lpos.lpo_no or sublets.description**
+6. **supplier_payments was migrated to outgoing_payments** — old table/model/controller/views deleted after verifying 2 records matched
+7. **payment_ref prefix changed from SPY- to OPY-** — new payments use the new format
+
+---
+
+## 19. USER CREATION FLOW (Refactored July 2026)
+
+### Single Unified Flow
+The user creation wizard at `user/add_step1 → step2 → step3 → preview → saveUser` is the **only** flow for creating users. The broken admin modal (`admin/add_user.php`) has been deleted.
+
+```
+"Add User" button (admin/users) → user/add_step1 → step2 → step3 → preview → POST saveUser → admin/users (with flash)
+```
+
+All wizard views now extend `layouts/main.php` — they use compiled Tailwind CSS from the layout (no CDN Tailwind), include the admin sidebar/topbar, and are full-page flows (not modals). `max-w-2xl mx-auto` centers the form content.
+
+### Step Flow
+| Step | Route | Controller Method | Session Key | Fields |
+|---|---|---|---|---|
+| 1 | `GET/POST user/add_step1` | `addStep1()` / `add_step1()` | `step1_data` | profile_picture, role, company_id, date_of_employment, password, confirm_password |
+| 2 | `GET/POST user/add_step2` | `addStep2()` / `add_step2()` | `step2_data` | first_name, last_name, dob, national_id, gender, phone_number, address, email |
+| 3 | `GET/POST user/add_step3` | `addStep3()` / `addUserStep3()` | `step3_data` | kin_first_name, kin_last_name, relationship, kin_phone_number |
+| Preview | `GET user/preview` | `preview()` | Reads all session keys | Read-only display with Edit links back to steps |
+| Save | `POST user/saveUser` | `saveUser()` | Cleared after save | Inserts user + next_of_kin, logs activity, redirects to `admin/users` with flash |
+
+### Password Handling
+- Password collected in Step 1
+- Hashed with `PASSWORD_DEFAULT` before session storage
+- Never stored plain text; never hashed twice
+
+### Company ID Generation
+- Server-side via `UserModel::getLastCompanyIdNumber()`
+- Format: `PREFIX` + `YY` + 3-digit number (e.g., `ADM25001`)
+- Prefixes: `ADM`=admin, `MCH`=mechanic, `RCP`=receptionist, `CST`=customer
+
+### User Management Features
+- **Soft delete:** `UserModel` with `$useSoftDeletes = true`
+- **Restore:** `POST admin/users/restore/(:num)` → `UsersController::restore($id)`
+- **Show deleted:** `fetchUsers()` accepts `show_deleted=1` GET param
+- **Role change:** logged to `activity_log` via `log_activity()`
+- **Edit form:** includes next-of-kin fields, profile picture upload (loaded via modal)
+
+### Removed
+- **Deleted:** `app/Views/admin/add_user.php` — broken single-file modal form that POSTed to `user/final_submit`
+- **Removed:** `saveUserFromAdmin()` is no longer the primary flow (still exists as `user/final_submit` route for API use)
+- **Changed:** `UsersController::add()` now clears session data and redirects to `user/add_step1`
+- **Changed:** "Add User" button is now a direct link (`<a href>`) to `user/add_step1`, not a modal trigger
+- **Changed:** `saveUser()` redirects to `admin/users` with success flash instead of `user/success`
+
+### Known Limitations
+- Last login not tracked (no `last_login` column)
+- CSV import/export not implemented
+- 2FA not in scope
+- Forgot password email delivery not configured

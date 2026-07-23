@@ -4,10 +4,10 @@
 <div class="space-y-6">
     <div class="flex items-center justify-between">
         <h3 class="text-lg font-semibold text-gray-900">User Management</h3>
-        <button onclick="window.loadFormModal('<?= base_url('admin/users/add') ?>', 'Add New User')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2">
+        <a href="<?= base_url('user/add_step1') ?>" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             Add User
-        </button>
+        </a>
     </div>
 
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
@@ -24,6 +24,10 @@
                     <option value="receptionist">Receptionist</option>
                     <option value="customer">Customer</option>
                 </select>
+                <label class="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer ml-2">
+                    <input type="checkbox" id="showDeletedToggle" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                    <span>Show deleted</span>
+                </label>
             </div>
         </div>
         <div class="p-6">
@@ -165,13 +169,14 @@ $(document).ready(function() {
         customer: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-gray-700">Customer</span>'
     };
 
-    var nameWithAvatar = function(name, pic) {
+    var nameWithAvatar = function(name, pic, deleted) {
         var initials = name ? name.split(' ').map(function(w) { return w.charAt(0); }).join('').slice(0, 2).toUpperCase() : '?';
         var imgSrc = pic ? BASE_URL + '/' + pic : '';
         var avatar = imgSrc
             ? '<img src="' + imgSrc + '" alt="" class="w-8 h-8 rounded-full object-cover">'
             : '<div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-semibold text-indigo-600">' + initials + '</div>';
-        return '<div class="flex items-center gap-3">' + avatar + '<span class="font-medium text-gray-900">' + (name || '') + '</span></div>';
+        var nameClass = deleted ? 'line-through text-red-500' : 'font-medium text-gray-900';
+        return '<div class="flex items-center gap-3">' + avatar + '<span class="' + nameClass + '">' + (name || '') + '</span></div>';
     };
 
     window.userTable = FlowDesk.serverSideTable('#userTable', {
@@ -180,15 +185,21 @@ $(document).ready(function() {
             type: 'GET',
             data: function(d) {
                 d.role_filter = $('#role-filter').val();
+                d.show_deleted = $('#showDeletedToggle').is(':checked') ? '1' : '';
             }
         },
         columns: [
             { data: 'id', orderable: false, render: function(data) { return '<input type="checkbox" name="users[]" value="' + data + '" class="rounded border-gray-300 row-checkbox">'; } },
             { data: 'id' },
-            { data: 'name', render: function(data, type, row) { return nameWithAvatar(data, row.profile_picture); } },
+            { data: 'name', render: function(data, type, row) { return nameWithAvatar(data, row.profile_picture, row.deleted_at); } },
             { data: 'phone' },
             { data: 'role', render: function(data) { return roleBadges[data] || _ucfirst(data); } },
             { data: null, orderable: false, render: function(data) {
+                if (data.deleted_at) {
+                    return '<div class="flex items-center gap-1">' +
+                        '<button onclick="restoreUser(' + data.id + ', \'' + data.name.replace(/'/g, "\\'") + '\')" class="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Restore user"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg></button>' +
+                        '</div>';
+                }
                 return '<div class="flex items-center gap-1">' +
                     '<button onclick="window.loadFormModal(\'<?= base_url('admin/users/edit/') ?>' + data.id + '\', \'Edit User\')" class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit user"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>' +
                     '<button onclick="viewUserDetails(' + data.id + ')" class="p-1.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="View user details"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>' +
@@ -211,6 +222,11 @@ $(document).ready(function() {
 
     // Role filter change → reload table
     $('#role-filter').on('change', function() {
+        if (window.userTable) window.userTable.ajax.reload();
+    });
+
+    // Show deleted toggle → reload table
+    $('#showDeletedToggle').on('change', function() {
         if (window.userTable) window.userTable.ajax.reload();
     });
 
@@ -310,6 +326,7 @@ window.viewUserDetails = function(id) {
 
             // Store user id for edit button
             document.getElementById('editUserFromDetailsBtn').onclick = function() {
+                window._hideModal('userDetailsModal');
                 window.loadFormModal('<?= base_url('admin/users/edit/') ?>' + data.id, 'Edit User');
             };
         })
@@ -317,6 +334,36 @@ window.viewUserDetails = function(id) {
             var body = document.querySelector('#userDetailsModal .p-6');
             if (body) body.innerHTML = '<div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">Failed to load user details: ' + error.message + '</div>';
         });
+};
+
+window.restoreUser = function(id, name) {
+    var displayName = name || 'this user';
+    Swal.fire({
+        title: 'Restore ' + displayName + '?',
+        text: 'This user will be reactivated.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#059669',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Yes, restore'
+    }).then(function(result) {
+        if (!result.isConfirmed) return;
+        $.ajax({
+            url: '<?= base_url('admin/users/restore/') ?>' + id,
+            type: 'POST',
+            data: { '<?= csrf_token() ?>': '<?= csrf_hash() ?>' },
+            dataType: 'json',
+            success: function(res) {
+                if (res.status === 'success') {
+                    Swal.fire('Restored!', res.message, 'success');
+                    if (window.userTable) window.userTable.ajax.reload();
+                } else {
+                    Swal.fire('Error!', res.message || 'Restore failed.', 'error');
+                }
+            },
+            error: function(xhr) { FlowDesk.handleAjaxError(xhr, 'restore'); }
+        });
+    });
 };
 
 window.deleteUser = function(id, name) {
@@ -333,7 +380,8 @@ window.deleteUser = function(id, name) {
         if (!result.isConfirmed) return;
         $.ajax({
             url: '<?= base_url('admin/users/delete/') ?>' + id,
-            type: 'GET',
+            type: 'POST',
+            data: { '<?= csrf_token() ?>': '<?= csrf_hash() ?>' },
             dataType: 'json',
             success: function(res) {
                 if (res.status === 'success') {

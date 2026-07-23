@@ -117,16 +117,17 @@
         </div>
     </div>
 
-    <?php if (isset($supplierPayments) && !empty($supplierPayments)): ?>
+    <?php if (isset($outgoingPayments) && !empty($outgoingPayments)): ?>
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm mb-6">
         <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">Supplier Payments</h2>
+            <h2 class="text-lg font-semibold text-gray-900">Outgoing Payments</h2>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ref</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -135,14 +136,15 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
-                    <?php foreach ($supplierPayments as $sp): ?>
+                    <?php foreach ($outgoingPayments as $op): ?>
                     <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3 text-sm text-gray-900 font-medium"><?= esc($sp['payment_ref']) ?></td>
-                        <td class="px-4 py-3 text-sm text-gray-900"><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($sp['amount'], 2) ?></td>
-                        <td class="px-4 py-3 text-sm text-gray-900"><?= esc($sp['payment_method']) ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-900 font-medium"><?= esc($op['payment_ref']) ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-500"><?= esc(ucfirst($op['payment_type'] ?? $op['source_type'])) ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-900"><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($op['amount'], 2) ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-900"><?= esc($op['payment_method']) ?></td>
                         <td class="px-4 py-3 text-sm">
                             <?php
-                            $spBadge = match($sp['status']) {
+                            $opBadge = match($op['status']) {
                                 'Pending Approval' => 'bg-amber-100 text-amber-800',
                                 'Approved' => 'bg-blue-100 text-blue-800',
                                 'Paid' => 'bg-emerald-100 text-emerald-800',
@@ -150,18 +152,18 @@
                                 default => 'bg-gray-100 text-gray-700',
                             };
                             ?>
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?= $spBadge ?>"><?= esc($sp['status']) ?></span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?= $opBadge ?>"><?= esc($op['status']) ?></span>
                         </td>
-                        <td class="px-4 py-3 text-sm text-gray-500"><?= esc($sp['payment_date'] ?? '-') ?></td>
+                        <td class="px-4 py-3 text-sm text-gray-500"><?= esc($op['payment_date'] ?? '-') ?></td>
                         <td class="px-4 py-3 text-sm">
-                            <a href="<?= base_url('admin/supplier_payments/view/' . $sp['id']) ?>" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">View</a>
+                            <a href="<?= base_url('admin/outgoing_payments/view/' . $op['id']) ?>" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">View</a>
                         </td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot class="bg-gray-50">
                     <tr>
-                        <td colspan="5" class="px-4 py-3 text-right text-sm font-bold text-gray-900">Total Paid:</td>
+                        <td colspan="6" class="px-4 py-3 text-right text-sm font-bold text-gray-900">Total Paid:</td>
                         <td class="px-4 py-3 text-sm font-bold text-gray-900"><?= org_setting('currency_symbol', 'KSh') ?> <?= number_format($totalPaid ?? 0, 2) ?></td>
                     </tr>
                 </tfoot>
@@ -172,15 +174,15 @@
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-6">
         <div class="flex items-center justify-between">
             <div>
-                <h2 class="text-lg font-semibold text-gray-900">Supplier Payment</h2>
+                <h2 class="text-lg font-semibold text-gray-900">Outgoing Payment</h2>
                 <?php if ($canRaisePayment): ?>
-                <p class="text-sm text-gray-500 mt-1">This LPO has been fully received. You can now raise a supplier payment.</p>
+                <p class="text-sm text-gray-500 mt-1">This LPO has been fully received. You can now raise an outgoing payment.</p>
                 <?php else: ?>
                 <p class="text-sm text-gray-500 mt-1">LPO must be in Received status before payment can be raised.</p>
                 <?php endif; ?>
             </div>
             <?php if ($canRaisePayment): ?>
-            <a href="<?= base_url('admin/supplier_payments/raise/' . $lpo['id']) ?>" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2">
+            <a href="<?= base_url('admin/outgoing_payments/raise/lpo?source_id=' . $lpo['id']) ?>" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                 Raise Payment
             </a>

@@ -1,6 +1,20 @@
 <div class="space-y-6">
     <form method="POST" action="<?= base_url('admin/users/update/' . $user['id']) ?>" id="editUserForm">
         <?= csrf_field() ?>
+        <div class="flex items-center gap-4 mb-6">
+            <?php if (!empty($user['profile_picture'])): ?>
+                <img src="<?= base_url($user['profile_picture']) ?>" alt="Profile" class="w-16 h-16 rounded-full object-cover border border-gray-200">
+            <?php else: ?>
+                <div class="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center">
+                    <span class="text-lg font-semibold text-indigo-600"><?= strtoupper(substr($user['first_name'] ?? 'U', 0, 1)) ?></span>
+                </div>
+            <?php endif; ?>
+            <div>
+                <label for="profile_picture" class="block text-sm font-medium text-gray-700 mb-1">Profile Picture</label>
+                <input type="file" name="profile_picture" id="profile_picture" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                <p class="text-xs text-gray-400 mt-1">Leave empty to keep current picture. JPG, PNG, or WebP only.</p>
+            </div>
+        </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
                 <label for="first_name" class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
@@ -57,6 +71,29 @@
                 <textarea name="address" id="address" rows="2" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"><?= esc($user['address'] ?? '') ?></textarea>
             </div>
         </div>
+
+        <hr class="border-gray-200 my-6">
+        <h5 class="text-base font-semibold text-gray-900 mb-4">Next of Kin Information</h5>
+        <p class="text-sm text-gray-500 mb-4" id="kinStatus">Loading next of kin...</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label for="kin_first_name" class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                <input type="text" name="kin_first_name" id="kin_first_name" value="<?= esc($user['kin_first_name'] ?? '') ?>" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+            </div>
+            <div>
+                <label for="kin_last_name" class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                <input type="text" name="kin_last_name" id="kin_last_name" value="<?= esc($user['kin_last_name'] ?? '') ?>" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+            </div>
+            <div>
+                <label for="relationship" class="block text-sm font-medium text-gray-700 mb-1">Relationship</label>
+                <input type="text" name="relationship" id="relationship" value="<?= esc($user['relationship'] ?? '') ?>" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+            </div>
+            <div>
+                <label for="kin_phone_number" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                <input type="text" name="kin_phone_number" id="kin_phone_number" value="<?= esc($user['kin_phone_number'] ?? '') ?>" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+            </div>
+        </div>
+
         <div class="flex justify-end gap-3 mt-6">
             <button type="button" onclick="window.hideModal('actionModal')" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors">Cancel</button>
             <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-1">
