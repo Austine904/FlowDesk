@@ -40,7 +40,7 @@
 C:\xampp\htdocs\FlowDesk\
 ├── app/
 │   ├── Config/           # App, Database, Routes, Filters, JobStatus
-│   ├── Controllers/      # 21 controllers (root namespace, no Admin/ subdirectory)
+│   ├── Controllers/      # 23 controllers (root namespace, no Admin/ subdirectory)
 │   ├── Database/
 │   │   ├── Migrations/   # Empty
 │   │   └── Seeds/        # Empty
@@ -49,11 +49,12 @@ C:\xampp\htdocs\FlowDesk\
 │   ├── Helpers/
 │   │   ├── settings_helper.php   # org_setting() + log_activity() — globally available
 │   │   └── activity_helper.php   # timeAgo() — used by dashboard
-│   ├── Models/            # 20 models
+│   ├── Models/            # 22 models
 │   └── Views/
-│       ├── admin/         # dashboard, users, invoices, settings, inventory, suppliers, forms, jobs, lpos, petty_cash, reports, profile
+│       ├── admin/         # dashboard, users, invoices, settings, inventory, suppliers, forms, jobs, lpos, petty_cash, reports, profile, outgoing_payments, payments
 │       ├── calendar/      # calendar, modals
 │       ├── customers/     # customers, modals
+│       ├── emails/        # invoice.php, receipt.php (HTML email templates)
 │       ├── errors/        # unauthorized, html/, cli/
 │       ├── job/           # index, modals
 │       ├── jobs/          # add, edit (legacy, Bootstrap)
@@ -68,7 +69,7 @@ C:\xampp\htdocs\FlowDesk\
 ├── public/
 │   ├── assets/
 │   │   ├── css/           # input.css (tailwind source), tailwind.css (compiled output)
-│   │   ├── js/            # 11 files (vehicles, job_intake, customers, calendar, sublets, inventory, suppliers, dashboard-refresh, notifications, global-search, datatable-config)
+│   │   ├── js/            # 13 files (vehicles, job_intake, customers, calendar, sublets, inventory, suppliers, dashboard-refresh, notifications, global-search, datatable-config, outgoing-payments, payments)
 │   │   └── vendor/        # datatables/ (jquery.dataTables.min.css, jquery.dataTables.min.js)
 │   └── css/               # 9 legacy per-module CSS files (orphaned — safe to delete)
 ├── uploads/
@@ -88,9 +89,9 @@ C:\xampp\htdocs\FlowDesk\
 
 **Auth:** `AuthFilter` (`app/Filters/AuthFilter.php`) checks `session()->get('isLoggedIn')`. If role arguments are provided, validates `session()->get('role')` is in the allowed list (comma-separated, e.g., `auth:admin,receptionist`). Session keys: `user_id`, `user_name`, `role`, `company_id`, `profile_picture`, `isLoggedIn`. For customer portal, `customer_id` is also stored.
 
-**Views:** Most admin views extend `layouts/main` via `$this->extend('layouts/main')` with `$this->section('content')`. Standalone views (login, forgot_password, reset_password, user registration wizard, error pages) do not extend the layout. Customer portal uses `customer/layout.php`.
+**Views:** Most admin views extend `layouts/main` via `$this->extend('layouts/main')` with `$this->section('content')`. Standalone views (login, forgot_password, reset_password, error pages) do not extend the layout. Customer portal uses `customer/layout.php`. The user registration wizard (`user/add_step*`, `user/preview.php`) now extends `layouts/main` (full-page flow, no CDN Tailwind).
 
-**Models:** 20 models in `app/Models/`. Some controllers use `$db->table()` query builder directly for complex joins (InvoicesController, ReportsController).
+**Models:** 22 models in `app/Models/`. Some controllers use `$db->table()` query builder directly for complex joins (InvoicesController, ReportsController).
 
 **CSRF:** Globally enabled via `app/Config/Filters.php` (`$globals['before']` includes `'csrf'`). Every POST form must include `<?= csrf_field() ?>`. CSRF token injected as meta tags in `layouts/main.php` — JS reads them via `getCsrfMeta()` for all AJAX POSTs. AJAX setup in main layout auto-appends CSRF token and refreshes on response header.
 
@@ -488,6 +489,8 @@ All models are in `app/Models/`. All extend `CodeIgniter\Model`.
 | 18 | LpoItemModel | `app/Models/LpoItemModel.php` | `lpo_items` | `getByLpo(int): array` — items with inventory name/part_number/unit; `deleteByLpo(int): void` — delete all items for an LPO |
 | 19 | PettyCashModel | `app/Models/PettyCashModel.php` | `petty_cash` | `getWithDetails(int\|null): array` — joined with users; `getSummary(): array` — total income/expense/balance; `getSummaryByPeriod(string, string): array` — filtered summary; `getByCategory(string\|null): array` — category totals; `getRunningBalance(): array` — running balance in PHP |
 | 20 | ActivityLogModel | `app/Models/ActivityLogModel.php` | `activity_log` | `log(int, string, string, int, string): int` — create activity log entry with IP; `getRecent(int): array` — recent activity with user name; `getByUser(int, int): array` — activity for a user; `getByEntity(string, int): array` — activity for a specific entity; `getByPeriod(string, string): array` — activity in date range |
+| 21 | ReceiptModel | `app/Models/ReceiptModel.php` | `receipts` | `generateReceiptNo(): string` — next RCT-YYYYMM-NNN; `generateFromPayment(int, int): int` — idempotent; `getWithDetails(int): array`; `getByInvoice(int): array`; `getByPaymentId(int): ?array` |
+| 22 | OutgoingPaymentModel | `app/Models/OutgoingPaymentModel.php` | `outgoing_payments` | `generatePaymentRef(): string` — next OPY-YYYYMM-NNN; `getWithDetails($id): array`; `getPendingApprovals(): array`; `getBySource(string, int): array`; `validateGate(string, ?string, ?int): array`; `enrichWithNames(array): array` |
 
 ---
 
@@ -1506,3 +1509,32 @@ All wizard views now extend `layouts/main.php` — they use compiled Tailwind CS
 - CSV import/export not implemented
 - 2FA not in scope
 - Forgot password email delivery not configured
+
+---
+
+## 20. MECHANIC AVAILABILITY TRACKING
+
+### Availability Definition
+- A mechanic is **BUSY** if they have any `job_card` with `job_status` IN: `('Awaiting Diagnosis', 'In Progress', 'Quality Check')`
+- A mechanic is **AVAILABLE** if they have NO jobs in the above statuses (all their jobs are in other statuses, or they have no jobs at all)
+
+### Model Method
+- `UserModel::getMechanicsWithAvailability(): array` — returns mechanics with:
+  - `is_available` (bool) — true if no active jobs
+  - `active_job_count` (int) — count of active jobs
+  - `active_jobs` (array) — list of job_no strings
+  - `availability_label` (string) — 'Available' or 'Busy — N active job(s)'
+  - Sorted: available first, then busy
+
+### UI Behavior
+- **Job Intake form** (`job_intake_form.php`): Available mechanics shown by default, busy hidden with "Show busy mechanics" toggle. Warning displayed when busy mechanic is selected.
+- **Dispatch modal** (`job/modals.php` + `job/index.php`): Same toggle + warning pattern. Mechanics fetched via `/admin/users/fetch` which includes `availability_label` and `active_jobs` fields.
+- **Mechanic Dashboard** (`mechanic_dashboard.php`): Green "Available" badge or amber "Currently Assigned — N active job(s)" badge at the top.
+- **Users list** (`admin/users.php`): Mechanic rows show green "Available" or amber "Busy — N..." badge next to the name in the DataTable.
+
+### Security (Hard Locks)
+- `JobIntake::mechanic_view($job_id)` — locked to `assigned_mechanic_id = session user_id`. Redirects to `/mechanic/jobs` with error if mismatch.
+- `JobIntake::save_diagnosis()` — locked to `assigned_mechanic_id = session user_id`. Returns 403 JSON if mismatch.
+
+### Gotcha
+- `getMechanicsWithAvailability()` makes N+1 queries (one per mechanic). For small workshops (< 20 mechanics) this is fine. Optimize with a single JOIN query if mechanic count grows.

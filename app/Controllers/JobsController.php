@@ -32,7 +32,7 @@ class JobsController extends BaseController
         }
 
         $service_advisors = $userModel->whereIn('role', ['admin', 'receptionist'])->findAll();
-        $mechanics = $userModel->getByRole('mechanic');
+        $mechanics = $userModel->getMechanicsWithAvailability();
 
         $jobs = $jobCardModel->paginate(10);
         $pager = $jobCardModel->pager;
@@ -70,11 +70,12 @@ class JobsController extends BaseController
             1 => 'job_cards.job_no',
             2 => 'customers.name',
             3 => 'vehicles.registration_number',
-            4 => 'job_cards.date_in',
-            5 => 'job_cards.diagnosis',
-            6 => 'job_cards.job_status',
-            7 => null, // progress
-            8 => null, // actions
+            4 => null, // mechanic_name (virtual)
+            5 => 'job_cards.date_in',
+            6 => 'job_cards.diagnosis',
+            7 => 'job_cards.job_status',
+            8 => null, // progress
+            9 => null, // actions
         ];
 
         $db = \Config\Database::connect();
@@ -91,12 +92,15 @@ class JobsController extends BaseController
                 job_cards.updated_at,
                 job_cards.fuel_level,
                 job_cards.mileage_in,
+                job_cards.assigned_mechanic_id,
                 vehicles.registration_number,
                 customers.name as customer_name,
-                customers.phone as customer_phone
+                customers.phone as customer_phone,
+                assigned_mech.name as mechanic_name
             ')
             ->join('vehicles', 'vehicles.id = job_cards.vehicle_id', 'left')
-            ->join('customers', 'customers.id = job_cards.customer_id', 'left');
+            ->join('customers', 'customers.id = job_cards.customer_id', 'left')
+            ->join('users as assigned_mech', 'assigned_mech.id = job_cards.assigned_mechanic_id', 'left');
 
         // Total records before filtering
         $recordsTotal = $builder->countAllResults(false);
@@ -174,6 +178,8 @@ class JobsController extends BaseController
                 'created_at' => $row['created_at'],
                 'updated_at' => $row['updated_at'],
                 'progress' => $progressMap[$row['job_status']] ?? 0,
+                'mechanic_name' => $row['mechanic_name'] ?? null,
+                'assigned_mechanic_id' => $row['assigned_mechanic_id'] ?? null,
             ];
         }
 
@@ -273,7 +279,7 @@ class JobsController extends BaseController
         $photos = $jobCardPhotoModel->where('job_card_id', $id)->findAll();
 
         $userModel = new UserModel();
-        $mechanics = $userModel->getByRole('mechanic');
+        $mechanics = $userModel->getMechanicsWithAvailability();
 
         $invoiceModel = new InvoiceModel();
         $invoice = $invoiceModel->where('job_card_id', $id)->first();
@@ -345,6 +351,18 @@ class JobsController extends BaseController
             return $this->respond(['status' => 'error', 'message' => 'Job not found'], 404);
         }
 
+        // Hard block: if already assigned to a different mechanic, require explicit unassign first
+        if (!empty($job['assigned_mechanic_id']) && (int) $job['assigned_mechanic_id'] !== (int) $mechanic_id) {
+            $currentMechModel = new UserModel();
+            $currentMech = $currentMechModel->find($job['assigned_mechanic_id']);
+            $currentMechName = $currentMech ? ($currentMech['first_name'] . ' ' . $currentMech['last_name']) : 'Unknown';
+            return $this->respond([
+                'status' => 'error',
+                'message' => "This job is already assigned to {$currentMechName}. Unassign them first before reassigning.",
+                'code' => 'assigned_to_another'
+            ], 409);
+        }
+
         $updateData = ['assigned_mechanic_id' => (int)$mechanic_id];
 
         // If job is Awaiting Assignment, move to Awaiting Diagnosis
@@ -366,7 +384,69 @@ class JobsController extends BaseController
             ]);
         }
 
+        // Notify mechanic on new assignment (skip if reassigned to same person)
+        if ((int) $mechanic_id !== (int) ($job['assigned_mechanic_id'] ?? 0)) {
+            $notificationModel = new \App\Models\NotificationModel();
+            $notificationModel->notify(
+                (int) $mechanic_id,
+                'job_assigned',
+                'New Job Assigned',
+                "You've been assigned to job {$job['job_no']}",
+                'job_card',
+                (int) $id
+            );
+        }
+
         return $this->respond(['status' => 'success', 'message' => 'Mechanic assigned successfully']);
+    }
+
+    public function unassign_mechanic($id)
+    {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'admin') {
+            return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        $jobCardModel = new JobCardModel();
+        $job = $jobCardModel->find($id);
+
+        if (!$job) {
+            return $this->respond(['status' => 'error', 'message' => 'Job not found'], 404);
+        }
+
+        if (empty($job['assigned_mechanic_id'])) {
+            return $this->respond(['status' => 'error', 'message' => 'No mechanic is currently assigned to this job.'], 400);
+        }
+
+        $oldMechanicId = (int) $job['assigned_mechanic_id'];
+        $jobCardModel->update($id, ['assigned_mechanic_id' => null]);
+
+        // If job was in a flowing status, move back to Awaiting Assignment
+        $autoUnassignStatuses = ['Awaiting Diagnosis'];
+        if (in_array($job['job_status'], $autoUnassignStatuses)) {
+            $jobCardModel->update($id, ['job_status' => 'Awaiting Assignment']);
+            $historyModel = new JobStatusHistoryModel();
+            $historyModel->insert([
+                'job_card_id' => $id,
+                'from_status' => $job['job_status'],
+                'to_status'   => 'Awaiting Assignment',
+                'changed_by'  => session()->get('user_id'),
+                'notes'       => 'Mechanic unassigned',
+            ]);
+        }
+
+        $notificationModel = new \App\Models\NotificationModel();
+        $notificationModel->notify(
+            $oldMechanicId,
+            'job_unassigned',
+            'Job Unassigned',
+            "You have been unassigned from job {$job['job_no']}",
+            'job_card',
+            (int) $id
+        );
+
+        log_activity('mechanic_unassigned', 'job_card', (int) $id, "Mechanic unassigned from job {$job['job_no']}");
+
+        return $this->respond(['status' => 'success', 'message' => 'Mechanic unassigned successfully']);
     }
 
     public function delete($id)
@@ -467,6 +547,19 @@ class JobsController extends BaseController
             $db->transCommit();
 
             log_activity('status_change', 'job_card', $id, "Status changed from {$currentStatus} to {$newStatus}");
+
+            // Notify the assigned mechanic if someone else changed the status
+            if (!empty($job['assigned_mechanic_id']) && (int) $job['assigned_mechanic_id'] !== (int) $userId) {
+                $notificationModel = new \App\Models\NotificationModel();
+                $notificationModel->notify(
+                    (int) $job['assigned_mechanic_id'],
+                    'status_changed',
+                    'Job Status Updated',
+                    "Job {$job['job_no']} status changed to {$newStatus}",
+                    'job_card',
+                    (int) $id
+                );
+            }
 
             $config = new JobStatus();
             $nextTransitions = $config->getValidTransitions($newStatus, $role);

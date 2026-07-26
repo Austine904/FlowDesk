@@ -15,6 +15,12 @@ class ProfileController extends BaseController
             return redirect()->to('/login')->with('error', 'User not found.');
         }
 
+        $role = session()->get('role');
+
+        if ($role === 'mechanic') {
+            return view('technician/profile', ['user' => $user]);
+        }
+
         return view('admin/profile', ['user' => $user]);
     }
 

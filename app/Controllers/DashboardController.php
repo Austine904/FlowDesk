@@ -168,12 +168,14 @@ class DashboardController extends BaseController
         $lpoModel = new LpoModel();
         $pettyCashModel = new PettyCashModel();
         $invoiceModel = new InvoiceModel();
+        $partModel = new \App\Models\JobCardPartModel();
 
         $lowStockItems = $inventoryModel->getLowStock();
         $pendingLPOs = $lpoModel->where('status', 'Sent')->countAllResults();
         $pettyCashSummary = $pettyCashModel->getSummary();
         $overdueInvoiceCount = $invoiceModel->getOverdueCount();
         $overdueInvoiceTotal = $invoiceModel->getOverdueTotal();
+        $requestedParts = $partModel->getRequestedParts();
 
         return [
             'lowStockItems'      => $lowStockItems,
@@ -181,6 +183,7 @@ class DashboardController extends BaseController
             'pettyCashBalance'   => $pettyCashSummary['current_balance'] ?? 0,
             'overdueInvoiceCount' => $overdueInvoiceCount,
             'overdueInvoiceTotal' => $overdueInvoiceTotal,
+            'requestedParts'     => $requestedParts,
         ];
     }
 
@@ -261,13 +264,22 @@ class DashboardController extends BaseController
 
         $recentJobs = array_slice($allJobs, 0, 5);
 
-        return view('mechanic_dashboard', [
+        $busyStatuses = ['Awaiting Diagnosis', 'In Progress', 'Quality Check'];
+        $activeJobCount = $jobCardModel
+            ->whereIn('job_status', $busyStatuses)
+            ->where('assigned_mechanic_id', session()->get('user_id'))
+            ->countAllResults();
+        $isAvailable = $activeJobCount === 0;
+
+        return view('technician/dashboard', [
             'name' => session()->get('user_name'),
             'totalJobs' => $totalJobs,
             'awaitingDiagnosis' => $awaitingDiagnosis,
             'inProgress' => $inProgress,
             'completed' => $completed,
             'recentJobs' => $recentJobs,
+            'activeJobCount' => $activeJobCount,
+            'isAvailable' => $isAvailable,
         ]);
     }
 

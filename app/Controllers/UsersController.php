@@ -648,16 +648,32 @@ class UsersController extends BaseController
         $data = $builder->limit($length, $start)->get()->getResultArray();
 
         // Format response
+        $busyStatuses = ['Awaiting Diagnosis', 'In Progress', 'Quality Check'];
         $users = [];
         foreach ($data as $user) {
+            $availability_label = null;
+            $active_jobs = [];
+            if ($user['role'] === 'mechanic') {
+                $activeJobsQuery = $db->table('job_cards')
+                    ->select('job_no')
+                    ->where('assigned_mechanic_id', $user['id'])
+                    ->whereIn('job_status', $busyStatuses)
+                    ->get()
+                    ->getResultArray();
+                $activeCount = count($activeJobsQuery);
+                $active_jobs = array_column($activeJobsQuery, 'job_no');
+                $availability_label = $activeCount === 0 ? 'Available' : 'Busy — ' . $activeCount . ' active job' . ($activeCount > 1 ? 's' : '');
+            }
             $users[] = [
-                'id'              => (int) $user['id'],
-                'name'            => ($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''),
-                'phone'           => $user['phone_number'] ?? '',
-                'role'            => $user['role'] ?? '',
-                'company_id'      => $user['company_id'] ?? '',
-                'profile_picture' => $user['profile_picture'] ?? '',
-                'deleted_at'      => $user['deleted_at'] ?? null,
+                'id'                 => (int) $user['id'],
+                'name'               => ($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''),
+                'phone'              => $user['phone_number'] ?? '',
+                'role'               => $user['role'] ?? '',
+                'company_id'         => $user['company_id'] ?? '',
+                'profile_picture'    => $user['profile_picture'] ?? '',
+                'deleted_at'         => $user['deleted_at'] ?? null,
+                'availability_label' => $availability_label,
+                'active_jobs'        => $active_jobs,
             ];
         }
 

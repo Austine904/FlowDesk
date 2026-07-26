@@ -106,6 +106,7 @@ $routes->group('admin', ['filter' => 'auth:admin'], function ($routes) {
     $routes->post('jobs/delete/(:num)', 'JobsController::delete/$1');
     // $routes->post('jobs/bulk_action', 'JobsController::bulk_action'); // REMOVED: method does not exist
     $routes->post('jobs/assign_mechanic/(:num)', 'JobsController::assign_mechanic/$1');
+    $routes->post('jobs/unassign_mechanic/(:num)', 'JobsController::unassign_mechanic/$1');
     $routes->post('jobs/update_status/(:num)', 'JobsController::update_status/$1');
     $routes->get('jobs/status_history/(:num)', 'JobsController::status_history/$1');
     // $routes->get('job/job_intake_form', 'JobIntake::index');
@@ -252,6 +253,16 @@ $routes->group('mechanic', ['filter' => 'auth:mechanic'], function ($routes) {
     $routes->get('search_parts', 'JobIntake::search_parts');
     $routes->post('jobs/update_status/(:num)', 'JobsController::update_status/$1');
     $routes->get('inventory/search', 'InventoryController::search');
+    $routes->post('jobs/(:num)/photos', 'JobIntake::upload_photo/$1');
+    $routes->post('jobs/(:num)/time/start', 'JobIntake::clock_in/$1');
+    $routes->post('time/(:num)/stop', 'JobIntake::clock_out/$1');
+    $routes->get('jobs/(:num)/time', 'JobIntake::get_time_logs/$1');
+    $routes->post('jobs/(:num)/request_part', 'JobIntake::request_part/$1');
+    $routes->get('history', 'JobIntake::mechanic_history');
+    $routes->get('notifications', 'JobIntake::mechanic_notifications');
+    $routes->get('notifications/unread_count', 'JobIntake::notifications_unread_count');
+    $routes->post('notifications/(:num)/read', 'JobIntake::notifications_mark_read/$1');
+    $routes->post('notifications/mark_all_read', 'JobIntake::notifications_mark_all_read');
 });
 
 // Customer-only

@@ -377,7 +377,18 @@ $tooltipJobBreakdown = !empty($tooltipParts) ? implode(', ', $tooltipParts) : 'N
                     </div>
                 </div>
                 <?php endif; ?>
-                <?php if (empty($lowStockItems) && ($pendingLPOs ?? 0) === 0 && ($overdueInvoiceCount ?? 0) === 0 && ($pendingSupplierPaymentsCount ?? 0) === 0): ?>
+                <?php if (!empty($requestedParts ?? [])): ?>
+                <div class="flex items-start gap-3 p-3 bg-amber-50 rounded-lg">
+                    <svg class="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <div>
+                        <p class="text-xs font-medium text-amber-800"><?= count($requestedParts) ?> part request<?= count($requestedParts) > 1 ? 's' : '' ?> pending review</p>
+                        <a href="<?= base_url('admin/inventory') ?>" class="text-xs text-amber-600 hover:underline">Review in inventory →</a>
+                    </div>
+                </div>
+                <?php endif; ?>
+                <?php if (empty($lowStockItems) && ($pendingLPOs ?? 0) === 0 && ($overdueInvoiceCount ?? 0) === 0 && ($pendingSupplierPaymentsCount ?? 0) === 0 && empty($requestedParts ?? [])): ?>
                 <p class="text-xs text-gray-400 text-center py-2">No alerts at this time</p>
                 <?php endif; ?>
             </div>

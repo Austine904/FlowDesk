@@ -57,6 +57,17 @@ class JobCardModel extends Model
             ->findAll();
     }
 
+    public function getCompletedForMechanic(int $mechanic_id): array
+    {
+        return $this->select('job_cards.*, customers.name AS customer_name, vehicles.registration_number')
+            ->join('customers', 'customers.id = job_cards.customer_id', 'left')
+            ->join('vehicles', 'vehicles.id = job_cards.vehicle_id', 'left')
+            ->where('job_cards.assigned_mechanic_id', $mechanic_id)
+            ->where('job_cards.job_status', 'Completed')
+            ->orderBy('job_cards.completed_at', 'DESC')
+            ->findAll();
+    }
+
     public function getAssignedToMechanic(int $mechanic_id): array
     {
         return $this->select('job_cards.*, customers.name AS customer_name, vehicles.registration_number')

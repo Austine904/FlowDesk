@@ -17,10 +17,23 @@ class JobCardPhotoModel extends Model
         'job_card_id',
         'file_path',
         'file_name',
+        'uploaded_by',
+        'photo_type',
+        'caption',
+        'created_at',
     ];
 
     public function getByJobCard(int $job_card_id): array
     {
         return $this->where('job_card_id', $job_card_id)->findAll();
+    }
+
+    public function getByJobCardAndType(int $jobCardId, ?string $type = null): array
+    {
+        $this->where('job_card_id', $jobCardId);
+        if ($type !== null) {
+            $this->where('photo_type', $type);
+        }
+        return $this->findAll();
     }
 }

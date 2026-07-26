@@ -148,16 +148,42 @@
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <label for="assigned_mechanic_id" class="block text-sm font-medium text-gray-700 mb-1">Assigned Mechanic <span class="text-gray-400 font-normal">(optional)</span></label>
-                    <select class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" id="assigned_mechanic_id" name="assigned_mechanic_id">
-                        <option value="">Unassigned</option>
-                        <?php if (!empty($mechanics)): ?>
-                            <?php foreach ($mechanics as $mechanic): ?>
-                                <option value="<?= esc($mechanic['id']) ?>"><?= esc($mechanic['first_name'] . ' ' . $mechanic['last_name']) ?></option>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
+                <!-- Mechanic Assignment -->
+                <div class="space-y-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Assign Mechanic <span class="text-gray-400 font-normal">(optional)</span>
+                    </label>
+                    
+                    <!-- Toggle for showing busy mechanics -->
+                    <div class="flex items-center gap-2 mb-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="showBusyMechanics" class="w-4 h-4 rounded border-gray-300 text-indigo-600">
+                            <span class="text-xs text-gray-500">Show busy mechanics</span>
+                        </label>
+                    </div>
+                    
+                    <select name="assigned_mechanic_id" id="mechanicSelect"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white">
+                        <option value="">-- No mechanic assigned --</option>
+                        <?php foreach ($mechanics as $mechanic): ?>
+                        <option value="<?= $mechanic['id'] ?>"
+                                data-available="<?= $mechanic['is_available'] ? '1' : '0' ?>"
+                                data-label="<?= esc($mechanic['availability_label']) ?>"
+                                data-jobs="<?= esc(implode(', ', $mechanic['active_jobs'])) ?>"
+                                <?= !$mechanic['is_available'] ? 'class="busy-mechanic hidden"' : '' ?>>
+                            <?= esc($mechanic['first_name'] . ' ' . $mechanic['last_name']) ?>
+                            <?= !$mechanic['is_available'] ? ' ⚠ ' . esc($mechanic['availability_label']) : '' ?>
+                        </option>
+                        <?php endforeach; ?>
                     </select>
+                    
+                    <!-- Availability warning (shown when busy mechanic selected) -->
+                    <div id="mechanicWarning" class="hidden mt-1 flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
+                        <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        <span id="mechanicWarningText" class="text-xs text-amber-700"></span>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -216,6 +242,35 @@ document.addEventListener('DOMContentLoaded', function () {
 
     newCustomerFields.querySelectorAll('input, textarea').forEach(el => el.disabled = true);
     newVehicleFields.querySelectorAll('input, select').forEach(el => el.disabled = true);
+
+    // Mechanic availability toggle
+    document.getElementById('showBusyMechanics')?.addEventListener('change', function() {
+        const busyOptions = document.querySelectorAll('.busy-mechanic');
+        busyOptions.forEach(opt => {
+            opt.classList.toggle('hidden', !this.checked);
+        });
+        const select = document.getElementById('mechanicSelect');
+        const selectedOpt = select.options[select.selectedIndex];
+        if (selectedOpt && selectedOpt.dataset.available === '0' && !this.checked) {
+            select.value = '';
+            document.getElementById('mechanicWarning').classList.add('hidden');
+        }
+    });
+
+    // Show warning when busy mechanic selected
+    document.getElementById('mechanicSelect')?.addEventListener('change', function() {
+        const selectedOpt = this.options[this.selectedIndex];
+        const warning = document.getElementById('mechanicWarning');
+        const warningText = document.getElementById('mechanicWarningText');
+        
+        if (selectedOpt && selectedOpt.dataset.available === '0') {
+            const jobs = selectedOpt.dataset.jobs;
+            warningText.textContent = 'This mechanic is busy with: ' + jobs + '. You can still assign them.';
+            warning.classList.remove('hidden');
+        } else {
+            warning.classList.add('hidden');
+        }
+    });
 });
 </script>
 <?= $this->endSection() ?>

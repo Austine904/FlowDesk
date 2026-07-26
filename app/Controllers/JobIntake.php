@@ -12,6 +12,8 @@ use App\Models\JobCardLaborModel;
 use App\Models\InventoryModel;
 use App\Models\UserModel;
 use App\Models\JobStatusHistoryModel;
+use App\Models\JobTimeLogModel;
+use App\Models\NotificationModel;
 use CodeIgniter\API\ResponseTrait;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -38,7 +40,7 @@ class JobIntake extends BaseController
     {
         $userModel = new \App\Models\UserModel();
         $serviceAdvisors = $userModel->whereIn('role', ['admin', 'receptionist'])->findAll();
-        $mechanics = $userModel->where('role', 'mechanic')->findAll();
+        $mechanics = $userModel->getMechanicsWithAvailability();
         return view('job_intake_form', [
             'service_advisors' => $serviceAdvisors,
             'mechanics' => $mechanics,
@@ -331,7 +333,7 @@ class JobIntake extends BaseController
         $data['jobs'] = $jobCardModel->getAssignedToMechanic($mechanic_id);
         $data['name'] = $this->session->get('user_name');
 
-        return view('mechanic/jobs', $data);
+        return view('technician/jobs', $data);
     }
 
     public function mechanic_view($job_id)
@@ -352,17 +354,49 @@ class JobIntake extends BaseController
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Job not found.');
         }
 
+        if ($data['job']['assigned_mechanic_id'] != session()->get('user_id')) {
+            return redirect()->to(base_url('mechanic/jobs'))
+                ->with('error', 'You are not assigned to this job.');
+        }
+
         $data['customer'] = $customerModel->find($data['job']['customer_id']);
         $data['vehicle'] = $vehicleModel->find($data['job']['vehicle_id']);
 
-        $data['job_parts'] = $jobCardPartModel->getByJobCard($job_id);
+        $oldParts = session()->getFlashdata('old_parts');
+        if (is_array($oldParts)) {
+            $inventoryModel = new InventoryModel();
+            $normalized = [];
+            foreach ($oldParts as $part) {
+                $part['unit_price_at_estimate'] = (float)($part['unit_price'] ?? 0.00);
+                unset($part['unit_price']);
+                $invId = (int)($part['inventory_id'] ?? 0);
+                if ($invId > 0) {
+                    $invItem = $inventoryModel->find($invId);
+                    if ($invItem) {
+                        $part['name'] = $invItem['name'];
+                        $part['part_number'] = $invItem['part_number'];
+                    }
+                }
+                if (!isset($part['name'])) {
+                    $part['name'] = '';
+                }
+                if (!isset($part['part_number'])) {
+                    $part['part_number'] = '';
+                }
+                $normalized[] = $part;
+            }
+            $data['job_parts'] = $normalized;
+        } else {
+            $data['job_parts'] = $jobCardPartModel->getByJobCard($job_id);
+        }
 
-        $data['job_tasks'] = $jobCardLaborModel->getByJobCard($job_id);
+        $oldTasks = session()->getFlashdata('old_tasks');
+        $data['job_tasks'] = is_array($oldTasks) ? $oldTasks : $jobCardLaborModel->getByJobCard($job_id);
 
         $config = new \Config\JobStatus();
         $data['valid_transitions'] = $config->getValidTransitions($data['job']['job_status'], 'mechanic');
 
-        return view('mechanic_diagnosis_form', $data);
+        return view('technician/job_detail', $data);
     }
 
     public function search_parts()
@@ -385,39 +419,76 @@ class JobIntake extends BaseController
     public function save_diagnosis()
     {
         if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'mechanic') {
-            return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
+            return redirect()->to('/login');
         }
 
         $job_id = $this->request->getVar('job_id', FILTER_SANITIZE_NUMBER_INT);
+        $redirectUrl = base_url('mechanic/jobs/' . $job_id);
 
         $rules = [
             'diagnosis' => 'required|min_length[10]',
-            'estimated_labor_hours' => 'numeric|greater_than_equal_to[0]',
-            'parts' => 'permit_empty|array',
-            'tasks' => 'permit_empty|array',
         ];
 
-        $this->validation->setRules($rules);
+        $messages = [
+            'diagnosis' => [
+                'required' => 'Please provide a diagnosis description.',
+                'min_length' => 'Diagnosis must be at least 10 characters.',
+            ],
+        ];
 
-        if (!$this->validation->withRequest($this->request)->run()) {
-            return $this->fail(['message' => 'Validation failed', 'errors' => $this->validation->getErrors()], 400);
+        if (!$this->validate($rules, $messages)) {
+            session()->setFlashdata('old_parts', $this->request->getPost('parts'));
+            session()->setFlashdata('old_tasks', $this->request->getPost('tasks'));
+            session()->setFlashdata('old_diagnosis_category', $this->request->getPost('diagnosis_category'));
+            return redirect()->to($redirectUrl)->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        // Validate parts: each row must have a valid inventory_id
+        $parts = $this->request->getPost('parts');
+        if ($parts && is_array($parts)) {
+            $partErrors = [];
+            $idx = 0;
+            foreach ($parts as $part) {
+                $idx++;
+                if (empty($part['inventory_id']) || (int)$part['inventory_id'] <= 0) {
+                    $partErrors[] = "Part row {$idx}: Select a valid part from the search results.";
+                }
+            }
+            if (!empty($partErrors)) {
+                session()->setFlashdata('old_parts', $this->request->getPost('parts'));
+                session()->setFlashdata('old_tasks', $this->request->getPost('tasks'));
+                session()->setFlashdata('old_diagnosis_category', $this->request->getPost('diagnosis_category'));
+                return redirect()->to($redirectUrl)->withInput()->with('errors', $partErrors);
+            }
+        }
+
+        $jobCardModel = new JobCardModel();
+        $job = $jobCardModel->find($job_id);
+        if (!$job || $job['assigned_mechanic_id'] != session()->get('user_id')) {
+            return redirect()->to($redirectUrl)->with('error', 'You are not authorized to submit diagnosis for this job.');
         }
 
         $this->db->transStart();
 
         try {
-            $jobCardModel = new JobCardModel();
             $jobCardPartModel = new JobCardPartModel();
             $jobCardLaborModel = new JobCardLaborModel();
-
-            $job = $jobCardModel->find($job_id);
             $fromStatus = $job ? $job['job_status'] : 'Awaiting Diagnosis';
 
             $diagnosisCategory = $this->request->getVar('diagnosis_category');
+
+            $totalHours = 0;
+            $tasks = $this->request->getVar('tasks');
+            if ($tasks && is_array($tasks)) {
+                foreach ($tasks as $task) {
+                    $totalHours += (float)($task['estimated_hours'] ?? 0);
+                }
+            }
+
             $update_data = [
                 'diagnosis' => $this->request->getVar('diagnosis', FILTER_SANITIZE_SPECIAL_CHARS),
                 'diagnosis_category' => !empty($diagnosisCategory) ? $diagnosisCategory : null,
-                'estimated_labor_hours' => filter_var($this->request->getVar('estimated_labor_hours'), FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION),
+                'estimated_labor_hours' => $totalHours,
                 'job_status' => 'Diagnosis Complete'
             ];
             $jobCardModel->update($job_id, $update_data);
@@ -480,11 +551,324 @@ class JobIntake extends BaseController
                 throw new Exception('Transaction failed, diagnosis not saved.');
             } else {
                 log_activity('diagnosis_saved', 'job_card', (int)$job_id, "Diagnosis saved for job card ID {$job_id}");
-                return $this->respond(['status' => 'success', 'message' => 'Diagnosis and estimate saved successfully!']);
+                return redirect()->to($redirectUrl)->with('success', 'Diagnosis and estimate saved successfully!');
             }
         } catch (Exception $e) {
             $this->db->transRollback();
-            return $this->fail(['message' => $e->getMessage()], 500);
+            return redirect()->to($redirectUrl)->with('error', 'Failed to save diagnosis: ' . $e->getMessage());
         }
+    }
+
+    public function request_part($jobCardId)
+    {
+        if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'mechanic') {
+            return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        $jobCardModel = new JobCardModel();
+        $job = $jobCardModel->find($jobCardId);
+        if (!$job || $job['assigned_mechanic_id'] != session()->get('user_id')) {
+            return $this->response->setStatusCode(403)->setJSON([
+                'status' => 'error',
+                'message' => 'You are not assigned to this job.'
+            ]);
+        }
+
+        $inventoryId = (int) $this->request->getPost('inventory_id');
+        $note = $this->request->getPost('note');
+
+        if (!$inventoryId) {
+            return $this->respond(['status' => 'error', 'message' => 'Inventory ID is required'], 400);
+        }
+
+        $partModel = new JobCardPartModel();
+
+        $existingPart = $partModel->where('job_card_id', $jobCardId)
+            ->where('inventory_id', $inventoryId)
+            ->where('status', 'Pending')
+            ->first();
+
+        if ($existingPart) {
+            return $this->respond(['status' => 'error', 'message' => 'This part is already requested for this job.'], 409);
+        }
+
+        $partId = $partModel->insert([
+            'job_card_id'          => (int) $jobCardId,
+            'inventory_id'         => $inventoryId,
+            'quantity_required'    => 1,
+            'unit_price_at_estimate' => 0.00,
+            'status'               => 'Pending',
+            'requested_at'         => date('Y-m-d H:i:s'),
+            'requested_note'       => $note ?: null,
+            'requested_by'         => session()->get('user_id'),
+        ]);
+
+        $inventoryModel = new InventoryModel();
+        $invItem = $inventoryModel->find($inventoryId);
+
+        $notificationModel = new NotificationModel();
+        $userModel = new UserModel();
+        $adminUsers = $userModel->whereIn('role', ['admin'])->findAll();
+        foreach ($adminUsers as $admin) {
+            $notificationModel->notify(
+                (int) $admin['id'],
+                'part_requested',
+                'Part Requested',
+                "Part \"{$invItem['name']}\" requested for job {$job['job_no']}" . ($note ? ": {$note}" : ''),
+                'job_card',
+                (int) $jobCardId
+            );
+        }
+
+        log_activity('part_requested', 'job_card', (int) $jobCardId, "Part \"{$invItem['name']}\" requested for job {$job['job_no']}");
+
+        return $this->respond([
+            'status'  => 'success',
+            'message' => 'Part request submitted. Admin will be notified.',
+            'part_id' => $partId,
+        ]);
+    }
+
+    public function mechanic_history()
+    {
+        if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'mechanic') {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Unauthorized');
+        }
+
+        $mechanic_id = $this->session->get('user_id');
+        $jobCardModel = new JobCardModel();
+        $data['completed_jobs'] = $jobCardModel->getCompletedForMechanic($mechanic_id);
+
+        return view('technician/history', $data);
+    }
+
+    public function mechanic_notifications()
+    {
+        if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'mechanic') {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Unauthorized');
+        }
+
+        $notificationModel = new NotificationModel();
+        $data['notifications'] = $notificationModel->getForUser($this->session->get('user_id'));
+
+        return view('technician/notifications', $data);
+    }
+
+    public function notifications_unread_count()
+    {
+        if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'mechanic') {
+            return $this->respond(['count' => 0]);
+        }
+
+        $notificationModel = new NotificationModel();
+        $count = $notificationModel->getUnreadCount($this->session->get('user_id'));
+
+        return $this->respond(['count' => $count]);
+    }
+
+    public function notifications_mark_read($id)
+    {
+        if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'mechanic') {
+            return $this->response->setStatusCode(401)->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
+        }
+
+        $notificationModel = new NotificationModel();
+        $notification = $notificationModel->find($id);
+
+        if (!$notification) {
+            return $this->response->setStatusCode(404)->setJSON(['status' => 'error', 'message' => 'Notification not found']);
+        }
+
+        if ((int) $notification['user_id'] !== (int) $this->session->get('user_id')) {
+            return $this->response->setStatusCode(403)->setJSON(['status' => 'error', 'message' => 'Forbidden']);
+        }
+
+        $notificationModel->markRead($id);
+
+        return $this->respond(['status' => 'success', 'message' => 'Marked as read']);
+    }
+
+    public function notifications_mark_all_read()
+    {
+        if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'mechanic') {
+            return $this->response->setStatusCode(401)->setJSON(['status' => 'error', 'message' => 'Unauthorized']);
+        }
+
+        $notificationModel = new NotificationModel();
+        $notificationModel->markAllRead($this->session->get('user_id'));
+
+        return $this->respond(['status' => 'success', 'message' => 'All notifications marked as read']);
+    }
+
+    public function upload_photo($jobCardId)
+    {
+        if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'mechanic') {
+            return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        $jobCardModel = new JobCardModel();
+        $job = $jobCardModel->find($jobCardId);
+        if (!$job || $job['assigned_mechanic_id'] != session()->get('user_id')) {
+            return $this->response->setStatusCode(403)->setJSON([
+                'status' => 'error',
+                'message' => 'You are not assigned to this job.'
+            ]);
+        }
+
+        $photoType = $this->request->getPost('photo_type');
+        if (!in_array($photoType, ['Progress', 'Completion'])) {
+            return $this->response->setStatusCode(400)->setJSON([
+                'status' => 'error',
+                'message' => 'Photo type must be Progress or Completion.'
+            ]);
+        }
+
+        $files = $this->request->getFiles();
+        if (!isset($files['photo']) || !$files['photo']->isValid()) {
+            return $this->response->setStatusCode(400)->setJSON([
+                'status' => 'error',
+                'message' => 'No valid photo file provided.'
+            ]);
+        }
+
+        $file = $files['photo'];
+        $allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        $allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+        $ext = strtolower($file->getExtension());
+        $mime = $file->getMimeType();
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $actualMime = $finfo->file($file->getTempName());
+
+        if (!in_array($ext, $allowedExts) || !in_array($mime, $allowedMimes) || !in_array($actualMime, $allowedMimes)) {
+            return $this->response->setStatusCode(400)->setJSON([
+                'status' => 'error',
+                'message' => 'Invalid file type. Allowed: jpg, jpeg, png, webp, gif.'
+            ]);
+        }
+
+        $newName = $file->getRandomName();
+        $uploadPath = ROOTPATH . 'public/uploads/job_card_photos/';
+        $file->move($uploadPath, $newName);
+
+        $jobCardPhotoModel = new JobCardPhotoModel();
+        $photoId = $jobCardPhotoModel->insert([
+            'job_card_id' => (int) $jobCardId,
+            'file_path'   => 'uploads/job_card_photos/' . $newName,
+            'file_name'   => $file->getClientName(),
+            'uploaded_by' => session()->get('user_id'),
+            'photo_type'  => $photoType,
+            'caption'     => $this->request->getPost('caption'),
+        ]);
+
+        return $this->respond([
+            'status'    => 'success',
+            'message'   => 'Photo uploaded successfully.',
+            'photo'     => [
+                'id'         => $photoId,
+                'file_path'  => 'uploads/job_card_photos/' . $newName,
+                'photo_type' => $photoType,
+                'caption'    => $this->request->getPost('caption'),
+            ],
+        ]);
+    }
+
+    public function clock_in($jobCardId)
+    {
+        if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'mechanic') {
+            return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        $jobCardModel = new JobCardModel();
+        $job = $jobCardModel->find($jobCardId);
+        if (!$job || $job['assigned_mechanic_id'] != session()->get('user_id')) {
+            return $this->response->setStatusCode(403)->setJSON([
+                'status' => 'error',
+                'message' => 'You are not assigned to this job.'
+            ]);
+        }
+
+        $timeLogModel = new JobTimeLogModel();
+        $existing = $timeLogModel->getOpenLogForMechanic((int) $jobCardId, session()->get('user_id'));
+        if ($existing) {
+            return $this->response->setStatusCode(409)->setJSON([
+                'status' => 'error',
+                'message' => 'Already clocked in.',
+                'log_id' => (int) $existing['id'],
+            ]);
+        }
+
+        $logId = $timeLogModel->clockIn((int) $jobCardId, session()->get('user_id'));
+
+        return $this->respond([
+            'status'     => 'success',
+            'message'    => 'Clocked in successfully.',
+            'log_id'     => $logId,
+            'clock_in'   => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    public function clock_out($logId)
+    {
+        if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'mechanic') {
+            return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        $timeLogModel = new JobTimeLogModel();
+        $log = $timeLogModel->find($logId);
+        if (!$log) {
+            return $this->response->setStatusCode(404)->setJSON([
+                'status' => 'error',
+                'message' => 'Time log not found.'
+            ]);
+        }
+
+        $jobCardModel = new JobCardModel();
+        $job = $jobCardModel->find($log['job_card_id']);
+        if (!$job || $job['assigned_mechanic_id'] != session()->get('user_id')) {
+            return $this->response->setStatusCode(403)->setJSON([
+                'status' => 'error',
+                'message' => 'You are not assigned to this job.'
+            ]);
+        }
+
+        $result = $timeLogModel->clockOut((int) $logId);
+        if (!$result) {
+            return $this->response->setStatusCode(400)->setJSON([
+                'status' => 'error',
+                'message' => 'Already clocked out or log not found.'
+            ]);
+        }
+
+        $updated = $timeLogModel->find($logId);
+
+        return $this->respond([
+            'status'           => 'success',
+            'message'          => 'Clocked out successfully.',
+            'duration_minutes' => (int) ($updated['duration_minutes'] ?? 0),
+        ]);
+    }
+
+    public function get_time_logs($jobCardId)
+    {
+        if (!$this->session->get('isLoggedIn') || $this->session->get('role') !== 'mechanic') {
+            return $this->respond(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        $jobCardModel = new JobCardModel();
+        $job = $jobCardModel->find($jobCardId);
+        if (!$job || $job['assigned_mechanic_id'] != session()->get('user_id')) {
+            return $this->response->setStatusCode(403)->setJSON([
+                'status' => 'error',
+                'message' => 'You are not assigned to this job.'
+            ]);
+        }
+
+        $timeLogModel = new JobTimeLogModel();
+        $logs = $timeLogModel->getLogsForJobCard((int) $jobCardId);
+
+        return $this->respond([
+            'status' => 'success',
+            'logs'   => $logs,
+        ]);
     }
 }

@@ -52,4 +52,38 @@ class UserModel extends Model
 
         return $result ? (int) $result['num'] : 0;
     }
+
+    public function getMechanicsWithAvailability(): array
+    {
+        $db = \Config\Database::connect();
+
+        $mechanics = $this->where('role', 'mechanic')
+                          ->where('deleted_at', null)
+                          ->findAll();
+
+        $busyStatuses = ['Awaiting Diagnosis', 'In Progress', 'Quality Check'];
+
+        foreach ($mechanics as &$mechanic) {
+            $activeJobs = $db->table('job_cards')
+                ->select('id, job_no, job_status')
+                ->where('assigned_mechanic_id', $mechanic['id'])
+                ->whereIn('job_status', $busyStatuses)
+                ->get()
+                ->getResultArray();
+
+            $mechanic['active_job_count'] = count($activeJobs);
+            $mechanic['is_available'] = count($activeJobs) === 0;
+            $mechanic['active_jobs'] = array_column($activeJobs, 'job_no');
+            $mechanic['availability_label'] = count($activeJobs) === 0
+                ? 'Available'
+                : 'Busy — ' . count($activeJobs) . ' active job' . (count($activeJobs) > 1 ? 's' : '');
+        }
+        unset($mechanic);
+
+        usort($mechanics, function($a, $b) {
+            return $b['is_available'] <=> $a['is_available'];
+        });
+
+        return $mechanics;
+    }
 }

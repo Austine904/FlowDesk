@@ -544,13 +544,45 @@
             </button>
         </div>
         <div class="p-6">
-            <p class="text-sm text-gray-500 mb-4">Assign a mechanic to job <span id="assignMechanicJobNo" class="font-medium text-gray-900"></span></p>
+            <p class="text-sm text-gray-500 mb-2">Assign a mechanic to job <span id="assignMechanicJobNo" class="font-medium text-gray-900"></span></p>
+
+            <!-- Current mechanic / unassign section -->
+            <div id="unassignMechanicSection" class="hidden mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                    <span class="text-xs text-blue-800">Currently assigned to <strong id="currentMechanicLabel"></strong></span>
+                </div>
+                <button type="button" id="unassignMechanicBtn" data-job-id=""
+                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-colors">
+                    Unassign
+                </button>
+            </div>
+
             <input type="hidden" id="assignMechanicJobId">
             <div class="mb-4">
                 <label for="assignMechanicSelect" class="block text-sm font-medium text-gray-700 mb-1">Select Mechanic</label>
+                
+                <!-- Toggle for showing busy mechanics -->
+                <div class="flex items-center gap-2 mb-2">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="dispatchShowBusy" class="w-4 h-4 rounded border-gray-300 text-indigo-600">
+                        <span class="text-xs text-gray-500">Show busy mechanics</span>
+                    </label>
+                </div>
+                
                 <select id="assignMechanicSelect" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                     <option value="">Loading mechanics...</option>
                 </select>
+                
+                <!-- Availability warning (shown when busy mechanic selected) -->
+                <div id="dispatchMechanicWarning" class="hidden mt-1 flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
+                    <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                    <span id="dispatchMechanicWarningText" class="text-xs text-amber-700"></span>
+                </div>
             </div>
             <div class="flex justify-end gap-3">
                 <button type="button" onclick="closeModal('assignMechanicModal')" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg px-4 py-2 text-sm font-medium transition-colors">Cancel</button>
@@ -893,5 +925,31 @@ $(document).ready(function () {
         }
     });
 
+});
+
+// Dispatch mechanic availability toggle
+document.getElementById('dispatchShowBusy')?.addEventListener('change', function() {
+    var opts = document.querySelectorAll('.dispatch-busy-mechanic');
+    opts.forEach(function(o) { o.classList.toggle('hidden', !this.checked); }.bind(this));
+    var sel = document.getElementById('assignMechanicSelect');
+    var selected = sel.options[sel.selectedIndex];
+    if (selected && selected.dataset.available === '0' && !this.checked) {
+        sel.value = '';
+        document.getElementById('dispatchMechanicWarning').classList.add('hidden');
+    }
+});
+
+// Show warning when busy mechanic selected in dispatch
+document.getElementById('assignMechanicSelect')?.addEventListener('change', function() {
+    var selected = this.options[this.selectedIndex];
+    var warn = document.getElementById('dispatchMechanicWarning');
+    var warnText = document.getElementById('dispatchMechanicWarningText');
+    if (selected && selected.dataset.available === '0') {
+        var jobs = selected.dataset.jobs;
+        warnText.textContent = 'This mechanic is busy with: ' + (jobs || 'active jobs') + '. You can still assign them.';
+        warn.classList.remove('hidden');
+    } else {
+        warn.classList.add('hidden');
+    }
 });
 </script>

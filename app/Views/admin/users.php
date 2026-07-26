@@ -169,14 +169,19 @@ $(document).ready(function() {
         customer: '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-gray-700">Customer</span>'
     };
 
-    var nameWithAvatar = function(name, pic, deleted) {
+    var nameWithAvatar = function(name, pic, deleted, role, availability) {
         var initials = name ? name.split(' ').map(function(w) { return w.charAt(0); }).join('').slice(0, 2).toUpperCase() : '?';
         var imgSrc = pic ? BASE_URL + '/' + pic : '';
         var avatar = imgSrc
             ? '<img src="' + imgSrc + '" alt="" class="w-8 h-8 rounded-full object-cover">'
             : '<div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-semibold text-indigo-600">' + initials + '</div>';
         var nameClass = deleted ? 'line-through text-red-500' : 'font-medium text-gray-900';
-        return '<div class="flex items-center gap-3">' + avatar + '<span class="' + nameClass + '">' + (name || '') + '</span></div>';
+        var badge = '';
+        if (role === 'mechanic' && availability) {
+            var isAvail = availability === 'Available';
+            badge = '<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ' + (isAvail ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700') + '"><span class="w-1.5 h-1.5 rounded-full ' + (isAvail ? 'bg-emerald-500' : 'bg-amber-500') + ' mr-1"></span>' + availability + '</span>';
+        }
+        return '<div class="flex items-center gap-3">' + avatar + '<div><span class="' + nameClass + '">' + (name || '') + '</span>' + badge + '</div></div>';
     };
 
     window.userTable = FlowDesk.serverSideTable('#userTable', {
@@ -191,7 +196,7 @@ $(document).ready(function() {
         columns: [
             { data: 'id', orderable: false, render: function(data) { return '<input type="checkbox" name="users[]" value="' + data + '" class="rounded border-gray-300 row-checkbox">'; } },
             { data: 'id' },
-            { data: 'name', render: function(data, type, row) { return nameWithAvatar(data, row.profile_picture, row.deleted_at); } },
+            { data: 'name', render: function(data, type, row) { return nameWithAvatar(data, row.profile_picture, row.deleted_at, row.role, row.availability_label); } },
             { data: 'phone' },
             { data: 'role', render: function(data) { return roleBadges[data] || _ucfirst(data); } },
             { data: null, orderable: false, render: function(data) {

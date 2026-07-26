@@ -69,6 +69,7 @@
                             <th class="text-gray-500 text-xs font-medium uppercase tracking-wider px-4 py-3 text-left">Job No</th>
                             <th class="text-gray-500 text-xs font-medium uppercase tracking-wider px-4 py-3 text-left">Customer</th>
                             <th class="text-gray-500 text-xs font-medium uppercase tracking-wider px-4 py-3 text-left">Vehicle</th>
+                            <th class="text-gray-500 text-xs font-medium uppercase tracking-wider px-4 py-3 text-left">Mechanic</th>
                             <th class="text-gray-500 text-xs font-medium uppercase tracking-wider px-4 py-3 text-left">Date In</th>
                             <th class="text-gray-500 text-xs font-medium uppercase tracking-wider px-4 py-3 text-left">Description</th>
                             <th class="text-gray-500 text-xs font-medium uppercase tracking-wider px-4 py-3 text-left">Status</th>
@@ -108,6 +109,9 @@
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
+<script>
+var MECHANICS_DATA = <?= json_encode($mechanics ?? []) ?>;
+</script>
 <script>
     window.viewJob = function(id) {
         var modal = document.getElementById('jobDetailsModal');
@@ -548,29 +552,48 @@
         return false;
     }
 
-    window.openAssignMechanic = function(jobId, jobNo) {
+    window.openAssignMechanic = function(jobId, jobNo, currentMechId, currentMechName) {
         document.getElementById('assignMechanicJobId').value = jobId;
         document.getElementById('assignMechanicJobNo').textContent = jobNo;
         var select = document.getElementById('assignMechanicSelect');
-        select.innerHTML = '<option value="">Loading mechanics...</option>';
+        select.innerHTML = '<option value="">-- Select Mechanic --</option>';
+        document.getElementById('dispatchMechanicWarning').classList.add('hidden');
+        document.getElementById('dispatchShowBusy').checked = false;
 
-        fetch("<?= base_url('admin/users/fetch') ?>?length=1000", {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            var users = data.data || data;
-            var html = '<option value="">Select Mechanic</option>';
-            users.forEach(function(u) {
-                if (u.role === 'mechanic') {
-                    html += '<option value="' + u.id + '">' + escHtml(u.name) + ' (' + escHtml(u.company_id) + ')</option>';
+        var unassignBtn = document.getElementById('unassignMechanicBtn');
+        var unassignSection = document.getElementById('unassignMechanicSection');
+        if (currentMechId && unassignSection) {
+            unassignSection.classList.remove('hidden');
+            unassignBtn.dataset.jobId = jobId;
+            unassignBtn.dataset.mechanicName = currentMechName || 'Unknown';
+            document.getElementById('currentMechanicLabel').textContent = currentMechName || 'Unknown';
+        } else if (unassignSection) {
+            unassignSection.classList.add('hidden');
+        }
+
+        if (MECHANICS_DATA && MECHANICS_DATA.length) {
+            MECHANICS_DATA.forEach(function(m) {
+                var isBusy = !m.is_available;
+                var label = escHtml(m.first_name + ' ' + m.last_name);
+                if (isBusy) {
+                    label += ' ⚠ ' + escHtml(m.availability_label);
                 }
+                var option = document.createElement('option');
+                option.value = m.id;
+                option.textContent = label;
+                option.dataset.available = m.is_available ? '1' : '0';
+                option.dataset.jobs = (m.active_jobs || []).join(', ');
+                if (isBusy) {
+                    option.className = 'dispatch-busy-mechanic hidden';
+                }
+                if (currentMechId && parseInt(m.id) === parseInt(currentMechId)) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
             });
-            select.innerHTML = html;
-        })
-        .catch(function() {
-            select.innerHTML = '<option value="">Failed to load mechanics</option>';
-        });
+        } else {
+            select.innerHTML = '<option value="">No mechanics available</option>';
+        }
 
         openModal('assignMechanicModal');
     }
@@ -608,6 +631,44 @@
             }
         });
     }
+
+    window.unassignMechanic = function(jobId) {
+        if (!confirm('Are you sure you want to unassign the current mechanic?')) return;
+        var token = document.querySelector('meta[name="csrf-token"]');
+        var name = document.querySelector('meta[name="csrf-name"]');
+        var data = {};
+        if (token && name) {
+            data[name.getAttribute('content')] = token.getAttribute('content');
+        }
+        $.ajax({
+            url: "<?= base_url('admin/jobs/unassign_mechanic/') ?>" + jobId,
+            method: 'POST',
+            data: data,
+            dataType: 'json',
+            success: function(res) {
+                if (res.status === 'success') {
+                    Swal.fire('Unassigned!', res.message, 'success');
+                    closeModal('assignMechanicModal');
+                    $('#JobTable').DataTable().ajax.reload(null, false);
+                } else {
+                    Swal.fire('Error', res.message || 'Failed to unassign mechanic.', 'error');
+                }
+            },
+            error: function(xhr) {
+                var res = xhr.responseJSON;
+                Swal.fire('Error', (res && res.message) || 'Failed to unassign mechanic.', 'error');
+            }
+        });
+    }
+
+    // Wire up unassign button via delegation
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('#unassignMechanicBtn');
+        if (btn) {
+            var jobId = btn.dataset.jobId;
+            if (jobId) window.unassignMechanic(jobId);
+        }
+    });
 
     window.bulkDelete = function() {
         var ids = [];
@@ -718,6 +779,13 @@
                 },
                 { "data": "registration_number" },
                 {
+                    "data": "mechanic_name",
+                    "defaultContent": '<span class="text-xs text-gray-400">Unassigned</span>',
+                    "render": function(data, type, row) {
+                        return data ? '<span class="text-sm text-gray-700">' + escHtml(data) + '</span>' : '<span class="text-xs text-gray-400">Unassigned</span>';
+                    }
+                },
+                {
                     "data": "date_in",
                     "render": function(data, type, row) {
                         if (!data) return '—';
@@ -758,7 +826,7 @@
                             '<button class="text-indigo-600 hover:text-indigo-800 p-1" title="View Details" onclick="viewJob(' + data.id + ')">' +
                                 '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>' +
                             '</button>' +
-                            '<button class="text-amber-600 hover:text-amber-800 p-1" title="Assign Mechanic" onclick="openAssignMechanic(' + data.id + ', \'' + data.job_no + '\')">' +
+                            '<button class="text-amber-600 hover:text-amber-800 p-1" title="Assign Mechanic" onclick="openAssignMechanic(' + data.id + ', \'' + data.job_no + '\', ' + (data.assigned_mechanic_id || 'null') + ', \'' + escHtml(data.mechanic_name || '') + '\')">' +
                                 '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>' +
                             '</button>' +
                             '<button class="text-red-600 hover:text-red-800 p-1" title="Delete" onclick="deleteJob(' + data.id + ')">' +
