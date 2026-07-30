@@ -48,6 +48,16 @@
 </div>
 
 <script>
+window.openModal = function(id) {
+    document.getElementById(id).classList.remove('hidden');
+    var backdrop = document.getElementById(id + '-backdrop');
+    if (backdrop) backdrop.classList.remove('hidden');
+};
+window.closeModal = function(id) {
+    document.getElementById(id).classList.add('hidden');
+    var backdrop = document.getElementById(id + '-backdrop');
+    if (backdrop) backdrop.classList.add('hidden');
+};
 $(document).ready(function() {
     var table = FlowDesk.serverSideTable('#inventoryTable', {
         ajax: {
