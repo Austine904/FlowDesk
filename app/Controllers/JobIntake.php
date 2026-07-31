@@ -289,7 +289,7 @@ class JobIntake extends BaseController
                         }
 
                         $newName = bin2hex(random_bytes(16)) . '.' . $ext;
-                        $uploadPath = ROOTPATH . 'public/uploads/job_card_photos/';
+                        $uploadPath = ROOTPATH . 'uploads/job_card_photos/';
                         if (!is_dir($uploadPath)) {
                             mkdir($uploadPath, 0777, true);
                         }
@@ -298,7 +298,8 @@ class JobIntake extends BaseController
                         $photo_data = [
                             'job_card_id' => $job_card_id,
                             'file_path' => 'uploads/job_card_photos/' . $newName,
-                            'file_name' => $file->getClientName()
+                            'file_name' => $file->getClientName(),
+                            'photo_type' => 'Intake',
                         ];
                         $jobCardPhotoModel->insert($photo_data);
                     } elseif ($file->getError() !== 4) {
@@ -747,7 +748,7 @@ class JobIntake extends BaseController
         }
 
         $newName = $file->getRandomName();
-        $uploadPath = ROOTPATH . 'public/uploads/job_card_photos/';
+        $uploadPath = ROOTPATH . 'uploads/job_card_photos/';
         $file->move($uploadPath, $newName);
 
         $jobCardPhotoModel = new JobCardPhotoModel();
